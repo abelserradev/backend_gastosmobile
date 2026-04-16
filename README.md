@@ -14,7 +14,7 @@ npx prisma migrate deploy
 
 ## Docker (Postgres + API en desarrollo)
 
-El archivo `docker-compose.yml` **no** incluye usuarios ni contraseñas por defecto. Copia la plantilla y define secretos solo en `backend/.env.docker.local` (gitignored):
+**Postgres + API en tu máquina:** usa `docker-compose.dev.yml` (no mezclar con el `docker-compose.yml` mínimo que usa Coolify). Copia la plantilla y define secretos solo en `backend/.env.docker.local` (gitignored):
 
 ```bash
 cp env.docker.local.example .env.docker.local
@@ -25,6 +25,14 @@ Desde la **raíz del repositorio**:
 ```bash
 docker compose --env-file backend/.env.docker.local up -d --build
 ```
+
+Desde **solo** la carpeta `backend/`:
+
+```bash
+docker compose --env-file .env.docker.local -f docker-compose.dev.yml up -d --build
+```
+
+**Producción / Coolify:** `docker-compose.yml` solo declara el servicio `backend` con `Dockerfile` (sin Postgres).
 
 ## Variables mínimas
 

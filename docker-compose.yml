@@ -1,53 +1,15 @@
-# Desarrollo local: Postgres + API. Sin secretos embebidos: todo en backend/.env.docker.local (gitignored).
-# Crear el archivo: cp env.docker.local.example .env.docker.local
-#
-# La interpolación ${POSTGRES_PORT} / ${BACKEND_PORT} ocurre al parsear el compose; usa:
-#   docker compose --env-file backend/.env.docker.local -f docker-compose.yml up -d --build
-# (desde la raíz del repo; este archivo se incluye desde ../docker-compose.yml)
+# Imagen API para producción / Coolify (solo backend). No incluye Postgres: la BD es externa o otro stack.
+# Variables en runtime las inyecta Coolify (DATABASE_URL, JWT_SECRET, FRONTEND_URL, etc.).
+# Desarrollo con Postgres local: usar docker-compose.dev.yml
 
-name: gastos
+name: gastos-backend
 
 services:
-  postgres:
-    image: postgres:16-alpine
-    container_name: gastos-db-local
-    restart: unless-stopped
-    env_file:
-      - path: .env.docker.local
-        required: true
-    ports:
-      - "${POSTGRES_PORT:?definir POSTGRES_PORT en .env.docker.local o pasar --env-file}:5432"
-    volumes:
-      - gastos_pgdata_local:/var/lib/postgresql/data
-    healthcheck:
-      test:
-        [
-          "CMD-SHELL",
-          'pg_isready -U "$$POSTGRES_USER" -d "$$POSTGRES_DB"',
-        ]
-      interval: 5s
-      timeout: 5s
-      retries: 5
-
   backend:
     build:
       context: .
-      dockerfile: Dockerfile.local
-    container_name: gastos-api-local
+      dockerfile: Dockerfile
+    container_name: gastos-api
     restart: unless-stopped
-    env_file:
-      - path: .env.docker.local
-        required: true
     ports:
-      - "${BACKEND_PORT:?definir BACKEND_PORT en .env.docker.local o pasar --env-file}:3088"
-    environment:
-      # Solo flags no secretos; credenciales y URLs vienen del env_file.
-      CHOKIDAR_USEPOLLING: "true"
-    volumes:
-      - .:/app
-    depends_on:
-      postgres:
-        condition: service_healthy
-
-volumes:
-  gastos_pgdata_local:
+      - "${BACKEND_PORT:-3088}:3088"

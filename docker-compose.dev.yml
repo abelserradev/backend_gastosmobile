@@ -1,0 +1,53 @@
+# Desarrollo local: Postgres + API. Sin secretos en el YAML: variables en backend/.env.docker.local (gitignored).
+# Crear: cp env.docker.local.example .env.docker.local
+#
+# Desde la raíz del monorepo (interpolación de puertos):
+#   docker compose --env-file backend/.env.docker.local -f backend/docker-compose.dev.yml up -d --build
+#
+# Solo backend/ como repo (Coolify no use este archivo para build de producción; usar docker-compose.yml mínimo).
+
+name: gastos
+
+services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: gastos-db-local
+    restart: unless-stopped
+    env_file:
+      - path: .env.docker.local
+        required: true
+    ports:
+      - "${POSTGRES_PORT:?definir POSTGRES_PORT en .env.docker.local o pasar --env-file}:5432"
+    volumes:
+      - gastos_pgdata_local:/var/lib/postgresql/data
+    healthcheck:
+      test:
+        [
+          "CMD-SHELL",
+          'pg_isready -U "$$POSTGRES_USER" -d "$$POSTGRES_DB"',
+        ]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  backend:
+    build:
+      context: .
+      dockerfile: Dockerfile.local
+    container_name: gastos-api-local
+    restart: unless-stopped
+    env_file:
+      - path: .env.docker.local
+        required: true
+    ports:
+      - "${BACKEND_PORT:?definir BACKEND_PORT en .env.docker.local o pasar --env-file}:3088"
+    environment:
+      CHOKIDAR_USEPOLLING: "true"
+    volumes:
+      - .:/app
+    depends_on:
+      postgres:
+        condition: service_healthy
+
+volumes:
+  gastos_pgdata_local:
