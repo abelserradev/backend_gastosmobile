@@ -1,0 +1,51 @@
+# Postgres + API Nest (desarrollo). Rutas relativas a esta carpeta (`backend/`).
+# Desde la raíz del repo también: `docker compose up` (el compose raíz incluye este archivo).
+name: gastos
+
+services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: gastos-db-local
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-mobilegastos}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-mobilegastos_dev}
+      POSTGRES_DB: ${POSTGRES_DB:-mobilegastos}
+    ports:
+      - "${POSTGRES_PORT:-55432}:5432"
+    volumes:
+      - gastos_pgdata_local:/var/lib/postgresql/data
+    healthcheck:
+      test:
+        [
+          "CMD-SHELL",
+          "pg_isready -U ${POSTGRES_USER:-mobilegastos} -d ${POSTGRES_DB:-mobilegastos}",
+        ]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  backend:
+    build:
+      context: .
+      dockerfile: Dockerfile.local
+    container_name: gastos-api-local
+    restart: unless-stopped
+    ports:
+      - "${BACKEND_PORT:-3088}:3088"
+    environment:
+      NODE_ENV: development
+      PORT: "3088"
+      FRONTEND_URL: ${FRONTEND_URL:-http://localhost:4300}
+      DATABASE_URL: postgresql://${POSTGRES_USER:-mobilegastos}:${POSTGRES_PASSWORD:-mobilegastos_dev}@postgres:5432/${POSTGRES_DB:-mobilegastos}
+      CHOKIDAR_USEPOLLING: "true"
+      RESEND_API_KEY: ${RESEND_API_KEY:-}
+      EMAIL_FROM: ${EMAIL_FROM:-}
+    volumes:
+      - .:/app
+    depends_on:
+      postgres:
+        condition: service_healthy
+
+volumes:
+  gastos_pgdata_local:

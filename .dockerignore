@@ -1,0 +1,9 @@
+node_modules
+dist
+coverage
+.git
+*.md
+.env
+.env.*
+!.env.example
+test/**/*.e2e-spec.ts

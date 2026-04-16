@@ -1,0 +1,104 @@
+generator client {
+  provider      = "prisma-client-js"
+  // Alpine en Docker (musl) vs glibc en el host: sin ambos targets falla el engine en el contenedor
+  binaryTargets = ["native", "linux-musl-openssl-3.0.x"]
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum CurrencyCode {
+  BS
+  USD
+}
+
+enum ProfileType {
+  familiar
+  grupal
+}
+
+/// Registro vía /api/auth exige email + hash; filas antiguas pueden tener null hasta limpiar datos.
+model User {
+  id           String   @id @default(uuid())
+  email        String?  @unique
+  passwordHash String?
+  name         String   @default("")
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  preferences UserPreference?
+  categories  Category[]
+  profiles    Profile[]
+}
+
+/// Moneda preferida para captura (UI); `monthlyIncome` siempre en USD (base única).
+model UserPreference {
+  id              String       @id @default(uuid())
+  userId          String       @unique
+  user            User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+  defaultCurrency CurrencyCode @default(USD)
+  monthlyIncome   Decimal      @db.Decimal(14, 2)
+  updatedAt       DateTime     @updatedAt
+}
+
+/// Categorías de gasto por usuario (único nombre por usuario).
+model Category {
+  id        String    @id @default(uuid())
+  userId    String
+  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  name      String
+  createdAt DateTime  @default(now())
+  expenses  Expense[]
+
+  @@unique([userId, name])
+  @@index([userId])
+}
+
+/// Perfil tipo Netflix (familiar / grupal) bajo un usuario.
+model Profile {
+  id        String      @id @default(uuid())
+  userId    String
+  user      User        @relation(fields: [userId], references: [id], onDelete: Cascade)
+  name      String
+  type      ProfileType
+  createdAt DateTime    @default(now())
+  expenses  Expense[]
+
+  @@index([userId])
+}
+
+/// Cotización dólar oficial (DolarApi): una fila por día calendario (cache).
+model BcVOfficialRate {
+  id        String   @id @default(uuid())
+  rateDate  DateTime @unique @db.Date
+  vesPerUsd Decimal  @db.Decimal(18, 6)
+  fetchedAt DateTime @default(now())
+}
+
+/// Gasto asociado a un perfil y categoría; mes de referencia para reportes.
+model Expense {
+  id             String   @id @default(uuid())
+  profileId      String
+  profile        Profile  @relation(fields: [profileId], references: [id], onDelete: Cascade)
+  categoryId     String
+  category       Category @relation(fields: [categoryId], references: [id], onDelete: Restrict)
+  title          String
+  description    String   @default("")
+  /// Monto en USD (única base para totales y gráficos).
+  amount         Decimal  @db.Decimal(14, 2)
+  isPaid         Boolean  @default(false)
+  referenceMonth DateTime @db.Date
+  /// Día del pago (Caracas) para fijar tasa; si null, se usa hoy en Caracas.
+  paymentDate    DateTime? @db.Date
+  /// Bs por USD al guardar (auditoría).
+  bcvRateApplied Decimal? @db.Decimal(14, 6)
+  /// Día calendario de la tasa aplicada.
+  bcvRateDate    DateTime? @db.Date
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  @@index([profileId, referenceMonth])
+  @@index([categoryId])
+}

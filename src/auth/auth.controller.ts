@@ -1,0 +1,67 @@
+import { Body, Controller, Get, Post, Res } from '@nestjs/common';
+import { SkipThrottle, Throttle } from '@nestjs/throttler';
+import type { Response } from 'express';
+import { CurrentUser } from '../common/decorators/current-user.decorator';
+import { Public } from '../common/decorators/public.decorator';
+import type { AuthUserPayload } from '../common/types/auth-user.payload';
+import { AuthService, AuthSessionBody } from './auth.service';
+import { FirebaseLoginDto } from './dto/firebase-login.dto';
+import { LoginDto } from './dto/login.dto';
+import { RegisterDto } from './dto/register.dto';
+
+@Controller('auth')
+export class AuthController {
+  constructor(private readonly auth: AuthService) {}
+
+  /** Valida la cookie JWT y devuelve el usuario (rehidratar UI sin token en localStorage). */
+  @Get('me')
+  sessionUser(@CurrentUser() user: AuthUserPayload): Promise<AuthSessionBody> {
+    return this.auth.getSessionUser(user.userId);
+  }
+
+  @Public()
+  @Throttle({ default: { limit: 8, ttl: 60000 } })
+  @Post('register')
+  register(
+    @Body() dto: RegisterDto,
+    @Res({ passthrough: true }) res: Response,
+  ): Promise<AuthSessionBody> {
+    return this.auth.register(dto, res);
+  }
+
+  @Public()
+  @Throttle({ default: { limit: 8, ttl: 60000 } })
+  @Post('login')
+  login(
+    @Body() dto: LoginDto,
+    @Res({ passthrough: true }) res: Response,
+  ): Promise<AuthSessionBody> {
+    return this.auth.login(dto, res);
+  }
+
+  @Public()
+  @Throttle({ default: { limit: 8, ttl: 60000 } })
+  @Post('firebase')
+  loginFirebase(
+    @Body() dto: FirebaseLoginDto,
+    @Res({ passthrough: true }) res: Response,
+  ): Promise<AuthSessionBody> {
+    return this.auth.loginWithFirebase(dto.idToken, res);
+  }
+
+  /** Limpia la cookie HttpOnly en el navegador del cliente. */
+  @Public()
+  @Post('logout')
+  logout(@Res({ passthrough: true }) res: Response): { ok: boolean } {
+    this.auth.clearSessionCookie(res);
+    return { ok: true };
+  }
+
+  /** Smoke check de ruta pública (útil en despliegues). */
+  @Public()
+  @SkipThrottle()
+  @Get('health')
+  health(): { ok: boolean } {
+    return { ok: true };
+  }
+}
