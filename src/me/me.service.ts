@@ -2,6 +2,7 @@ import {
   BadRequestException,
   Injectable,
   NotFoundException,
+  Logger,
 } from '@nestjs/common';
 import { BcvRateService } from '../bcv/bcv-rate.service';
 import {
@@ -21,12 +22,15 @@ import {
   startOfCurrentMonthUtc,
   toReferenceMonthDate,
 } from './me.mappers';
+import { ResendEmailService } from 'src/email/resend-email.service';
 
 @Injectable()
 export class MeService {
+  private readonly logger = new Logger(MeService.name);
   constructor(
     private readonly prisma: PrismaService,
     private readonly bcv: BcvRateService,
+    private readonly resendEmail: ResendEmailService,
   ) {}
 
   async getState(user: AuthUserPayload) {
@@ -206,6 +210,34 @@ export class MeService {
       data: { isPaid: dto.isPaid },
       include: { category: true },
     });
+
+    if (dto.isPaid) {
+      const paidBy = dto.paidByDisplayName?.trim();
+      if (!paidBy) {
+        throw new BadRequestException('Indica el nombre del que pagó');
+      }
+      const updated = await this.prisma.expense.update({
+        where: { id: expenseId },
+        data: {
+          isPaid: true,
+          paidByDisplayName: paidBy,
+          paidAt: new Date(),
+        },
+        include: { category: true, profile: true },
+      });
+
+      this.resendEmail.sendExpensePaidEmail({
+        to: user.email,
+        profileName: updated.profile.name,
+        expenseTitle: updated.title,
+        amountUsd: Number(updated.amount),
+        categoryName: updated.category.name,
+        paidByDisplayName: paidBy,
+      })
+      .catch((err: unknown) => {
+        this.logger.warn(`Error sending paid email: ${String(err)}`);
+      });
+    }
     return mapExpenseToResponse(updated);
   }
 

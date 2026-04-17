@@ -89,6 +89,8 @@ model Expense {
   /// Monto en USD (única base para totales y gráficos).
   amount         Decimal  @db.Decimal(14, 2)
   isPaid         Boolean  @default(false)
+  paidByDisplayName String?
+  paidAt            DateTime?
   referenceMonth DateTime @db.Date
   /// Día del pago (Caracas) para fijar tasa; si null, se usa hoy en Caracas.
   paymentDate    DateTime? @db.Date

@@ -50,11 +50,11 @@ export class ResendEmailService {
       return;
     }
     const safeName = displayName.trim() || 'Usuario';
-    const origin = this.appOriginForLinks();
     const html = `
-      <p>Hola ${this.escapeHtml(safeName)},</p>
-      <p>Tu cuenta en <strong>Gastos</strong> ya está lista.</p>
-      <p><a href="${this.escapeHtml(origin)}">Abrir la app</a></p>
+      <p>Bienvenido a Gastos ${this.escapeHtml(safeName)},</p>
+      <p>Lleva el control de tus gastos con facilidad.</p>
+      <p>Una app hecha a la medida para ti.</p>
+      <p>Si no fuiste tu que se registro, por favor contacta con soporte.</p>
     `;
     const { error } = await this.client.emails.send({
       from: this.resolveFromAddress(),
@@ -64,6 +64,41 @@ export class ResendEmailService {
     });
     if (error) {
       this.logger.warn(`Resend welcome: ${error.message}`);
+    }
+  }
+
+  /**
+   * Correo de notificacion de deudas pagadas y que perfil pago esa deuda
+   */
+  async sendExpensePaidEmail(input: {
+    to: string;
+    profileName: string;
+    expenseTitle: string;
+    amountUsd: number;
+    categoryName: string;
+    paidByDisplayName: string;
+  }): Promise<void> {
+    if (!this.client) {
+      this.logger.debug('Omitido: RESEND_API_KEY vacío');
+      return;
+    }
+    const origin = this.appOriginForLinks();
+    const html = `
+    <p>Se marcó un gasto como pagado en <strong>${this.escapeHtml(input.profileName)}</strong>.</p>
+    <p><strong>Pagado por:</strong> ${this.escapeHtml(input.paidByDisplayName)}</p>
+    <p><strong>Gasto:</strong> ${this.escapeHtml(input.expenseTitle)}</p>
+    <p><strong>Categoría:</strong> ${this.escapeHtml(input.categoryName)}</p>
+    <p><strong>Monto (USD):</strong> $ ${input.amountUsd.toFixed(2)}</p>
+    <p>Ver en la app: ${this.escapeHtml(origin)}</p>
+    `;
+    const { error } = await this.client.emails.send({
+      from: this.resolveFromAddress(),
+      to: [input.to],
+      subject: 'Gasto marcado como pagado',
+      html,
+    });
+    if (error) {
+      this.logger.warn(`Resend paid: ${error.message}`);
     }
   }
 
