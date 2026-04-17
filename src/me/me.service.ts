@@ -17,12 +17,13 @@ import { DeleteExpensesDto } from './dto/delete-expenses.dto';
 import { PatchExpenseDto } from './dto/patch-expense.dto';
 import { ReplaceCategoriesDto } from './dto/replace-categories.dto';
 import { UpdatePreferencesDto } from './dto/update-preferences.dto';
+import { CreateProfileMemberDto } from './dto/create-profile-member.dto';
 import {
   mapExpenseToResponse,
   startOfCurrentMonthUtc,
   toReferenceMonthDate,
 } from './me.mappers';
-import { ResendEmailService } from 'src/email/resend-email.service';
+import { ResendEmailService } from '../email/resend-email.service';
 
 @Injectable()
 export class MeService {
@@ -47,7 +48,7 @@ export class MeService {
       }),
       this.prisma.expense.findMany({
         where: { profile: { userId } },
-        include: { category: true },
+        include: { category: true, profile: true },
         orderBy: { createdAt: 'desc' },
       }),
     ]);
@@ -155,10 +156,66 @@ export class MeService {
     await this.prisma.profile.delete({ where: { id: profileId } });
   }
 
+  async listProfileMembers(user: AuthUserPayload, profileId: string) {
+    const p = await this.prisma.profile.findFirst({
+      where: { id: profileId, userId: user.userId },
+      select: { id: true },
+    });
+    if (!p) {
+      throw new NotFoundException('Perfil no encontrado');
+    }
+    return this.prisma.profileMember.findMany({
+      where: { profileId },
+      orderBy: { createdAt: 'asc' },
+      select: { id: true, displayName: true, createdAt: true },
+    });
+  }
+
+  async createProfileMember(
+    user: AuthUserPayload,
+    profileId: string,
+    dto: CreateProfileMemberDto,
+  ) {
+    const p = await this.prisma.profile.findFirst({
+      where: { id: profileId, userId: user.userId },
+      select: { id: true },
+    });
+    if (!p) {
+      throw new NotFoundException('Perfil no encontrado');
+    }
+    const displayName = dto.displayName.trim();
+    return this.prisma.profileMember.create({
+      data: { profileId, displayName },
+      select: { id: true, displayName: true, createdAt: true },
+    });
+  }
+
+  async deleteProfileMember(
+    user: AuthUserPayload,
+    profileId: string,
+    memberId: string,
+  ) {
+    const p = await this.prisma.profile.findFirst({
+      where: { id: profileId, userId: user.userId },
+      select: { id: true },
+    });
+    if (!p) {
+      throw new NotFoundException('Perfil no encontrado');
+    }
+    const row = await this.prisma.profileMember.findFirst({
+      where: { id: memberId, profileId },
+      select: { id: true },
+    });
+    if (!row) {
+      throw new NotFoundException('Integrante no encontrado');
+    }
+    await this.prisma.profileMember.delete({ where: { id: memberId } });
+  }
+
   async listExpenses(user: AuthUserPayload) {
     const rows = await this.prisma.expense.findMany({
       where: { profile: { userId: user.userId } },
-      include: { category: true },
+      include: { category: true, profile: true },
       orderBy: { createdAt: 'desc' },
     });
     return rows.map((e) => mapExpenseToResponse(e));
@@ -185,7 +242,7 @@ export class MeService {
         bcvRateApplied: vesPerUsd,
         bcvRateDate: rateDate,
       },
-      include: { category: true },
+      include: { category: true, profile: true },
     });
     return mapExpenseToResponse(row);
   }
@@ -200,44 +257,62 @@ export class MeService {
         id: expenseId,
         profile: { userId: user.userId },
       },
-      include: { category: true },
+      include: { category: true, profile: true },
     });
     if (!row) {
       throw new NotFoundException('Gasto no encontrado');
     }
-    const updated = await this.prisma.expense.update({
-      where: { id: expenseId },
-      data: { isPaid: dto.isPaid },
-      include: { category: true },
-    });
-
     if (dto.isPaid) {
-      const paidBy = dto.paidByDisplayName?.trim();
-      if (!paidBy) {
-        throw new BadRequestException('Indica el nombre del que pagó');
+      const paidByMemberId = dto.paidByMemberId?.trim();
+      const paidByLegacy = dto.paidByDisplayName?.trim();
+      if (!paidByMemberId && !paidByLegacy) {
+        throw new BadRequestException('Indica quién pagó');
+      }
+      let paidByDisplayName = paidByLegacy ?? '';
+      if (paidByMemberId) {
+        const member = await this.prisma.profileMember.findFirst({
+          where: { id: paidByMemberId, profileId: row.profileId },
+          select: { id: true, displayName: true },
+        });
+        if (!member) {
+          throw new BadRequestException('Integrante inválido para este perfil');
+        }
+        paidByDisplayName = member.displayName;
       }
       const updated = await this.prisma.expense.update({
         where: { id: expenseId },
         data: {
           isPaid: true,
-          paidByDisplayName: paidBy,
+          paidByDisplayName,
+          paidByMemberId: paidByMemberId ?? null,
           paidAt: new Date(),
         },
         include: { category: true, profile: true },
       });
-
-      this.resendEmail.sendExpensePaidEmail({
-        to: user.email,
-        profileName: updated.profile.name,
-        expenseTitle: updated.title,
-        amountUsd: Number(updated.amount),
-        categoryName: updated.category.name,
-        paidByDisplayName: paidBy,
-      })
-      .catch((err: unknown) => {
-        this.logger.warn(`Error sending paid email: ${String(err)}`);
-      });
+      this.resendEmail
+        .sendExpensePaidEmail({
+          to: user.email,
+          profileName: updated.profile.name,
+          expenseTitle: updated.title,
+          amountUsd: Number(updated.amount),
+          categoryName: updated.category.name,
+          paidByDisplayName,
+        })
+        .catch((err: unknown) => {
+          this.logger.warn(`Error sending paid email: ${String(err)}`);
+        });
+      return mapExpenseToResponse(updated);
     }
+    const updated = await this.prisma.expense.update({
+      where: { id: expenseId },
+      data: {
+        isPaid: false,
+        paidByDisplayName: null,
+        paidByMemberId: null,
+        paidAt: null,
+      },
+      include: { category: true, profile: true },
+    });
     return mapExpenseToResponse(updated);
   }
 

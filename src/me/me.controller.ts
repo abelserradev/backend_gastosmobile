@@ -12,6 +12,7 @@ import {
 import { CurrentUser } from '../common/decorators/current-user.decorator';
 import type { AuthUserPayload } from '../common/types/auth-user.payload';
 import { CreateExpenseDto } from './dto/create-expense.dto';
+import { CreateProfileMemberDto } from './dto/create-profile-member.dto';
 import { CreateProfileDto } from './dto/create-profile.dto';
 import { DeleteExpensesDto } from './dto/delete-expenses.dto';
 import { PatchExpenseDto } from './dto/patch-expense.dto';
@@ -63,6 +64,32 @@ export class MeController {
     @Param('id', ParseUUIDPipe) id: string,
   ) {
     return this.me.deleteProfile(user, id);
+  }
+
+  @Get('profiles/:id/members')
+  listProfileMembers(
+    @CurrentUser() user: AuthUserPayload,
+    @Param('id', ParseUUIDPipe) id: string,
+  ) {
+    return this.me.listProfileMembers(user, id);
+  }
+
+  @Post('profiles/:id/members')
+  createProfileMember(
+    @CurrentUser() user: AuthUserPayload,
+    @Param('id', ParseUUIDPipe) id: string,
+    @Body() dto: CreateProfileMemberDto,
+  ) {
+    return this.me.createProfileMember(user, id, dto);
+  }
+
+  @Delete('profiles/:profileId/members/:memberId')
+  deleteProfileMember(
+    @CurrentUser() user: AuthUserPayload,
+    @Param('profileId', ParseUUIDPipe) profileId: string,
+    @Param('memberId', ParseUUIDPipe) memberId: string,
+  ) {
+    return this.me.deleteProfileMember(user, profileId, memberId);
   }
 
   @Get('expenses')

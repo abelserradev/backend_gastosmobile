@@ -65,8 +65,23 @@ model Profile {
   type      ProfileType
   createdAt DateTime    @default(now())
   expenses  Expense[]
+  members   ProfileMember[]
 
   @@index([userId])
+}
+
+/// Integrantes de un perfil (modelo tipo Netflix: 1 cuenta dueña, varios nombres para auditar pagos).
+model ProfileMember {
+  id          String   @id @default(uuid())
+  profileId   String
+  profile     Profile  @relation(fields: [profileId], references: [id], onDelete: Cascade)
+  displayName String
+  createdAt   DateTime @default(now())
+
+  paidExpenses Expense[] @relation("expense_paid_by")
+
+  @@unique([profileId, displayName])
+  @@index([profileId])
 }
 
 /// Cotización dólar oficial (DolarApi): una fila por día calendario (cache).
@@ -91,6 +106,8 @@ model Expense {
   isPaid         Boolean  @default(false)
   paidByDisplayName String?
   paidAt            DateTime?
+  paidByMemberId   String?
+  paidByMember     ProfileMember? @relation("expense_paid_by", fields: [paidByMemberId], references: [id], onDelete: SetNull)
   referenceMonth DateTime @db.Date
   /// Día del pago (Caracas) para fijar tasa; si null, se usa hoy en Caracas.
   paymentDate    DateTime? @db.Date
@@ -103,4 +120,5 @@ model Expense {
 
   @@index([profileId, referenceMonth])
   @@index([categoryId])
+  @@index([paidByMemberId])
 }

@@ -12,6 +12,8 @@ export function toReferenceMonthDate(isoDay: string): Date {
 
 export function mapExpenseToResponse(e: {
   id: string;
+  profileId: string;
+  profile?: { name: string };
   title: string;
   description: string;
   amount: { toString(): string };
@@ -19,9 +21,14 @@ export function mapExpenseToResponse(e: {
   paymentDate: Date | null;
   bcvRateApplied: { toString(): string } | null;
   bcvRateDate: Date | null;
+  paidByDisplayName?: string | null;
+  paidAt?: Date | null;
+  paidByMemberId?: string | null;
   category: { name: string };
 }): {
   id: string;
+  profileId: string;
+  profileName: string | null;
   title: string;
   description: string;
   amount: number;
@@ -30,9 +37,14 @@ export function mapExpenseToResponse(e: {
   paymentDate: string | null;
   bcvRateApplied: number | null;
   bcvRateDate: string | null;
+  paidByDisplayName: string | null;
+  paidAt: string | null;
+  paidByMemberId: string | null;
 } {
   return {
     id: e.id,
+    profileId: e.profileId,
+    profileName: e.profile?.name ?? null,
     title: e.title,
     description: e.description,
     amount: Number(e.amount.toString()),
@@ -47,5 +59,8 @@ export function mapExpenseToResponse(e: {
     bcvRateDate: e.bcvRateDate
       ? e.bcvRateDate.toISOString().slice(0, 10)
       : null,
+    paidByDisplayName: e.paidByDisplayName ?? null,
+    paidAt: e.paidAt ? e.paidAt.toISOString() : null,
+    paidByMemberId: e.paidByMemberId ?? null,
   };
 }
