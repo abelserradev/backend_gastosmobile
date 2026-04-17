@@ -30,10 +30,11 @@ export const envValidationSchema = Joi.object({
     .valid('strict', 'lax', 'none')
     .lowercase()
     .default('lax'),
-  COOKIE_SECURE: Joi.string().valid('true', 'false').optional(),
-  DOLARAPI_BASE_URL: Joi.string().uri().optional(),
+  // Docker/Coolify suelen definir la clave con valor "" aunque no la uses; .optional() no basta.
+  COOKIE_SECURE: Joi.string().valid('true', 'false').allow('').optional(),
+  DOLARAPI_BASE_URL: Joi.string().uri().allow('').optional(),
   /** JSON en una línea de la cuenta de servicio (Firebase Console → Cuenta de servicio). */
-  FIREBASE_SERVICE_ACCOUNT_JSON: Joi.string().optional(),
+  FIREBASE_SERVICE_ACCOUNT_JSON: Joi.string().allow('').optional(),
   /** Resend: solo servidor; sin clave los welcome se omiten y /api/email/test responde 400. */
   RESEND_API_KEY: Joi.string().allow('').optional(),
   /** Remitente verificado en Resend, p. ej. Gastos &lt;noreply@buildforge.work&gt; */

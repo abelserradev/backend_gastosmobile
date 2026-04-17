@@ -12,27 +12,27 @@ npm run start:prod
 npx prisma migrate deploy
 ```
 
-## Docker (Postgres + API en desarrollo)
+## Docker (producción)
 
-**Postgres + API en tu máquina:** usa `docker-compose.dev.yml` (no mezclar con el `docker-compose.yml` mínimo que usa Coolify). Copia la plantilla y define secretos solo en `backend/.env.docker.local` (gitignored):
-
-```bash
-cp env.docker.local.example .env.docker.local
-```
-
-Desde la **raíz del repositorio**:
+**Stack completo (Postgres 16 + API)** en `docker-compose.yml` y `Dockerfile`. Plantilla de variables:
 
 ```bash
-docker compose --env-file backend/.env.docker.local up -d --build
+cp .env.production.example .env.production
 ```
 
-Desde **solo** la carpeta `backend/`:
+Desde `backend/`:
 
 ```bash
-docker compose --env-file .env.docker.local -f docker-compose.dev.yml up -d --build
+docker compose --env-file .env.production up -d --build
 ```
 
-**Producción / Coolify:** `docker-compose.yml` solo declara el servicio `backend` con `Dockerfile` (sin Postgres).
+Desde la **raíz del monorepo** (el `docker-compose.yml` raíz incluye `backend/docker-compose.yml`):
+
+```bash
+docker compose --env-file backend/.env.production up -d --build
+```
+
+**Coolify** (base directory `backend/`, Docker Compose): las variables del panel deben aparecer en el YAML como `${NOMBRE}`. Si Postgres es un recurso aparte en Coolify, quita el servicio `postgres` y `depends_on` del backend en `docker-compose.yml` y usa `DATABASE_URL` interna; revisa `docs/despliegue-coolify-cloudflare.md`.
 
 ## Variables mínimas
 
