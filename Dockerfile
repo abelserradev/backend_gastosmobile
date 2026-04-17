@@ -8,7 +8,9 @@ RUN apk add --no-cache python3 make g++
 
 COPY package.json package-lock.json ./
 COPY prisma ./prisma/
-RUN npm ci
+# Coolify (y otros CI) suelen pasar NODE_ENV=production al build; npm ci omitiría
+# devDependencies y `nest build` termina en 127 (nest no instalado).
+RUN npm ci --include=dev
 
 COPY . .
 RUN npm run build
