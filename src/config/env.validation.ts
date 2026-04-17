@@ -17,6 +17,16 @@ export const envValidationSchema = Joi.object({
     }),
     otherwise: Joi.string().min(16).required(),
   }),
+  SECRET_API_KEY: Joi.string()
+    .trim()
+    .when('NODE_ENV', {
+      is: 'production',
+      then: Joi.string().trim().min(32).required().messages({
+        'any.required': 'SECRET_API_KEY es obligatorio en producción',
+        'string.min': 'SECRET_API_KEY debe tener al menos 32 caracteres',
+      }),
+      otherwise: Joi.string().trim().allow('').optional(),
+    }),
   JWT_EXPIRES_IN: Joi.string().default('7d'),
   FRONTEND_URL: Joi.string().allow('').when('NODE_ENV', {
     is: 'production',

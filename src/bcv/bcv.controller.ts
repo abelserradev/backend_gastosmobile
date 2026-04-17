@@ -7,7 +7,6 @@ import { BcvRateService } from './bcv-rate.service';
 export class BcvController {
   constructor(private readonly bcv: BcvRateService) {}
 
-  /** Sin JWT (throttling global). `date` opcional → hoy en Caracas. */
   @Public()
   @Get('oficial-por-dia')
   async oficialPorDia(@Query('date') date?: string) {
