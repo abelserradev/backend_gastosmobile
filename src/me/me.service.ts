@@ -141,6 +141,9 @@ export class MeService {
         userId: user.userId,
         name: dto.name.trim(),
         type: dto.type,
+        members: {
+          create: { displayName: 'Yo' },
+        },
       },
       select: { id: true, name: true, type: true },
     });
@@ -164,6 +167,22 @@ export class MeService {
     if (!p) {
       throw new NotFoundException('Perfil no encontrado');
     }
+    const existing = await this.prisma.profileMember.findMany({
+      where: { profileId },
+      orderBy: { createdAt: 'asc' },
+      select: { id: true, displayName: true, createdAt: true },
+    });
+    if (existing.length > 0) {
+      return existing;
+    }
+    // Perfiles creados antes de sembrar integrante por defecto: sin esto no se puede marcar quién pagó
+    await this.prisma.profileMember.upsert({
+      where: {
+        profileId_displayName: { profileId, displayName: 'Yo' },
+      },
+      create: { profileId, displayName: 'Yo' },
+      update: {},
+    });
     return this.prisma.profileMember.findMany({
       where: { profileId },
       orderBy: { createdAt: 'asc' },
