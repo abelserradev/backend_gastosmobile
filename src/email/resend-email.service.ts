@@ -84,9 +84,9 @@ export class ResendEmailService {
     }
     const origin = this.appOriginForLinks();
     const html = `
-    <p>Se marcó un gasto como pagado en <strong>${this.escapeHtml(input.profileName)}</strong>.</p>
+    <p>Se marcó un gasto como pagado en <strong>las deudas del mes actual</strong>.</p>
     <p><strong>Pagado por:</strong> ${this.escapeHtml(input.paidByDisplayName)}</p>
-    <p><strong>Gasto:</strong> ${this.escapeHtml(input.expenseTitle)}</p>
+    <p><strong>Titulo de la deuda:</strong> ${this.escapeHtml(input.expenseTitle)}</p>
     <p><strong>Categoría:</strong> ${this.escapeHtml(input.categoryName)}</p>
     <p><strong>Monto (USD):</strong> $ ${input.amountUsd.toFixed(2)}</p>
     <p>Ver en la app: ${this.escapeHtml(origin)}</p>
