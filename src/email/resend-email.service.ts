@@ -104,6 +104,35 @@ export class ResendEmailService {
   }
 
   /**
+   * Cuenta solo-Google: mismo enlace técnico que reset, copy orientado a crear acceso por correo/clave.
+   */
+  async sendPasswordCreationEmail(to: string, setupUrl: string): Promise<void> {
+    if (!this.client) {
+      throw new BadRequestException(
+        'Resend no está configurado: define RESEND_API_KEY',
+      );
+    }
+    const html = `
+      <p>Tu cuenta en Gastos está asociada a Google. Podés definir una contraseña para entrar también sin Google en este u otros dispositivos.</p>
+      <p><a href="${this.escapeHtml(setupUrl)}">Crear contraseña de acceso</a></p>
+      <p>Si no fuiste vos, ignorá este mensaje.</p>
+      <p style="color:#6b7280;font-size:12px;">El enlace caduca en una hora.</p>
+    `;
+    const { error } = await this.client.emails.send({
+      from: this.resolveFromAddress(),
+      to: [to],
+      subject: 'Crear contraseña — Gastos',
+      html,
+    });
+    if (error) {
+      this.logger.warn(`Resend password creation: ${error.message}`);
+      throw new BadGatewayException(
+        'No se pudo enviar el correo; intentá de nuevo más tarde',
+      );
+    }
+  }
+
+  /**
    * Un solo envío para uno o N gastos (evita quemar cuota de Resend en pagos masivos).
    */
   async sendExpensesPaidSummaryEmail(input: {

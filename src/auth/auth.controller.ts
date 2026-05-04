@@ -10,6 +10,7 @@ import { LoginDto } from './dto/login.dto';
 import { RegisterDto } from './dto/register.dto';
 import { ForgotPasswordDto } from './dto/forgot-password.dto';
 import { ResetPasswordDto } from './dto/reset-password.dto';
+import { SetupPasswordDto } from './dto/setup-password.dto';
 
 @Controller('auth')
 export class AuthController {
@@ -63,6 +64,16 @@ export class AuthController {
   @Post('reset-password')
   resetPassword(@Body() dto: ResetPasswordDto): Promise<{ ok: true }> {
     return this.auth.resetPassword(dto);
+  }
+
+  /** Contraseña inicial tras Google (cookie JWT); no usar @Public: solo usuario autenticado sin hash previo. */
+  @Throttle({ default: { limit: 10, ttl: 60000 } })
+  @Post('password/setup')
+  setupPassword(
+    @CurrentUser() user: AuthUserPayload,
+    @Body() dto: SetupPasswordDto,
+  ): Promise<AuthSessionBody> {
+    return this.auth.setupPassword(user.userId, dto);
   }
 
   /** Limpia la cookie HttpOnly en el navegador del cliente. */
