@@ -1,0 +1,26 @@
+name: Security audit (cron)
+
+on:
+  schedule:
+    - cron: '0 6 * * 1'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  npm-audit:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+          cache-dependency-path: package-lock.json
+      - run: npm ci
+      - name: npm audit
+        continue-on-error: true
+        run: npm audit --audit-level=moderate
+      - name: Resumen dependencias
+        run: npm ls --depth=0 || true

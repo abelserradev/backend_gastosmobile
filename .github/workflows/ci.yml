@@ -1,0 +1,49 @@
+# CI en la raíz del repo backend (Nest + Prisma).
+# Branch protection: exigir el check de este workflow en main.
+name: CI
+
+on:
+  pull_request:
+    branches: [main, master]
+  push:
+    branches: [main, master]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build:
+    name: Backend (Nest + Prisma)
+    runs-on: ubuntu-latest
+    env:
+      DATABASE_URL: postgresql://ci:ci@127.0.0.1:5432/ci
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: step-security/harden-runner@v2
+        with:
+          egress-policy: audit
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+          cache-dependency-path: package-lock.json
+
+      - name: Instalar dependencias
+        run: npm ci
+
+      - name: npm audit (informativo)
+        continue-on-error: true
+        run: npm audit --audit-level=moderate
+
+      - name: Validar schema Prisma
+        run: npx prisma validate
+
+      - name: Build NestJS
+        run: npm run build

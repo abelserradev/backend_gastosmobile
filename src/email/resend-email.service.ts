@@ -86,7 +86,7 @@ export class ResendEmailService {
     const html = `
       <p>Recibimos una solicitud para restablecer tu contraseña en Gastos.</p>
       <p><a href="${this.escapeHtml(resetUrl)}">Elegí una nueva contraseña</a></p>
-      <p>Si no fuiste vos, ignorá este mensaje.</p>
+      <p>Si no realizaste esta solicitud, ignora este mensaje.</p>
       <p style="color:#6b7280;font-size:12px;">El enlace caduca en una hora.</p>
     `;
     const { error } = await this.client.emails.send({
@@ -113,9 +113,9 @@ export class ResendEmailService {
       );
     }
     const html = `
-      <p>Tu cuenta en Gastos está asociada a Google. Podés definir una contraseña para entrar también sin Google en este u otros dispositivos.</p>
+      <p>Tu cuenta en Gastos está asociada a Google. Puedes definir una contraseña para entrar también sin Google en este u otros dispositivos.</p>
       <p><a href="${this.escapeHtml(setupUrl)}">Crear contraseña de acceso</a></p>
-      <p>Si no fuiste vos, ignorá este mensaje.</p>
+      <p>Si no realizaste esta solicitud, ignora este mensaje.</p>
       <p style="color:#6b7280;font-size:12px;">El enlace caduca en una hora.</p>
     `;
     const { error } = await this.client.emails.send({
