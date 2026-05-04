@@ -5,8 +5,12 @@ WORKDIR /app
 
 RUN apk add --no-cache python3 make g++
 
+ARG DATABASE_URL=postgresql://ci:ci@127.0.0.1:5432/ci
+ENV DATABASE_URL=${DATABASE_URL}
+
 COPY package.json package-lock.json ./
 COPY prisma ./prisma/
+COPY prisma.config.ts ./prisma.config.ts
 # Coolify suele pasar NODE_ENV=production al build; sin --include=dev no hay Nest/TS para compilar.
 RUN npm ci --include=dev
 
@@ -24,6 +28,7 @@ COPY --from=builder /app/node_modules ./node_modules
 COPY --from=builder /app/package.json ./package.json
 COPY --from=builder /app/dist ./dist
 COPY --from=builder /app/prisma ./prisma
+COPY --from=builder /app/prisma.config.ts ./prisma.config.ts
 
 USER node
 
