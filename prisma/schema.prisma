@@ -28,9 +28,23 @@ model User {
   createdAt    DateTime @default(now())
   updatedAt    DateTime @updatedAt
 
-  preferences UserPreference?
-  categories  Category[]
-  profiles    Profile[]
+  preferences          UserPreference?
+  categories           Category[]
+  profiles             Profile[]
+  passwordResetTokens  PasswordResetToken[]
+}
+
+/// Token de un solo uso para restablecer contraseña (hash en BD; el enlace lleva el secreto en claro).
+model PasswordResetToken {
+  id        String    @id @default(uuid())
+  userId    String
+  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  tokenHash String    @unique
+  expiresAt DateTime
+  usedAt    DateTime?
+  createdAt DateTime  @default(now())
+
+  @@index([userId])
 }
 
 /// Moneda preferida para captura (UI); `monthlyIncome` siempre en USD (base única).

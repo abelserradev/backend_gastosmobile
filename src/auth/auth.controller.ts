@@ -8,6 +8,8 @@ import { AuthService, AuthSessionBody } from './auth.service';
 import { FirebaseLoginDto } from './dto/firebase-login.dto';
 import { LoginDto } from './dto/login.dto';
 import { RegisterDto } from './dto/register.dto';
+import { ForgotPasswordDto } from './dto/forgot-password.dto';
+import { ResetPasswordDto } from './dto/reset-password.dto';
 
 @Controller('auth')
 export class AuthController {
@@ -47,6 +49,20 @@ export class AuthController {
     @Res({ passthrough: true }) res: Response,
   ): Promise<AuthSessionBody> {
     return this.auth.loginWithFirebase(dto.idToken, res);
+  }
+
+  @Public()
+  @Throttle({ default: { limit: 5, ttl: 3600000 } })
+  @Post('forgot-password')
+  forgotPassword(@Body() dto: ForgotPasswordDto): Promise<{ ok: true }> {
+    return this.auth.requestPasswordReset(dto);
+  }
+
+  @Public()
+  @Throttle({ default: { limit: 15, ttl: 60000 } })
+  @Post('reset-password')
+  resetPassword(@Body() dto: ResetPasswordDto): Promise<{ ok: true }> {
+    return this.auth.resetPassword(dto);
   }
 
   /** Limpia la cookie HttpOnly en el navegador del cliente. */

@@ -41,6 +41,13 @@ export class ResendEmailService {
     return 'http://localhost:4300';
   }
 
+  /** SPA público: mismo origen que CORS y enlaces en otros correos. */
+  buildPasswordResetUrl(rawToken: string): string {
+    const origin = this.appOriginForLinks();
+    const safe = encodeURIComponent(rawToken);
+    return `${origin}/reset-password?token=${safe}`;
+  }
+
   /**
    * Correo de bienvenida tras registro: no bloquea el flujo HTTP si Resend falla.
    */
@@ -64,6 +71,35 @@ export class ResendEmailService {
     });
     if (error) {
       this.logger.warn(`Resend welcome: ${error.message}`);
+    }
+  }
+
+  /**
+   * Enlace mágico de un solo uso; si Resend falla el caller debe invalidar el token en BD.
+   */
+  async sendPasswordResetEmail(to: string, resetUrl: string): Promise<void> {
+    if (!this.client) {
+      throw new BadRequestException(
+        'Resend no está configurado: define RESEND_API_KEY',
+      );
+    }
+    const html = `
+      <p>Recibimos una solicitud para restablecer tu contraseña en Gastos.</p>
+      <p><a href="${this.escapeHtml(resetUrl)}">Elegí una nueva contraseña</a></p>
+      <p>Si no fuiste vos, ignorá este mensaje.</p>
+      <p style="color:#6b7280;font-size:12px;">El enlace caduca en una hora.</p>
+    `;
+    const { error } = await this.client.emails.send({
+      from: this.resolveFromAddress(),
+      to: [to],
+      subject: 'Restablecer contraseña — Gastos',
+      html,
+    });
+    if (error) {
+      this.logger.warn(`Resend password reset: ${error.message}`);
+      throw new BadGatewayException(
+        'No se pudo enviar el correo; intentá de nuevo más tarde',
+      );
     }
   }
 
@@ -162,9 +198,9 @@ export class ResendEmailService {
 
   private escapeHtml(s: string): string {
     return s
-      .replace(/&/g, '&amp;')
-      .replace(/</g, '&lt;')
-      .replace(/>/g, '&gt;')
-      .replace(/"/g, '&quot;');
+      .replaceAll('&', '&amp;')
+      .replaceAll('<', '&lt;')
+      .replaceAll('>', '&gt;')
+      .replaceAll('"', '&quot;');
   }
 }
