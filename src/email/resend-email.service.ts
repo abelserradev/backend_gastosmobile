@@ -68,37 +68,69 @@ export class ResendEmailService {
   }
 
   /**
-   * Correo de notificacion de deudas pagadas y que perfil pago esa deuda
+   * Un solo envío para uno o N gastos (evita quemar cuota de Resend en pagos masivos).
    */
-  async sendExpensePaidEmail(input: {
+  async sendExpensesPaidSummaryEmail(input: {
     to: string;
-    profileName: string;
-    expenseTitle: string;
-    amountUsd: number;
-    categoryName: string;
     paidByDisplayName: string;
+    items: {
+      expenseTitle: string;
+      categoryName: string;
+      amountUsd: number;
+      profileName: string;
+    }[];
   }): Promise<void> {
     if (!this.client) {
       this.logger.debug('Omitido: RESEND_API_KEY vacío');
       return;
     }
     const origin = this.appOriginForLinks();
+    const n = input.items.length;
+    const totalUsd = input.items.reduce((s, it) => s + it.amountUsd, 0);
+    const subject =
+      n === 1
+        ? 'Gasto marcado como pagado'
+        : `${n} gastos marcados como pagados`;
+    const rowsHtml = input.items
+      .map(
+        (it) => `
+      <tr>
+        <td style="padding:8px;border:1px solid #ddd;">${this.escapeHtml(it.expenseTitle)}</td>
+        <td style="padding:8px;border:1px solid #ddd;">${this.escapeHtml(it.categoryName)}</td>
+        <td style="padding:8px;border:1px solid #ddd;">${this.escapeHtml(it.profileName)}</td>
+        <td style="padding:8px;border:1px solid #ddd;text-align:right;">$ ${it.amountUsd.toFixed(2)}</td>
+      </tr>`,
+      )
+      .join('');
+    const intro =
+      n === 1
+        ? '<p>Se marcó <strong>un gasto</strong> como pagado en <strong>las deudas del mes actual</strong>.</p>'
+        : `<p>Se marcaron <strong>${n} gastos</strong> como pagados en <strong>las deudas del mes actual</strong>.</p>`;
     const html = `
-    <p>Se marcó un gasto como pagado en <strong>las deudas del mes actual</strong>.</p>
+    ${intro}
     <p><strong>Pagado por:</strong> ${this.escapeHtml(input.paidByDisplayName)}</p>
-    <p><strong>Titulo de la deuda:</strong> ${this.escapeHtml(input.expenseTitle)}</p>
-    <p><strong>Categoría:</strong> ${this.escapeHtml(input.categoryName)}</p>
-    <p><strong>Monto (USD):</strong> $ ${input.amountUsd.toFixed(2)}</p>
+    <table style="border-collapse:collapse;margin-top:12px;width:100%;max-width:560px;">
+      <thead>
+        <tr style="background:#f3f4f6;">
+          <th style="padding:8px;border:1px solid #ddd;text-align:left;">Deuda</th>
+          <th style="padding:8px;border:1px solid #ddd;text-align:left;">Categoría</th>
+          <th style="padding:8px;border:1px solid #ddd;text-align:left;">Perfil</th>
+          <th style="padding:8px;border:1px solid #ddd;text-align:right;">USD</th>
+        </tr>
+      </thead>
+      <tbody>${rowsHtml}</tbody>
+    </table>
+    <p style="margin-top:12px;"><strong>Total USD:</strong> $ ${totalUsd.toFixed(2)}</p>
     <p>Ver en la app: ${this.escapeHtml(origin)}</p>
     `;
     const { error } = await this.client.emails.send({
       from: this.resolveFromAddress(),
       to: [input.to],
-      subject: 'Gasto marcado como pagado',
+      subject,
       html,
     });
     if (error) {
-      this.logger.warn(`Resend paid: ${error.message}`);
+      this.logger.warn(`Resend paid summary: ${error.message}`);
     }
   }
 

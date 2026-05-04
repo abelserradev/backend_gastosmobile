@@ -14,6 +14,7 @@ import { PrismaService } from '../prisma/prisma.service';
 import { CreateExpenseDto } from './dto/create-expense.dto';
 import { CreateProfileDto } from './dto/create-profile.dto';
 import { DeleteExpensesDto } from './dto/delete-expenses.dto';
+import { MarkExpensesPaidDto } from './dto/mark-expenses-paid.dto';
 import { PatchExpenseDto } from './dto/patch-expense.dto';
 import { ReplaceCategoriesDto } from './dto/replace-categories.dto';
 import { UpdatePreferencesDto } from './dto/update-preferences.dto';
@@ -289,14 +290,19 @@ export class MeService {
         },
         include: { category: true, profile: true },
       });
+      // La app usa POST /me/expenses/mark-paid; esto mantiene correo si alguien marca vía PATCH directo.
       this.resendEmail
-        .sendExpensePaidEmail({
+        .sendExpensesPaidSummaryEmail({
           to: user.email,
-          profileName: updated.profile.name,
-          expenseTitle: updated.title,
-          amountUsd: Number(updated.amount),
-          categoryName: updated.category.name,
           paidByDisplayName,
+          items: [
+            {
+              expenseTitle: updated.title,
+              categoryName: updated.category.name,
+              amountUsd: Number(updated.amount),
+              profileName: updated.profile.name,
+            },
+          ],
         })
         .catch((err: unknown) => {
           this.logger.warn(`Error sending paid email: ${String(err)}`);
@@ -314,6 +320,80 @@ export class MeService {
       include: { category: true, profile: true },
     });
     return mapExpenseToResponse(updated);
+  }
+
+  async markExpensesPaid(user: AuthUserPayload, dto: MarkExpensesPaidDto) {
+    const uniqueIds = [...new Set(dto.ids)];
+    const rows = await this.prisma.expense.findMany({
+      where: {
+        id: { in: uniqueIds },
+        profile: { userId: user.userId },
+      },
+      include: { category: true, profile: true },
+    });
+    if (rows.length !== uniqueIds.length) {
+      throw new BadRequestException(
+        'Uno o más gastos no existen o no pertenecen a tu cuenta',
+      );
+    }
+    const unpaid = rows.filter((r) => !r.isPaid);
+    if (unpaid.length !== rows.length) {
+      throw new BadRequestException(
+        'Solo se pueden marcar gastos pendientes; quitá los ya pagados de la selección',
+      );
+    }
+    const paidByMemberId = dto.paidByMemberId?.trim();
+    let paidByDisplayName = dto.paidByDisplayName.trim();
+    if (paidByMemberId) {
+      const firstProfileId = unpaid[0].profileId;
+      if (!unpaid.every((r) => r.profileId === firstProfileId)) {
+        throw new BadRequestException(
+          'Si indicás integrante, todos los gastos deben ser del mismo perfil',
+        );
+      }
+      const member = await this.prisma.profileMember.findFirst({
+        where: { id: paidByMemberId, profileId: firstProfileId },
+        select: { id: true, displayName: true },
+      });
+      if (!member) {
+        throw new BadRequestException('Integrante inválido para este perfil');
+      }
+      paidByDisplayName = member.displayName;
+    }
+    const paidAt = new Date();
+    await this.prisma.expense.updateMany({
+      where: { id: { in: uniqueIds } },
+      data: {
+        isPaid: true,
+        paidByDisplayName,
+        paidByMemberId: paidByMemberId ?? null,
+        paidAt,
+      },
+    });
+    const updated = await this.prisma.expense.findMany({
+      where: { id: { in: uniqueIds } },
+      include: { category: true, profile: true },
+    });
+    const orderMap = new Map(uniqueIds.map((id, idx) => [id, idx]));
+    updated.sort(
+      (a, b) => (orderMap.get(a.id) ?? 0) - (orderMap.get(b.id) ?? 0),
+    );
+    const emailItems = updated.map((e) => ({
+      expenseTitle: e.title,
+      categoryName: e.category.name,
+      amountUsd: Number(e.amount),
+      profileName: e.profile.name,
+    }));
+    this.resendEmail
+      .sendExpensesPaidSummaryEmail({
+        to: user.email,
+        paidByDisplayName,
+        items: emailItems,
+      })
+      .catch((err: unknown) => {
+        this.logger.warn(`Error sending bulk paid email: ${String(err)}`);
+      });
+    return updated.map((e) => mapExpenseToResponse(e));
   }
 
   async deleteExpenses(user: AuthUserPayload, dto: DeleteExpensesDto) {

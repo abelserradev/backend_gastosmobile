@@ -15,6 +15,7 @@ import { CreateExpenseDto } from './dto/create-expense.dto';
 import { CreateProfileMemberDto } from './dto/create-profile-member.dto';
 import { CreateProfileDto } from './dto/create-profile.dto';
 import { DeleteExpensesDto } from './dto/delete-expenses.dto';
+import { MarkExpensesPaidDto } from './dto/mark-expenses-paid.dto';
 import { PatchExpenseDto } from './dto/patch-expense.dto';
 import { ReplaceCategoriesDto } from './dto/replace-categories.dto';
 import { UpdatePreferencesDto } from './dto/update-preferences.dto';
@@ -105,13 +106,12 @@ export class MeController {
     return this.me.createExpense(user, dto);
   }
 
-  @Patch('expenses/:id')
-  patchExpense(
+  @Post('expenses/mark-paid')
+  markExpensesPaid(
     @CurrentUser() user: AuthUserPayload,
-    @Param('id', ParseUUIDPipe) id: string,
-    @Body() dto: PatchExpenseDto,
+    @Body() dto: MarkExpensesPaidDto,
   ) {
-    return this.me.patchExpense(user, id, dto);
+    return this.me.markExpensesPaid(user, dto);
   }
 
   @Post('expenses/delete-many')
@@ -120,5 +120,14 @@ export class MeController {
     @Body() dto: DeleteExpensesDto,
   ) {
     return this.me.deleteExpenses(user, dto);
+  }
+
+  @Patch('expenses/:id')
+  patchExpense(
+    @CurrentUser() user: AuthUserPayload,
+    @Param('id', ParseUUIDPipe) id: string,
+    @Body() dto: PatchExpenseDto,
+  ) {
+    return this.me.patchExpense(user, id, dto);
   }
 }
