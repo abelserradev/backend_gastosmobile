@@ -2,7 +2,7 @@ import { Module } from '@nestjs/common';
 import { BcvModule } from '../bcv/bcv.module';
 import { MeController } from './me.controller';
 import { MeService } from './me.service';
-import { EmailModule } from 'src/email/email.module';
+import { EmailModule } from '../email/email.module';
 
 @Module({
   imports: [BcvModule, EmailModule],

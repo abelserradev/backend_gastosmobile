@@ -1,12 +1,12 @@
 # CI en la raíz del repo backend (Nest + Prisma).
-# Branch protection: exigir el check de este workflow en main.
+# Branch protection: exigir el check de este workflow en main/master/backend.
 name: CI
 
 on:
   pull_request:
-    branches: [main, master]
+    branches: [main, master, backend]
   push:
-    branches: [main, master]
+    branches: [main, master, backend]
 
 permissions:
   contents: read
