@@ -46,13 +46,19 @@ model PasswordResetToken {
   @@index([userId])
 }
 
-/// Moneda preferida para captura (UI); `monthlyIncome` siempre en USD (base única).
+/// Moneda preferida para captura (UI); con BS el nominal va en `incomeFixedBs` y el equivalente USD se recalcula con la tasa vigente.
 model UserPreference {
   id              String       @id @default(uuid())
   userId          String       @unique
   user            User         @relation(fields: [userId], references: [id], onDelete: Cascade)
   defaultCurrency CurrencyCode @default(USD)
+  /// USD cuando controlás en $; si controlás en Bs., guardamos el equivalente al momento del guardado (referencia histórica).
   monthlyIncome   Decimal      @db.Decimal(14, 2)
+  /// Monto nominal fijo en bolívares si `defaultCurrency` es BS.
+  incomeFixedBs   Decimal?     @db.Decimal(14, 2)
+  /// Tasa oficial del día en que registraste el ingreso en Bs.
+  incomeRegisteredBcvRateId String?
+  incomeRegisteredBcvRate     BcVOfficialRate? @relation("income_registered_rate", fields: [incomeRegisteredBcvRateId], references: [id], onDelete: SetNull)
   updatedAt       DateTime     @updatedAt
 }
 
@@ -103,6 +109,8 @@ model BcVOfficialRate {
   rateDate  DateTime @unique @db.Date
   vesPerUsd Decimal  @db.Decimal(18, 6)
   fetchedAt DateTime @default(now())
+
+  preferencesRegisteredIncome UserPreference[] @relation("income_registered_rate")
 }
 
 /// Gasto asociado a un perfil y categoría; mes de referencia para reportes.

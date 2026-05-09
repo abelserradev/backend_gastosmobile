@@ -3,6 +3,7 @@ import {
   Injectable,
   NotFoundException,
   Logger,
+  ServiceUnavailableException,
 } from '@nestjs/common';
 import { BcvRateService } from '../bcv/bcv-rate.service';
 import {
@@ -10,6 +11,7 @@ import {
   parseYmdToUtcNoon,
 } from '../common/utils/caracas-date';
 import type { AuthUserPayload } from '../common/types/auth-user.payload';
+import type { Prisma } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
 import { CreateExpenseDto } from './dto/create-expense.dto';
 import { CreateProfileDto } from './dto/create-profile.dto';
@@ -20,11 +22,17 @@ import { ReplaceCategoriesDto } from './dto/replace-categories.dto';
 import { UpdatePreferencesDto } from './dto/update-preferences.dto';
 import { CreateProfileMemberDto } from './dto/create-profile-member.dto';
 import {
+  buildBsIncomeNarrativeLine,
   mapExpenseToResponse,
+  type MePreferencesResponse,
   startOfCurrentMonthUtc,
   toReferenceMonthDate,
 } from './me.mappers';
 import { ResendEmailService } from '../email/resend-email.service';
+
+type UserPreferenceWithRegRate = Prisma.UserPreferenceGetPayload<{
+  include: { incomeRegisteredBcvRate: true };
+}>;
 
 @Injectable()
 export class MeService {
@@ -38,7 +46,10 @@ export class MeService {
   async getState(user: AuthUserPayload) {
     const userId = user.userId;
     const [pref, categories, profiles, expenses] = await Promise.all([
-      this.prisma.userPreference.findUnique({ where: { userId } }),
+      this.prisma.userPreference.findUnique({
+        where: { userId },
+        include: { incomeRegisteredBcvRate: true },
+      }),
       this.prisma.category.findMany({
         where: { userId },
         orderBy: { name: 'asc' },
@@ -54,12 +65,7 @@ export class MeService {
       }),
     ]);
     return {
-      preferences: pref
-        ? {
-            defaultCurrency: pref.defaultCurrency,
-            monthlyIncome: Number(pref.monthlyIncome),
-          }
-        : null,
+      preferences: await this.mapPreferencesToResponse(pref),
       categories: categories.map((c) => ({ id: c.id, name: c.name })),
       profiles: profiles.map((p) => ({
         id: p.id,
@@ -71,29 +77,79 @@ export class MeService {
   }
 
   async updatePreferences(user: AuthUserPayload, dto: UpdatePreferencesDto) {
-    const row = await this.prisma.userPreference.upsert({
-      where: { userId: user.userId },
-      create: {
-        userId: user.userId,
-        defaultCurrency: dto.defaultCurrency,
-        monthlyIncome: dto.monthlyIncome,
-      },
-      update: {
-        defaultCurrency: dto.defaultCurrency,
-        monthlyIncome: dto.monthlyIncome,
-      },
+    const uid = user.userId;
+    if (dto.defaultCurrency === 'USD') {
+      if (dto.monthlyIncome === undefined) {
+        throw new BadRequestException('Indica el ingreso en USD');
+      }
+      await this.prisma.userPreference.upsert({
+        where: { userId: uid },
+        create: {
+          userId: uid,
+          defaultCurrency: dto.defaultCurrency,
+          monthlyIncome: dto.monthlyIncome,
+          incomeFixedBs: null,
+          incomeRegisteredBcvRateId: null,
+        },
+        update: {
+          defaultCurrency: dto.defaultCurrency,
+          monthlyIncome: dto.monthlyIncome,
+          incomeFixedBs: null,
+          incomeRegisteredBcvRateId: null,
+        },
+      });
+    } else {
+      if (dto.monthlyIncomeBs === undefined) {
+        throw new BadRequestException('Indica el ingreso en bolívares');
+      }
+      if (dto.monthlyIncomeBs <= 0) {
+        throw new BadRequestException(
+          'El ingreso en Bs. debe ser mayor a cero',
+        );
+      }
+      const ymd = formatYmdInCaracas();
+      const { vesPerUsd, rateDate } =
+        await this.bcv.getVesPerUsdForCalendarDay(ymd);
+      const rateRow = await this.prisma.bcVOfficialRate.findUnique({
+        where: { rateDate },
+      });
+      if (!rateRow) {
+        throw new ServiceUnavailableException(
+          'No se pudo registrar la tasa del día',
+        );
+      }
+      const usdCaptura = dto.monthlyIncomeBs / Number(vesPerUsd.toString());
+      await this.prisma.userPreference.upsert({
+        where: { userId: uid },
+        create: {
+          userId: uid,
+          defaultCurrency: 'BS',
+          monthlyIncome: usdCaptura,
+          incomeFixedBs: dto.monthlyIncomeBs,
+          incomeRegisteredBcvRateId: rateRow.id,
+        },
+        update: {
+          defaultCurrency: 'BS',
+          monthlyIncome: usdCaptura,
+          incomeFixedBs: dto.monthlyIncomeBs,
+          incomeRegisteredBcvRateId: rateRow.id,
+        },
+      });
+    }
+    const fresh = await this.prisma.userPreference.findUnique({
+      where: { userId: uid },
+      include: { incomeRegisteredBcvRate: true },
     });
-    return {
-      defaultCurrency: row.defaultCurrency,
-      monthlyIncome: Number(row.monthlyIncome),
-    };
+    const mapped = await this.mapPreferencesToResponse(fresh);
+    if (!mapped) {
+      throw new BadRequestException('No se pudieron leer las preferencias');
+    }
+    return mapped;
   }
 
   async replaceCategories(user: AuthUserPayload, dto: ReplaceCategoriesDto) {
     const userId = user.userId;
-    const names = [
-      ...new Set(dto.names.map((n) => n.trim()).filter(Boolean)),
-    ];
+    const names = [...new Set(dto.names.map((n) => n.trim()).filter(Boolean))];
     if (names.length === 0) {
       throw new BadRequestException('Se requiere al menos una categoría');
     }
@@ -413,6 +469,97 @@ export class MeService {
       where: { id: { in: [...allowed] } },
     });
     return { deleted: allowed.size };
+  }
+
+  private async mapPreferencesToResponse(
+    pref: UserPreferenceWithRegRate | null,
+  ): Promise<MePreferencesResponse | null> {
+    if (!pref) {
+      return null;
+    }
+    const monthlyStored = Number(pref.monthlyIncome.toString());
+    const base: MePreferencesResponse = {
+      defaultCurrency: pref.defaultCurrency,
+      monthlyIncome: monthlyStored,
+      incomeFixedBs: null,
+      monthlyIncomeUsdAtRegistration: null,
+      bcvVesPerUsdNow: null,
+      bcvRateDateNow: null,
+      bcvVesPerUsdAtRegistration: null,
+      bcvRateDateAtRegistration: null,
+      usdEquivalentDelta: null,
+      bsIncomeNarrative: null,
+      bcvQuoteIsStale: false,
+    };
+    if (pref.defaultCurrency !== 'BS') {
+      return base;
+    }
+    const nominalBs =
+      pref.incomeFixedBs != null ? Number(pref.incomeFixedBs.toString()) : null;
+    if (nominalBs == null) {
+      return {
+        ...base,
+        defaultCurrency: 'BS',
+        monthlyIncome: monthlyStored,
+      };
+    }
+    const reg = pref.incomeRegisteredBcvRate;
+    const vesReg = reg ? Number(reg.vesPerUsd.toString()) : null;
+    const dateReg = reg ? reg.rateDate.toISOString().slice(0, 10) : null;
+    if (vesReg == null || vesReg <= 0 || dateReg == null) {
+      return {
+        ...base,
+        defaultCurrency: 'BS',
+        monthlyIncome: monthlyStored,
+        incomeFixedBs: nominalBs,
+      };
+    }
+    const usdAlRegistrar = nominalBs / vesReg;
+    let latest: {
+      vesPerUsd: Prisma.Decimal;
+      rateDate: Date;
+      usedFallback: boolean;
+    };
+    try {
+      latest = await this.bcv.getLatestVesPerUsdPreferToday();
+    } catch {
+      return {
+        ...base,
+        defaultCurrency: 'BS',
+        monthlyIncome: monthlyStored,
+        incomeFixedBs: nominalBs,
+        monthlyIncomeUsdAtRegistration: usdAlRegistrar,
+        bcvVesPerUsdAtRegistration: vesReg,
+        bcvRateDateAtRegistration: dateReg,
+        bcvQuoteIsStale: true,
+      };
+    }
+    const vesAhora = Number(latest.vesPerUsd.toString());
+    const dateNow = latest.rateDate.toISOString().slice(0, 10);
+    const usdAhora = nominalBs / vesAhora;
+    const delta = usdAhora - usdAlRegistrar;
+    return {
+      defaultCurrency: 'BS',
+      monthlyIncome: usdAhora,
+      incomeFixedBs: nominalBs,
+      monthlyIncomeUsdAtRegistration: usdAlRegistrar,
+      bcvVesPerUsdNow: vesAhora,
+      bcvRateDateNow: dateNow,
+      bcvVesPerUsdAtRegistration: vesReg,
+      bcvRateDateAtRegistration: dateReg,
+      usdEquivalentDelta: delta,
+      bsIncomeNarrative: buildBsIncomeNarrativeLine({
+        nominalBs,
+        usdNow: usdAhora,
+        usdAtReg: usdAlRegistrar,
+        vesNow: vesAhora,
+        vesReg,
+        dateRegYmd: dateReg,
+        dateNowYmd: dateNow,
+        stale: latest.usedFallback,
+      }),
+      bcvQuoteIsStale: latest.usedFallback,
+    };
   }
 
   private async resolveCategoryId(

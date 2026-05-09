@@ -64,3 +64,51 @@ export function mapExpenseToResponse(e: {
     paidByMemberId: e.paidByMemberId ?? null,
   };
 }
+
+/** Respuesta enriquecida de preferencias (ingreso en Bs. con recálculo de USD). */
+export interface MePreferencesResponse {
+  defaultCurrency: 'USD' | 'BS';
+  monthlyIncome: number;
+  incomeFixedBs: number | null;
+  monthlyIncomeUsdAtRegistration: number | null;
+  bcvVesPerUsdNow: number | null;
+  bcvRateDateNow: string | null;
+  bcvVesPerUsdAtRegistration: number | null;
+  bcvRateDateAtRegistration: string | null;
+  usdEquivalentDelta: number | null;
+  bsIncomeNarrative: string | null;
+  bcvQuoteIsStale: boolean;
+}
+
+/** Texto para la UI / asistentes: mismo nominal en Bs., distinto poder en USD por la tasa. */
+export function buildBsIncomeNarrativeLine(p: {
+  nominalBs: number;
+  usdNow: number;
+  usdAtReg: number;
+  vesNow: number;
+  vesReg: number;
+  dateRegYmd: string;
+  dateNowYmd: string;
+  stale: boolean;
+}): string {
+  const delta = p.usdNow - p.usdAtReg;
+  const sign = delta > 0 ? '+' : '';
+  let tasaFragmento: string;
+  if (p.vesNow > p.vesReg) {
+    tasaFragmento = `subió de ${p.vesReg.toFixed(2)} a ${p.vesNow.toFixed(2)} Bs/USD`;
+  } else if (p.vesNow < p.vesReg) {
+    tasaFragmento = `bajó de ${p.vesReg.toFixed(2)} a ${p.vesNow.toFixed(2)} Bs/USD`;
+  } else {
+    tasaFragmento = `se mantiene en ${p.vesNow.toFixed(2)} Bs/USD`;
+  }
+  const bsTxt = p.nominalBs.toLocaleString('es-VE', { maximumFractionDigits: 2 });
+  let texto =
+    `Sigues teniendo ${bsTxt} Bs., pero como la tasa oficial ${tasaFragmento}, ` +
+    `ahora equivalen a unos $${p.usdNow.toFixed(2)} USD ` +
+    `(el ${p.dateRegYmd} equivalían a $${p.usdAtReg.toFixed(2)} USD; diferencia ${sign}${delta.toFixed(2)} USD).`;
+  if (p.stale) {
+    texto +=
+      ' Se muestra la última tasa guardada en caché porque no hubo cotización en vivo.';
+  }
+  return texto;
+}

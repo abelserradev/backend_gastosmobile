@@ -97,6 +97,36 @@ export class BcvRateService {
     );
   }
 
+  /**
+   * Tasa del día en Caracas; si DolarApi falla, última fila en BD para no dejar sin USD
+   * a quien fijó el ingreso en bolívares.
+   */
+  async getLatestVesPerUsdPreferToday(): Promise<{
+    vesPerUsd: Prisma.Decimal;
+    rateDate: Date;
+    usedFallback: boolean;
+  }> {
+    const ymd = formatYmdInCaracas();
+    try {
+      const r = await this.getVesPerUsdForCalendarDay(ymd);
+      return { ...r, usedFallback: false };
+    } catch {
+      const row = await this.prisma.bcVOfficialRate.findFirst({
+        orderBy: { rateDate: 'desc' },
+      });
+      if (!row) {
+        throw new ServiceUnavailableException(
+          'Sin tasas en caché ni conexión para cotización oficial',
+        );
+      }
+      return {
+        vesPerUsd: row.vesPerUsd,
+        rateDate: row.rateDate,
+        usedFallback: true,
+      };
+    }
+  }
+
   /** Primer día con tasa conocida después del fin de semana (p.ej. lunes). */
   private async pickOfficialOnOrAfter(anchor: Date): Promise<{
     vesPerUsd: Prisma.Decimal;
