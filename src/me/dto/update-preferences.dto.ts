@@ -1,19 +1,23 @@
 import { Type } from 'class-transformer';
-import { IsIn, IsNumber, Min, ValidateIf } from 'class-validator';
+import { IsIn, IsNumber, IsOptional, Min } from 'class-validator';
 
+/**
+ * Reglas efectivas (servicio):
+ * - USD: obligatorio `monthlyIncome`.
+ * - BS: `monthlyIncomeBs` (cliente nuevo) o `monthlyIncome` (cliente viejo: USD congelado al guardar).
+ */
 export class UpdatePreferencesDto {
   @IsIn(['USD', 'BS'])
   defaultCurrency!: 'USD' | 'BS';
 
-  @ValidateIf((o: UpdatePreferencesDto) => o.defaultCurrency === 'USD')
   @Type(() => Number)
+  @IsOptional()
   @IsNumber()
   @Min(0)
   monthlyIncome?: number;
 
-  /** Monto nominal en bolívares cuando controlás el ingreso en Bs. */
-  @ValidateIf((o: UpdatePreferencesDto) => o.defaultCurrency === 'BS')
   @Type(() => Number)
+  @IsOptional()
   @IsNumber()
   @Min(0)
   monthlyIncomeBs?: number;

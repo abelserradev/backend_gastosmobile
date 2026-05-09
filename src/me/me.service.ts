@@ -79,7 +79,7 @@ export class MeService {
   async updatePreferences(user: AuthUserPayload, dto: UpdatePreferencesDto) {
     const uid = user.userId;
     if (dto.defaultCurrency === 'USD') {
-      if (dto.monthlyIncome === undefined) {
+      if (dto.monthlyIncome === undefined || dto.monthlyIncome === null) {
         throw new BadRequestException('Indica el ingreso en USD');
       }
       await this.prisma.userPreference.upsert({
@@ -99,42 +99,63 @@ export class MeService {
         },
       });
     } else {
-      if (dto.monthlyIncomeBs === undefined) {
-        throw new BadRequestException('Indica el ingreso en bolívares');
-      }
-      if (dto.monthlyIncomeBs <= 0) {
+      const tieneBsNominal =
+        dto.monthlyIncomeBs != null && dto.monthlyIncomeBs > 0;
+      if (tieneBsNominal) {
+        const ymd = formatYmdInCaracas();
+        const { vesPerUsd, rateDate } =
+          await this.bcv.getVesPerUsdForCalendarDay(ymd);
+        const rateRow = await this.prisma.bcVOfficialRate.findUnique({
+          where: { rateDate },
+        });
+        if (!rateRow) {
+          throw new ServiceUnavailableException(
+            'No se pudo registrar la tasa del día',
+          );
+        }
+        const usdCaptura = dto.monthlyIncomeBs! / Number(vesPerUsd.toString());
+        await this.prisma.userPreference.upsert({
+          where: { userId: uid },
+          create: {
+            userId: uid,
+            defaultCurrency: 'BS',
+            monthlyIncome: usdCaptura,
+            incomeFixedBs: dto.monthlyIncomeBs,
+            incomeRegisteredBcvRateId: rateRow.id,
+          },
+          update: {
+            defaultCurrency: 'BS',
+            monthlyIncome: usdCaptura,
+            incomeFixedBs: dto.monthlyIncomeBs,
+            incomeRegisteredBcvRateId: rateRow.id,
+          },
+        });
+      } else if (
+        dto.monthlyIncome !== undefined &&
+        dto.monthlyIncome !== null
+      ) {
+        // Cliente antiguo: solo guardaba USD equivalente; sin monto fijo en Bs.
+        await this.prisma.userPreference.upsert({
+          where: { userId: uid },
+          create: {
+            userId: uid,
+            defaultCurrency: 'BS',
+            monthlyIncome: dto.monthlyIncome,
+            incomeFixedBs: null,
+            incomeRegisteredBcvRateId: null,
+          },
+          update: {
+            defaultCurrency: 'BS',
+            monthlyIncome: dto.monthlyIncome,
+            incomeFixedBs: null,
+            incomeRegisteredBcvRateId: null,
+          },
+        });
+      } else {
         throw new BadRequestException(
-          'El ingreso en Bs. debe ser mayor a cero',
+          'Indica el ingreso en bolívares (monthlyIncomeBs) o el equivalente (formato anterior)',
         );
       }
-      const ymd = formatYmdInCaracas();
-      const { vesPerUsd, rateDate } =
-        await this.bcv.getVesPerUsdForCalendarDay(ymd);
-      const rateRow = await this.prisma.bcVOfficialRate.findUnique({
-        where: { rateDate },
-      });
-      if (!rateRow) {
-        throw new ServiceUnavailableException(
-          'No se pudo registrar la tasa del día',
-        );
-      }
-      const usdCaptura = dto.monthlyIncomeBs / Number(vesPerUsd.toString());
-      await this.prisma.userPreference.upsert({
-        where: { userId: uid },
-        create: {
-          userId: uid,
-          defaultCurrency: 'BS',
-          monthlyIncome: usdCaptura,
-          incomeFixedBs: dto.monthlyIncomeBs,
-          incomeRegisteredBcvRateId: rateRow.id,
-        },
-        update: {
-          defaultCurrency: 'BS',
-          monthlyIncome: usdCaptura,
-          incomeFixedBs: dto.monthlyIncomeBs,
-          incomeRegisteredBcvRateId: rateRow.id,
-        },
-      });
     }
     const fresh = await this.prisma.userPreference.findUnique({
       where: { userId: uid },
