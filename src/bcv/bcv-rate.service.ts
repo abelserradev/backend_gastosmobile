@@ -58,10 +58,9 @@ export class BcvRateService {
     for (const row of list) {
       const rowYmdRaw = typeof row.fecha === 'string' ? row.fecha.trim() : '';
       // DolarApi suele mandar solo "YYYY-MM-DD"; iso completo usaría TZ distinta si lo parseamos en UTC puro.
-      const rowYmd =
-        /^\d{4}-\d{2}-\d{2}$/.test(rowYmdRaw)
-          ? rowYmdRaw
-          : toCaracasYmdFromApiFecha(row.fecha);
+      const rowYmd = /^\d{4}-\d{2}-\d{2}$/.test(rowYmdRaw)
+        ? rowYmdRaw
+        : toCaracasYmdFromApiFecha(row.fecha);
       const d = parseYmdToUtcNoon(rowYmd);
       await this.prisma.bcVOfficialRate.upsert({
         where: { rateDate: d },
@@ -163,7 +162,7 @@ export class BcvRateService {
         this.http.get<DolarApiOficialVivo>('/v1/dolares/oficial'),
       );
       if (typeof data?.promedio !== 'number' || Number.isNaN(data.promedio)) {
-        throw new Error('Respuesta DolarApi sin promedio numérico');
+        throw new TypeError('Respuesta DolarApi sin promedio numérico');
       }
       return data;
     } catch {
@@ -173,7 +172,9 @@ export class BcvRateService {
     }
   }
 
-  private async fetchOfficialHistorico(): Promise<DolarApiOficialHistoricoItem[]> {
+  private async fetchOfficialHistorico(): Promise<
+    DolarApiOficialHistoricoItem[]
+  > {
     try {
       const { data } = await firstValueFrom(
         this.http.get<DolarApiOficialHistoricoItem[]>(
@@ -181,7 +182,7 @@ export class BcvRateService {
         ),
       );
       if (!Array.isArray(data)) {
-        throw new Error('Histórico: se esperaba un array');
+        throw new TypeError('Histórico: se esperaba un array');
       }
       return data;
     } catch {
