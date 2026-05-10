@@ -101,9 +101,11 @@ export function buildBsIncomeNarrativeLine(p: {
   } else {
     tasaFragmento = `se mantiene en ${p.vesNow.toFixed(2)} Bs/USD`;
   }
-  const bsTxt = p.nominalBs.toLocaleString('es-VE', { maximumFractionDigits: 2 });
+  const bsTxt = p.nominalBs.toLocaleString('es-VE', {
+    maximumFractionDigits: 2,
+  });
   let texto =
-    `Sigues teniendo ${bsTxt} Bs., pero como la tasa oficial ${tasaFragmento}, ` +
+    `Sigues teniendo ${bsTxt} BsD., pero como la tasa oficial ${tasaFragmento}, ` +
     `ahora equivalen a unos $${p.usdNow.toFixed(2)} USD ` +
     `(el ${p.dateRegYmd} equivalían a $${p.usdAtReg.toFixed(2)} USD; diferencia ${sign}${delta.toFixed(2)} USD).`;
   if (p.stale) {
