@@ -97,5 +97,11 @@
     ],
     "coverageDirectory": "../coverage",
     "testEnvironment": "node"
+  },
+  "overrides": {
+    "@hono/node-server": "^1.19.13",
+    "@tootallnate/once": "^3.0.1",
+    "http-proxy-agent": "^7.0.2",
+    "teeny-request": "^9.0.0"
   }
 }
