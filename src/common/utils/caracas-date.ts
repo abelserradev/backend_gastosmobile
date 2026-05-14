@@ -9,6 +9,19 @@ export function formatYmdInCaracas(d: Date = new Date()): string {
   return fmt.format(d);
 }
 
+/** Primer día del mes calendario en Caracas (YYYY-MM-01), alineado con `referenceMonth` de gastos. */
+export function startOfMonthYmdInCaracas(d: Date = new Date()): string {
+  const fmt = new Intl.DateTimeFormat('en-CA', {
+    timeZone: 'America/Caracas',
+    year: 'numeric',
+    month: '2-digit',
+  });
+  const parts = fmt.formatToParts(d);
+  const y = parts.find((p) => p.type === 'year')!.value;
+  const m = parts.find((p) => p.type === 'month')!.value;
+  return `${y}-${m}-01`;
+}
+
 export function parseYmdToUtcNoon(ymd: string): Date {
   return new Date(`${ymd}T12:00:00.000Z`);
 }

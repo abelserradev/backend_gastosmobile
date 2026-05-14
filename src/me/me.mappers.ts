@@ -1,10 +1,3 @@
-/** Mes de referencia por defecto (UTC) para gastos sin fecha explícita. */
-export function startOfCurrentMonthUtc(): string {
-  const d = new Date();
-  const y = d.getUTCFullYear();
-  const m = d.getUTCMonth() + 1;
-  return `${y}-${String(m).padStart(2, '0')}-01`;
-}
 
 export function toReferenceMonthDate(isoDay: string): Date {
   return new Date(`${isoDay}T12:00:00.000Z`);
@@ -18,6 +11,7 @@ export function mapExpenseToResponse(e: {
   description: string;
   amount: { toString(): string };
   isPaid: boolean;
+  referenceMonth: Date;
   paymentDate: Date | null;
   bcvRateApplied: { toString(): string } | null;
   bcvRateDate: Date | null;
@@ -34,6 +28,7 @@ export function mapExpenseToResponse(e: {
   amount: number;
   category: string;
   isPaid: boolean;
+  referenceMonth: string;
   paymentDate: string | null;
   bcvRateApplied: number | null;
   bcvRateDate: string | null;
@@ -50,6 +45,7 @@ export function mapExpenseToResponse(e: {
     amount: Number(e.amount.toString()),
     category: e.category.name,
     isPaid: e.isPaid,
+    referenceMonth: e.referenceMonth.toISOString().slice(0, 10),
     paymentDate: e.paymentDate
       ? e.paymentDate.toISOString().slice(0, 10)
       : null,
@@ -70,6 +66,8 @@ export interface MePreferencesResponse {
   defaultCurrency: 'USD' | 'BS';
   monthlyIncome: number;
   incomeFixedBs: number | null;
+  /** Primer día del mes en que se confirmó el ingreso (YYYY-MM-DD). */
+  incomeReferenceMonth: string | null;
   monthlyIncomeUsdAtRegistration: number | null;
   bcvVesPerUsdNow: number | null;
   bcvRateDateNow: string | null;

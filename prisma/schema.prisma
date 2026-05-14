@@ -59,6 +59,8 @@ model UserPreference {
   /// Tasa oficial del día en que registraste el ingreso en Bs.
   incomeRegisteredBcvRateId String?
   incomeRegisteredBcvRate     BcVOfficialRate? @relation("income_registered_rate", fields: [incomeRegisteredBcvRateId], references: [id], onDelete: SetNull)
+  /// Primer día del mes (Caracas) para el cual el usuario confirmó ingreso y control mensual.
+  incomeReferenceMonth DateTime? @db.Date
   updatedAt       DateTime     @updatedAt
 }
 

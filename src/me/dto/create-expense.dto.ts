@@ -41,7 +41,7 @@ export class CreateExpenseDto {
   @MaxLength(80)
   categoryName?: string;
 
-  /** YYYY-MM-DD; si omites, mes calendario actual (UTC). */
+  /** YYYY-MM-DD del primer día del mes; si omites, mes calendario actual (Caracas). */
   @IsOptional()
   @Matches(/^\d{4}-\d{2}-\d{2}$/)
   referenceMonth?: string;
