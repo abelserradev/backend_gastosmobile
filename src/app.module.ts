@@ -9,6 +9,7 @@ import { AppController } from './app.controller';
 import { AppService } from './app.service';
 import { BcvModule } from './bcv/bcv.module';
 import { MeModule } from './me/me.module';
+import { OcrModule } from './ocr/ocr.module';
 import { PrismaModule } from './prisma/prisma.module';
 
 @Module({
@@ -34,6 +35,7 @@ import { PrismaModule } from './prisma/prisma.module';
     AuthModule,
     MeModule,
     BcvModule,
+    OcrModule,
   ],
   controllers: [AppController],
   providers: [
