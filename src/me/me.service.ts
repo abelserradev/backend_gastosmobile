@@ -9,6 +9,7 @@ import { BcvRateService } from '../bcv/bcv-rate.service';
 import {
   formatYmdInCaracas,
   parseYmdToUtcNoon,
+  startOfMonthYmdInCaracas,
 } from '../common/utils/caracas-date';
 import type { AuthUserPayload } from '../common/types/auth-user.payload';
 import type { Prisma } from '@prisma/client';
@@ -25,7 +26,6 @@ import {
   buildBsIncomeNarrativeLine,
   mapExpenseToResponse,
   type MePreferencesResponse,
-  startOfCurrentMonthUtc,
   toReferenceMonthDate,
 } from './me.mappers';
 import { ResendEmailService } from '../email/resend-email.service';
@@ -43,8 +43,21 @@ export class MeService {
     private readonly resendEmail: ResendEmailService,
   ) {}
 
+  private incomeMonthNeedsRefresh(
+    pref: Pick<UserPreferenceWithRegRate, 'incomeReferenceMonth'> | null,
+  ): boolean {
+    if (!pref?.incomeReferenceMonth) {
+      return true;
+    }
+    const esperado = startOfMonthYmdInCaracas();
+    const guardado = pref.incomeReferenceMonth.toISOString().slice(0, 10);
+    return guardado !== esperado;
+  }
+
   async getState(user: AuthUserPayload) {
     const userId = user.userId;
+    const activeYmd = startOfMonthYmdInCaracas();
+    const activeMonthDate = toReferenceMonthDate(activeYmd);
     const [pref, categories, profiles, expenses] = await Promise.all([
       this.prisma.userPreference.findUnique({
         where: { userId },
@@ -59,11 +72,16 @@ export class MeService {
         orderBy: { createdAt: 'asc' },
       }),
       this.prisma.expense.findMany({
-        where: { profile: { userId } },
+        where: {
+          profile: { userId },
+          referenceMonth: activeMonthDate,
+        },
         include: { category: true, profile: true },
         orderBy: { createdAt: 'desc' },
       }),
     ]);
+    const needsMonthlyIncomeSetup =
+      !pref || this.incomeMonthNeedsRefresh(pref);
     return {
       preferences: await this.mapPreferencesToResponse(pref),
       categories: categories.map((c) => ({ id: c.id, name: c.name })),
@@ -73,11 +91,14 @@ export class MeService {
         type: p.type,
       })),
       expenses: expenses.map((e) => mapExpenseToResponse(e)),
+      activeReferenceMonth: activeYmd,
+      needsMonthlyIncomeSetup,
     };
   }
 
   async updatePreferences(user: AuthUserPayload, dto: UpdatePreferencesDto) {
     const uid = user.userId;
+    const incomeRef = toReferenceMonthDate(startOfMonthYmdInCaracas());
     if (dto.defaultCurrency === 'USD') {
       if (dto.monthlyIncome === undefined || dto.monthlyIncome === null) {
         throw new BadRequestException('Indica el ingreso en USD');
@@ -90,12 +111,14 @@ export class MeService {
           monthlyIncome: dto.monthlyIncome,
           incomeFixedBs: null,
           incomeRegisteredBcvRateId: null,
+          incomeReferenceMonth: incomeRef,
         },
         update: {
           defaultCurrency: dto.defaultCurrency,
           monthlyIncome: dto.monthlyIncome,
           incomeFixedBs: null,
           incomeRegisteredBcvRateId: null,
+          incomeReferenceMonth: incomeRef,
         },
       });
     } else {
@@ -122,12 +145,14 @@ export class MeService {
             monthlyIncome: usdCaptura,
             incomeFixedBs: dto.monthlyIncomeBs,
             incomeRegisteredBcvRateId: rateRow.id,
+            incomeReferenceMonth: incomeRef,
           },
           update: {
             defaultCurrency: 'BS',
             monthlyIncome: usdCaptura,
             incomeFixedBs: dto.monthlyIncomeBs,
             incomeRegisteredBcvRateId: rateRow.id,
+            incomeReferenceMonth: incomeRef,
           },
         });
       } else if (
@@ -143,12 +168,14 @@ export class MeService {
             monthlyIncome: dto.monthlyIncome,
             incomeFixedBs: null,
             incomeRegisteredBcvRateId: null,
+            incomeReferenceMonth: incomeRef,
           },
           update: {
             defaultCurrency: 'BS',
             monthlyIncome: dto.monthlyIncome,
             incomeFixedBs: null,
             incomeRegisteredBcvRateId: null,
+            incomeReferenceMonth: incomeRef,
           },
         });
       } else {
@@ -291,8 +318,41 @@ export class MeService {
   }
 
   async listExpenses(user: AuthUserPayload) {
+    const activeMonthDate = toReferenceMonthDate(startOfMonthYmdInCaracas());
     const rows = await this.prisma.expense.findMany({
-      where: { profile: { userId: user.userId } },
+      where: {
+        profile: { userId: user.userId },
+        referenceMonth: activeMonthDate,
+      },
+      include: { category: true, profile: true },
+      orderBy: { createdAt: 'desc' },
+    });
+    return rows.map((e) => mapExpenseToResponse(e));
+  }
+
+  async listExpenseHistoryMonths(user: AuthUserPayload) {
+    const userId = user.userId;
+    const groups = await this.prisma.expense.groupBy({
+      by: ['referenceMonth'],
+      where: { profile: { userId } },
+      _count: { _all: true },
+      _sum: { amount: true },
+      orderBy: { referenceMonth: 'desc' },
+    });
+    return groups.map((g) => ({
+      month: g.referenceMonth.toISOString().slice(0, 10),
+      expenseCount: g._count._all,
+      totalAmountUsd: Number(g._sum.amount?.toString() ?? '0'),
+    }));
+  }
+
+  async listExpenseHistoryForMonth(user: AuthUserPayload, ym: string) {
+    if (!/^\d{4}-\d{2}$/.test(ym)) {
+      throw new BadRequestException('Mes inválido (formato YYYY-MM)');
+    }
+    const ref = toReferenceMonthDate(`${ym}-01`);
+    const rows = await this.prisma.expense.findMany({
+      where: { profile: { userId: user.userId }, referenceMonth: ref },
       include: { category: true, profile: true },
       orderBy: { createdAt: 'desc' },
     });
@@ -303,7 +363,7 @@ export class MeService {
     const userId = user.userId;
     const categoryId = await this.resolveCategoryId(userId, dto);
     const profileId = await this.resolveProfileId(userId, dto.profileId);
-    const refStr = dto.referenceMonth ?? startOfCurrentMonthUtc();
+    const refStr = dto.referenceMonth ?? startOfMonthYmdInCaracas();
     const rateYmd = dto.paymentDate ?? formatYmdInCaracas();
     const { vesPerUsd, rateDate } =
       await this.bcv.getVesPerUsdForCalendarDay(rateYmd);
@@ -503,6 +563,9 @@ export class MeService {
       defaultCurrency: pref.defaultCurrency,
       monthlyIncome: monthlyStored,
       incomeFixedBs: null,
+      incomeReferenceMonth: pref.incomeReferenceMonth
+        ? pref.incomeReferenceMonth.toISOString().slice(0, 10)
+        : null,
       monthlyIncomeUsdAtRegistration: null,
       bcvVesPerUsdNow: null,
       bcvRateDateNow: null,
@@ -560,6 +623,7 @@ export class MeService {
     const usdAhora = nominalBs / vesAhora;
     const delta = usdAhora - usdAlRegistrar;
     return {
+      ...base,
       defaultCurrency: 'BS',
       monthlyIncome: usdAhora,
       incomeFixedBs: nominalBs,

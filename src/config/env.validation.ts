@@ -28,14 +28,16 @@ export const envValidationSchema = Joi.object({
       otherwise: Joi.string().trim().allow('').optional(),
     }),
   JWT_EXPIRES_IN: Joi.string().default('7d'),
-  FRONTEND_URL: Joi.string().allow('').when('NODE_ENV', {
-    is: 'production',
-    then: Joi.string().min(1).required().messages({
-      'any.required':
-        'FRONTEND_URL es obligatorio en producción (CORS explícito, sin comodín)',
+  FRONTEND_URL: Joi.string()
+    .allow('')
+    .when('NODE_ENV', {
+      is: 'production',
+      then: Joi.string().min(1).required().messages({
+        'any.required':
+          'FRONTEND_URL es obligatorio en producción (CORS explícito, sin comodín)',
+      }),
+      otherwise: Joi.optional(),
     }),
-    otherwise: Joi.optional(),
-  }),
   COOKIE_SAME_SITE: Joi.string()
     .valid('strict', 'lax', 'none')
     .lowercase()
@@ -49,4 +51,6 @@ export const envValidationSchema = Joi.object({
   RESEND_API_KEY: Joi.string().allow('').optional(),
   /** Remitente verificado en Resend, p. ej. Gastos &lt;noreply@buildforge.work&gt; */
   EMAIL_FROM: Joi.string().allow('').optional(),
+  /** URL del servicio OCR Python (Moondream). Default: http://localhost:8001 */
+  OCR_SERVICE_URL: Joi.string().uri().allow('').optional(),
 });

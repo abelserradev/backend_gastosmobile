@@ -46,6 +46,19 @@ export class MeController {
     return this.me.replaceCategories(user, dto);
   }
 
+  @Get('history/months')
+  listExpenseHistoryMonths(@CurrentUser() user: AuthUserPayload) {
+    return this.me.listExpenseHistoryMonths(user);
+  }
+
+  @Get('history/months/:ym')
+  listExpenseHistoryForMonth(
+    @CurrentUser() user: AuthUserPayload,
+    @Param('ym') ym: string,
+  ) {
+    return this.me.listExpenseHistoryForMonth(user, ym);
+  }
+
   @Get('profiles')
   listProfiles(@CurrentUser() user: AuthUserPayload) {
     return this.me.listProfiles(user);
