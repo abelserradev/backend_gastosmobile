@@ -34,10 +34,10 @@ export class OcrService {
     filename: string,
     mimetype: string,
   ): Promise<ParseInvoiceResultDto> {
-    // Validar tipo
-    if (!mimetype.startsWith('image/')) {
+    const forwardMime = this.resolveImageMimeTypeForForward(mimetype, filename);
+    if (!forwardMime.toLowerCase().startsWith('image/')) {
       throw new BadRequestException(
-        `Tipo de archivo no soportado: ${mimetype}. Solo se aceptan imágenes.`,
+        `Tipo de archivo no soportado: ${mimetype || 'desconocido'}. Solo se aceptan imágenes.`,
       );
     }
 
@@ -48,6 +48,9 @@ export class OcrService {
         `Imagen demasiado grande (${(fileBuffer.length / 1024 / 1024).toFixed(2)}MB). Máximo: 10MB`,
       );
     }
+    if (fileBuffer.length === 0) {
+      throw new BadRequestException('El archivo de imagen está vacío');
+    }
 
     try {
       // Construir FormData manualmente para fetch
@@ -56,13 +59,23 @@ export class OcrService {
         boundary,
         fileBuffer,
         filename,
-        mimetype,
+        forwardMime,
       );
 
-      const response = await fetch(`${this.ocrServiceUrl}/parse-invoice`, {
-        method: 'POST',
-        body: formData,
-      });
+      const timeoutMs = this.readOcrForwardTimeoutMs();
+      const abortController = new AbortController();
+      const abortTimer = setTimeout(() => abortController.abort(), timeoutMs);
+
+      let response: Response;
+      try {
+        response = await fetch(`${this.ocrServiceUrl}/parse-invoice`, {
+          method: 'POST',
+          body: formData,
+          signal: abortController.signal,
+        });
+      } finally {
+        clearTimeout(abortTimer);
+      }
 
       if (!response.ok) {
         const errorText = await response.text();
@@ -71,8 +84,18 @@ export class OcrService {
         );
 
         if (response.status === 400) {
+          let detail: string | undefined;
+          try {
+            const parsed = JSON.parse(errorText) as { detail?: unknown };
+            if (typeof parsed.detail === 'string') {
+              detail = parsed.detail;
+            }
+          } catch {
+            /* cuerpo no JSON */
+          }
           throw new BadRequestException(
-            'La imagen no parece ser una factura válida o está corrupta',
+            detail ??
+              'La imagen no parece ser una factura válida o está corrupta',
           );
         }
         throw new ServiceUnavailableException(
@@ -80,7 +103,8 @@ export class OcrService {
         );
       }
 
-      const result = (await response.json()) as ParseInvoiceResultDto;
+      const rawBody = (await response.json()) as Record<string, unknown>;
+      const result = this.normalizeOcrServiceJson(rawBody);
 
       // Log de confianza para monitoreo
       this.logger.log(
@@ -96,12 +120,96 @@ export class OcrService {
         throw error;
       }
 
+      if (error instanceof Error && error.name === 'AbortError') {
+        this.logger.error(
+          `Timeout llamando al OCR (${this.readOcrForwardTimeoutMs()} ms): ${this.ocrServiceUrl}`,
+        );
+        throw new ServiceUnavailableException(
+          'El servicio OCR tardó demasiado en responder. Intenta de nuevo o sube una imagen más pequeña.',
+        );
+      }
+
       this.logger.error(`Error llamando al servicio OCR: ${error}`);
       throw new ServiceUnavailableException(
         'No se pudo contactar el servicio OCR. Verifica que esté corriendo en ' +
           this.ocrServiceUrl,
       );
     }
+  }
+
+  /**
+   * Varias cámaras/navegadores envían application/octet-stream o MIME vacío; al reenviar a Python
+   * hay que poner un image/* coherente con la extensión para que Starlette reciba Content-Type válido.
+   */
+  private resolveImageMimeTypeForForward(
+    mimetype: string,
+    filename: string,
+  ): string {
+    const mt = (mimetype ?? '').trim().toLowerCase();
+    if (mt.startsWith('image/')) {
+      return mt === 'image/jpg' ? 'image/jpeg' : mt;
+    }
+    const ext = (filename.split('.').pop() ?? '').toLowerCase();
+    const byExt: Record<string, string> = {
+      jpg: 'image/jpeg',
+      jpeg: 'image/jpeg',
+      png: 'image/png',
+      webp: 'image/webp',
+      heic: 'image/heic',
+      heif: 'image/heic',
+      gif: 'image/gif',
+    };
+    return (
+      byExt[ext] ??
+      (mimetype.trim() || 'application/octet-stream')
+    );
+  }
+
+  /**
+   * FastAPI/Pydantic suele serializar snake_case (p. ej. raw_text). Unificamos al DTO del Nest.
+   */
+  private normalizeOcrServiceJson(raw: Record<string, unknown>): ParseInvoiceResultDto {
+    const rawTextCandidate = raw.rawText ?? raw.raw_text;
+    const rawText =
+      typeof rawTextCandidate === 'string' ? rawTextCandidate : '';
+    const confidenceVal = raw.confidence;
+    const confidence =
+      typeof confidenceVal === 'number' && Number.isFinite(confidenceVal)
+        ? confidenceVal
+        : 0;
+    const currencyVal = raw.currency;
+    const currency =
+      typeof currencyVal === 'string' && currencyVal.length > 0
+        ? currencyVal
+        : 'USD';
+    const amountVal = raw.amount;
+    const amount =
+      typeof amountVal === 'number' && Number.isFinite(amountVal)
+        ? amountVal
+        : undefined;
+    return {
+      amount,
+      date: typeof raw.date === 'string' ? raw.date : undefined,
+      merchant:
+        typeof raw.merchant === 'string' ? raw.merchant : undefined,
+      description:
+        typeof raw.description === 'string' ? raw.description : undefined,
+      rawText,
+      confidence,
+      currency,
+    };
+  }
+
+  private readOcrForwardTimeoutMs(): number {
+    const v = this.config.get<string | number>('OCR_FORWARD_TIMEOUT_MS');
+    const n =
+      typeof v === 'number'
+        ? v
+        : Number.parseInt(String(v ?? '120000'), 10);
+    if (!Number.isFinite(n) || n < 5000) {
+      return 120_000;
+    }
+    return Math.min(n, 600_000);
   }
 
   /**

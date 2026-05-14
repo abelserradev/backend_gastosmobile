@@ -53,4 +53,10 @@ export const envValidationSchema = Joi.object({
   EMAIL_FROM: Joi.string().allow('').optional(),
   /** URL del servicio OCR Python (Moondream). Default: http://localhost:8001 */
   OCR_SERVICE_URL: Joi.string().uri().allow('').optional(),
+  /** Timeout al reenviar la imagen al OCR (ms). Moondream en CPU puede tardar >30s. */
+  OCR_FORWARD_TIMEOUT_MS: Joi.number()
+    .integer()
+    .min(5000)
+    .max(600000)
+    .optional(),
 });
