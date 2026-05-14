@@ -34,10 +34,10 @@ export class OcrService {
     filename: string,
     mimetype: string,
   ): Promise<ParseInvoiceResultDto> {
-    // Validar tipo
-    if (!mimetype.startsWith('image/')) {
+    const forwardMime = this.resolveImageMimeTypeForForward(mimetype, filename);
+    if (!forwardMime.toLowerCase().startsWith('image/')) {
       throw new BadRequestException(
-        `Tipo de archivo no soportado: ${mimetype}. Solo se aceptan imágenes.`,
+        `Tipo de archivo no soportado: ${mimetype || 'desconocido'}. Solo se aceptan imágenes.`,
       );
     }
 
@@ -59,7 +59,7 @@ export class OcrService {
         boundary,
         fileBuffer,
         filename,
-        mimetype,
+        forwardMime,
       );
 
       const timeoutMs = this.readOcrForwardTimeoutMs();
@@ -84,8 +84,18 @@ export class OcrService {
         );
 
         if (response.status === 400) {
+          let detail: string | undefined;
+          try {
+            const parsed = JSON.parse(errorText) as { detail?: unknown };
+            if (typeof parsed.detail === 'string') {
+              detail = parsed.detail;
+            }
+          } catch {
+            /* cuerpo no JSON */
+          }
           throw new BadRequestException(
-            'La imagen no parece ser una factura válida o está corrupta',
+            detail ??
+              'La imagen no parece ser una factura válida o está corrupta',
           );
         }
         throw new ServiceUnavailableException(
@@ -125,6 +135,34 @@ export class OcrService {
           this.ocrServiceUrl,
       );
     }
+  }
+
+  /**
+   * Varias cámaras/navegadores envían application/octet-stream o MIME vacío; al reenviar a Python
+   * hay que poner un image/* coherente con la extensión para que Starlette reciba Content-Type válido.
+   */
+  private resolveImageMimeTypeForForward(
+    mimetype: string,
+    filename: string,
+  ): string {
+    const mt = (mimetype ?? '').trim().toLowerCase();
+    if (mt.startsWith('image/')) {
+      return mt === 'image/jpg' ? 'image/jpeg' : mt;
+    }
+    const ext = (filename.split('.').pop() ?? '').toLowerCase();
+    const byExt: Record<string, string> = {
+      jpg: 'image/jpeg',
+      jpeg: 'image/jpeg',
+      png: 'image/png',
+      webp: 'image/webp',
+      heic: 'image/heic',
+      heif: 'image/heic',
+      gif: 'image/gif',
+    };
+    return (
+      byExt[ext] ??
+      (mimetype.trim() || 'application/octet-stream')
+    );
   }
 
   /**

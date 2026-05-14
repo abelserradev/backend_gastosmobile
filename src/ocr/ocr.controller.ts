@@ -28,15 +28,26 @@ export class OcrController {
         fileSize: 10 * 1024 * 1024, // 10MB
       },
       fileFilter: (_req, file, callback) => {
-        if (!file.mimetype.startsWith('image/')) {
-          return callback(
-            new BadRequestException(
-              'Solo se aceptan archivos de imagen (jpg, png, webp)',
-            ),
-            false,
-          );
+        const mt = (file.mimetype ?? '').toLowerCase();
+        const ext = (file.originalname ?? '').split('.').pop()?.toLowerCase() ?? '';
+        const imageExts = new Set([
+          'jpg',
+          'jpeg',
+          'png',
+          'webp',
+          'gif',
+          'heic',
+          'heif',
+        ]);
+        if (mt.startsWith('image/') || imageExts.has(ext)) {
+          return callback(null, true);
         }
-        callback(null, true);
+        return callback(
+          new BadRequestException(
+            'Solo se aceptan archivos de imagen (jpg, png, webp)',
+          ),
+          false,
+        );
       },
     }),
   )
