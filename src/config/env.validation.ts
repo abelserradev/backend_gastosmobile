@@ -13,7 +13,8 @@ export const envValidationSchema = Joi.object({
   JWT_SECRET: Joi.string().when('NODE_ENV', {
     is: 'production',
     then: Joi.string().min(32).required().messages({
-      'string.min': 'JWT_SECRET debe tener al menos 32 caracteres en producción',
+      'string.min':
+        'JWT_SECRET debe tener al menos 32 caracteres en producción',
     }),
     otherwise: Joi.string().min(16).required(),
   }),
