@@ -1,8 +1,4 @@
-import {
-  BadRequestException,
-  Injectable,
-  Logger,
-} from '@nestjs/common';
+import { BadRequestException, Injectable, Logger } from '@nestjs/common';
 import { TesseractInvoiceEngine } from './engines/tesseract-invoice.engine';
 import { buildParseInvoiceFromTesseract } from './parsing/build-invoice-result';
 import { ParseInvoiceResultDto } from './dto/parse-invoice-result.dto';
