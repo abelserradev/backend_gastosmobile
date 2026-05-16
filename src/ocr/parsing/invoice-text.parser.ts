@@ -41,22 +41,44 @@ const SUBTOTAL_LINE_PATTERNS = [
   /\bt\.\s*cambio\b|\bcambio\s+bcv\b/i,
   /\bi\.?v\.?a\.?\b/i,
   /\bbase\s+imponible\b|\bbi\s+g\d/i,
+  /\btarj(eta)?\.\s*(débito|debito|crédito|credito|visa|master)/i,
+  /\b#\s*items?\s*:/i,
+  /\bplazo\s+para\s+devoluci/i,
 ];
 
 // Líneas de metadatos que no son el nombre del local ni ítems
 const METADATA_LINE_PATTERNS = [
+  // Organismos / autoridades fiscales
+  /^seniat\b/i,
+  // Cabeceras de factura
   /^(factura\s*(comercial)?|recibo|ticket)\s*$/i,
   /^(factura\s*:?|n[°º]\s*\d|control\s+n[°º])/i,
-  /^(fecha\s*:?|hora\s*:?|rif\s*:?|caja\s+\d|mesa\s+\d)/i,
+  /^(fecha\s*:?|hora\s*:?|caja\s+\d|mesa\s+\d)/i,
+  // RIF en distintas formas: "RIF J-000", "RIF/C.I.: V26..."
+  /^rif[\s\/]/i,
+  // Datos del cliente/emisor
+  /^(raz[oó]n\s+social\s*:|razon\s+social\s*:)/i,
+  /^(cliente|nombre\s*\/?\s*raz[oó]n)/i,
+  // Datos internos del POS
+  /^tienda\s*:/i,
+  /^ticket\s*:/i,
+  /^id\s+de\s+orden\s*:/i,
+  /^le\s+atendi[oó]\s*:/i,
   /^(venta\s+de|nota\s+de)/i,
-  /^(cliente|nombre\s*\/?\s*raz[oó]n|raz[oó]n\s+social)/i,
+  // Cabecera de tabla de ítems
   /^(cant\.?|cantidad|descripci[oó]n|p\.?\s*unitario|precio|total\s*\(bs)/i,
+  // Pie de ticket
   /^(impreso\s+por|gracias\s+por|vuelva\s+pronto)/i,
-  /^\d{6,}$/, // código de barras o número largo
-  /^[zZ]\d+\w*$/, // ID de ticket tipo Z7C7003448
-  /^[*=\-]{4,}$/, // líneas separadoras
-  /^\|.*\|$/, // |MESA13|
-  /^[A-Z]{1,3}\d+[A-Z\d]*$/, // códigos internos cortos
+  /^\*\*plazo/i,
+  // Códigos/separadores/IDs
+  /^\d{6,}$/,           // código de barras
+  /^[zZ]\d+\w*$/,      // ID tipo Z1F0019991
+  /^T\d[A-Z\d]{8,}$/,  // ID tipo T4XX66111A34LNC4C1MRP
+  /^[*=\-]{4,}$/,      // separadores
+  /^\|.*\|$/,           // |MESA13|
+  // Sucursales/sub-marcas de la tienda principal (no son el nombre del negocio)
+  /^farmacia\s+\w+/i,
+  /^ccs\s*:/i,
 ];
 
 function looksLikeAddressLine(line: string): boolean {
@@ -267,7 +289,10 @@ export function extractStructuredFields(text: string): {
     { rx: /^MERCHANT\s*[:\.]?\s*(.+)$/gim, key: 'merchant' },
     { rx: /^(?:FECHA)\s*[:\.]?\s*(.+)$/gim, key: 'date_es' },
     {
-      rx: /^(?:COMERCIO|TIENDA|NEGOCIO|RAZÓN\s+SOCIAL)\s*[:\.]?\s*(.+)$/gim,
+      // Solo "COMERCIO:" / "NEGOCIO:" como label explícito del vendedor.
+      // "TIENDA:" excluido: es código interno (p. ej. "Tienda: 2119").
+      // "RAZON SOCIAL:" excluido: en tickets VE es el COMPRADOR, no el vendedor.
+      rx: /^(?:COMERCIO|NEGOCIO)\s*[:\.]?\s*(.+)$/gim,
       key: 'merchant_es',
     },
     { rx: /^ITEMS\s*[:\.]?\s*(.+)$/gim, key: 'items_en' },
@@ -294,7 +319,9 @@ export function extractStructuredFields(text: string): {
     }
     if (key === 'merchant' || key === 'merchant_es') {
       const stripped = stripTrailingInstructions(chunk);
-      if (stripped.length > 2) {
+      // Descartar si el valor es solo numérico (p. ej. "RAZON SOCIAL: 2119" como ID interno)
+      const isOnlyNumeric = /^\d+$/.test(stripped.trim());
+      if (stripped.length > 2 && !isOnlyNumeric) {
         merchantF =
           stripped.length > 120 ? stripped.slice(0, 120) : stripped.trim();
       }
