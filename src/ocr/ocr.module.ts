@@ -1,14 +1,12 @@
 import { Module } from '@nestjs/common';
 import { OcrController } from './ocr.controller';
 import { OcrService } from './ocr.service';
+import { TesseractInvoiceEngine } from './engines/tesseract-invoice.engine';
 
-/**
- * Módulo OCR para procesamiento de facturas.
- * Requiere que el servicio Python esté corriendo en OCR_SERVICE_URL.
- */
+/** OCR de facturas en proceso (Tesseract.js); sin contenedor Python. */
 @Module({
   controllers: [OcrController],
-  providers: [OcrService],
+  providers: [TesseractInvoiceEngine, OcrService],
   exports: [OcrService],
 })
 export class OcrModule {}
