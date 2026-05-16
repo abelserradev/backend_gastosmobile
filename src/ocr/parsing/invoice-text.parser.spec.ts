@@ -107,6 +107,50 @@ Tot.. en USD $ 47,40  x T. Cambio BCV 51`;
       expect(pf.amount).toBeCloseTo(60552, 0);
     });
 
+    // Caso: Tesseract separa nombre del producto y precio en líneas distintas
+    // (ocurre frecuentemente con tablas formales en PSM 6)
+    const ticketElectronicaTesseractSplit = `'Electrónica El Ávila, C.A.'
+RIF: J-40123456-7
+Dirección: Av. Francisco de Miranda, Edif. Centro Seguros, Piso 3,
+Chacao, Caracas. Tlf: 0212-987-6543
+FACTURA COMERCIAL    Nº 0001987
+Control Número: 00-0004321    Fecha: 20/05/2026
+CLIENTE
+Nombre/Razón Social: Servicios Tech Abel, F.P.    RIF: V-19876543-2
+Dirección: Final Av. Baralt, Edif. San Juan, PB, Caracas
+CANT. DESCRIPCIÓN    P. UNITARIO (Bs.)    TOTAL (Bs.)
+Lavadora Samsung WA17T62
+14.500,00
+14.500,00
+Nevera Whirlpool 18p3
+19.200,00
+19.200,00
+Microondas Oster 1.1 p3
+3.800,00
+7.600,00
+Televisor LG 55" UHD ThinQ
+10.900,00
+10.900,00
+SUB-TOTAL:    52.200,00
+I.V.A. (16%):    8.352,00
+TOTAL GENERAL:    Bs. 60.552,00`;
+
+    it('factura con tabla: detecta productos aunque el precio esté en línea separada', () => {
+      const items = extractProductItemsFromText(ticketElectronicaTesseractSplit);
+      expect(items).toBeTruthy();
+      expect(items).toMatch(/lavadora/i);
+      expect(items).toMatch(/nevera|whirlpool/i);
+      expect(items).toMatch(/televisor|lg/i);
+      expect(items).not.toMatch(/francisco de miranda|caracas/i);
+    });
+
+    it('parseInvoiceTextBlob versión split extrae merchant y products', () => {
+      const pf = parseInvoiceTextBlob(ticketElectronicaTesseractSplit);
+      expect(pf.merchant).toMatch(/Electrónica El Ávila/i);
+      expect(pf.description).toMatch(/lavadora/i);
+      expect(pf.amount).toBeCloseTo(60552, 0);
+    });
+
     // Ticket Farmatodo: SENIAT aparece primero, luego el nombre con C.A., luego dirección,
     // y más abajo datos internos del POS como "Tienda: 2119" que NO deben ser merchant.
     const ticketFarmatodoOcr = `SENIAT

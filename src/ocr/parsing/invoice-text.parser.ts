@@ -228,38 +228,100 @@ export function extractMerchantFromText(text: string): string | undefined {
 }
 
 /**
- * Extrae las líneas de productos/ítems del ticket Tesseract.
- * Busca líneas con nombre + precio al final, excluyendo totales y direcciones.
+ * Limpia precios y artefactos de una línea de producto, dejando solo el nombre descriptivo.
  */
-export function extractProductItemsFromText(text: string): string | undefined {
-  const lines = text.split('\n').map((l) => l.trim()).filter(Boolean);
-  const items: string[] = [];
+function cleanProductName(line: string): string {
+  return line
+    .replace(/bs[\s.]*[\d.,]+/gi, '')            // "Bs 1.065,89"
+    .replace(/\d{1,3}(?:\.\d{3})+,\d{2}/g, '')  // "14.500,00" formato VE miles+decimal
+    .replace(/\d+,\d{2}/g, '')                   // "X,XX" decimales simples
+    .replace(/\(bs\.?\)/gi, '')                  // "(Bs.)"
+    .replace(/p\.\s*unitario/gi, '')             // cabecera de columna residual
+    .replace(/^\d+\s+/, '')                      // cantidad inicial "1  Lavadora..."
+    .replace(/\(G\)/gi, '')                      // sufijo POS venezolano
+    .replace(/\s{2,}/g, ' ')
+    .trim();
+}
 
+/**
+ * Estrategia A: factura formal con tabla (tiene cabecera CANT./DESCRIPCIÓN).
+ * Busca la sección de ítems delimitada por la cabecera y el primer subtotal.
+ * Esto cubre casos donde Tesseract separa nombre y precio en líneas distintas.
+ */
+function extractItemsFromTableSection(lines: string[]): string[] {
+  // Detectar la línea de cabecera de la tabla de productos
+  const headerIdx = lines.findIndex((l) =>
+    /^(cant\.?|cantidad)\b/i.test(l) || /\bdescripci[oó]n\b.*\bp\.?\s*unitario\b/i.test(l),
+  );
+  if (headerIdx === -1) return [];
+
+  // El bloque de ítems va desde la cabecera hasta el primer subtotal/total
+  const subtotalIdx = lines.findIndex(
+    (l, i) => i > headerIdx && (isSubtotalLine(l) || /^total\b/i.test(l)),
+  );
+  const endIdx =
+    subtotalIdx !== -1 ? subtotalIdx : Math.min(headerIdx + 25, lines.length);
+
+  const items: string[] = [];
+  for (let i = headerIdx + 1; i < endIdx; i++) {
+    const line = lines[i];
+    if (isMetadataLine(line)) continue;
+    if (isSubtotalLine(line)) break;
+    if (looksLikeAddressLine(line)) continue;
+
+    const cleaned = cleanProductName(line);
+
+    // Descartar si lo que queda son solo dígitos, símbolos o texto muy corto
+    const textOnly = cleaned.replace(/[\d\s.,\-]/g, '');
+    if (textOnly.length < 3) continue;
+
+    items.push(cleaned);
+  }
+  return items;
+}
+
+/**
+ * Estrategia B: ticket POS (sin tabla explícita).
+ * Busca líneas con nombre descriptivo + precio al final (Bs X.XXX,XX).
+ */
+function extractPosStyleItems(lines: string[]): string[] {
+  const items: string[] = [];
   for (const line of lines) {
     if (looksLikeAddressLine(line)) continue;
     if (isSubtotalLine(line)) continue;
     if (isMetadataLine(line)) continue;
     if (!looksLikeProductLine(line)) continue;
 
-    // Extraer solo el nombre del producto, sin el precio
-    let productName = line
-      .replace(/bs[\s.]*[\d.,]+/gi, '')           // quitar "Bs 1.065,89"
-      .replace(/\d{1,3}(?:\.\d{3})+,\d{2}/g, '')  // quitar "14.500,00"
-      .replace(/\d+,\d{2}$/g, '')                  // quitar decimales simples al final
-      .replace(/^\d+\s+/, '')                       // quitar cantidad inicial (ej. "1 Lavadora...")
-      .replace(/\(G\)/gi, '')                       // quitar sufijos tipo "(G)" de algunos POS
-      .replace(/\s{2,}/g, ' ')
-      .trim();
-
-    if (productName.length >= 3) {
-      items.push(productName);
+    const cleaned = cleanProductName(line);
+    const textOnly = cleaned.replace(/[\d\s.,\-]/g, '');
+    if (textOnly.length >= 3) {
+      items.push(cleaned);
     }
   }
+  return items;
+}
 
-  if (!items.length) return undefined;
+/**
+ * Extrae las líneas de productos/ítems del texto OCR.
+ * Usa estrategia A (sección de tabla) para facturas formales,
+ * y estrategia B (líneas con precio) para tickets POS.
+ * Así cubre tanto "Electrónica El Ávila" como tickets de restaurante/farmacia.
+ */
+export function extractProductItemsFromText(text: string): string | undefined {
+  const lines = text.split('\n').map((l) => l.trim()).filter(Boolean);
 
-  // Deduplicar y limitar a 5 ítems para no saturar el campo
-  const unique = [...new Set(items)].slice(0, 5);
+  // Intentar primero con tabla estructurada (facturas formales con CANT./DESCRIPCIÓN)
+  const tableItems = extractItemsFromTableSection(lines);
+  if (tableItems.length > 0) {
+    const unique = [...new Set(tableItems)].slice(0, 5);
+    return unique.join(', ');
+  }
+
+  // Fallback para tickets POS donde cada línea tiene nombre + precio juntos
+  const posItems = extractPosStyleItems(lines);
+  if (!posItems.length) return undefined;
+
+  const unique = [...new Set(posItems)].slice(0, 5);
   return unique.join(', ');
 }
 
