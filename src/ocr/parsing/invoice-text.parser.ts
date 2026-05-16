@@ -12,6 +12,101 @@ const KEYED_LABELS = new Set([
   'articulos',
 ]);
 
+// Patrones que indican una línea de dirección (no del nombre del negocio)
+const ADDRESS_LINE_PATTERNS = [
+  /\bav(enida)?\.?\s+\w/i,
+  /\bcalle\b/i,
+  /\bcarrera\b/i,
+  /\bedo\.?\s+/i,
+  /\b(piso|nivel)\s+\w/i,
+  /\bedif(icio)?\.?\b/i,
+  /\blocal\s+[a-z0-9pb-]+/i,
+  /\btlf[\.:]/i,
+  /\btelef/i,
+  /\bdirecci[oó]n\s*:/i,
+  /\b(urb|aurb)\.?\s+/i,
+  /\bcc\s+\w/i,
+  /\bchacao\b|\bcaracas\b|\bmiranda\b|\baragua\b|\bzulia\b|\bvalencia\b|\bbarquisimeto\b|\bmaracaibo\b/i,
+  /\bpb[-\s]/i,
+  /san antonio de los altos/i,
+  /\bzona\s+\w/i,
+];
+
+// Líneas que son totales/subtotales, no ítems de productos
+const SUBTOTAL_LINE_PATTERNS = [
+  /\b(total\s+general|total\s+a\s+pagar|gran\s+total|total\s+factura)\b/i,
+  /\bsubtotal\b|\bsub-total\b|\bsub\.?ttl\b|\bsubttl\b/i,
+  /\bbancos\b/i,
+  /^tot\.\./i,
+  /\bt\.\s*cambio\b|\bcambio\s+bcv\b/i,
+  /\bi\.?v\.?a\.?\b/i,
+  /\bbase\s+imponible\b|\bbi\s+g\d/i,
+];
+
+// Líneas de metadatos que no son el nombre del local ni ítems
+const METADATA_LINE_PATTERNS = [
+  /^(factura\s*(comercial)?|recibo|ticket)\s*$/i,
+  /^(factura\s*:?|n[°º]\s*\d|control\s+n[°º])/i,
+  /^(fecha\s*:?|hora\s*:?|rif\s*:?|caja\s+\d|mesa\s+\d)/i,
+  /^(venta\s+de|nota\s+de)/i,
+  /^(cliente|nombre\s*\/?\s*raz[oó]n|raz[oó]n\s+social)/i,
+  /^(cant\.?|cantidad|descripci[oó]n|p\.?\s*unitario|precio|total\s*\(bs)/i,
+  /^(impreso\s+por|gracias\s+por|vuelva\s+pronto)/i,
+  /^\d{6,}$/, // código de barras o número largo
+  /^[zZ]\d+\w*$/, // ID de ticket tipo Z7C7003448
+  /^[*=\-]{4,}$/, // líneas separadoras
+  /^\|.*\|$/, // |MESA13|
+  /^[A-Z]{1,3}\d+[A-Z\d]*$/, // códigos internos cortos
+];
+
+function looksLikeAddressLine(line: string): boolean {
+  return ADDRESS_LINE_PATTERNS.some((p) => p.test(line));
+}
+
+function isSubtotalLine(line: string): boolean {
+  return SUBTOTAL_LINE_PATTERNS.some((p) => p.test(line));
+}
+
+function isMetadataLine(line: string): boolean {
+  return METADATA_LINE_PATTERNS.some((p) => p.test(line));
+}
+
+function hasCompanySuffix(line: string): boolean {
+  return /\b(c\.a\.?|s\.a\.?|c\.r\.l\.?|corp(oraci[oó]n)?|compañ[ií]a)\b/i.test(line);
+}
+
+// Una línea de producto tiene texto descriptivo + precio al final
+function looksLikeProductLine(line: string): boolean {
+  const hasTrailingBsPrice = /bs[\s.]*\d[\d.]*,\d{2}\s*$/i.test(line);
+  const hasTrailingAmountVE = /\d{1,3}(?:\.\d{3})+,\d{2}\s*$/.test(line);
+  const hasTrailingAmountSimple = /\d+,\d{2}\s*$/.test(line);
+  if (!hasTrailingBsPrice && !hasTrailingAmountVE && !hasTrailingAmountSimple) {
+    return false;
+  }
+  if (isSubtotalLine(line) || isMetadataLine(line)) {
+    return false;
+  }
+  // La línea debe tener al menos 4 caracteres de texto no numérico
+  const textOnly = line.replace(/[\d.,\s]/g, '');
+  return textOnly.length >= 3;
+}
+
+function cleanMerchantName(raw: string): string {
+  // Quitar comillas tipográficas que a veces envuelven el nombre en tickets impresos
+  let s = raw.replace(/^['"''""‛‟«»]/g, '').replace(/['"''""‛‟«»]$/g, '').trim();
+  // Quitar RIF al final si quedó pegado
+  s = s.replace(/\s+rif\s*:.*$/i, '').trim();
+  // Capitalizar solo si el texto está todo en mayúsculas y no tiene sufijo como C.A.
+  const allCaps = s === s.toUpperCase();
+  if (allCaps && !hasCompanySuffix(s)) {
+    return s
+      .split(' ')
+      .map((w) => w.charAt(0).toUpperCase() + w.slice(1).toLowerCase())
+      .join(' ');
+  }
+  return s;
+}
+
 function stripTrailingInstructions(fragment: string): string {
   const cleaned = fragment.split('(', 1)[0].trim();
   const parts = cleaned.split(',', 2);
@@ -73,59 +168,77 @@ export function extractMerchantFromText(text: string): string | undefined {
     .split('\n')
     .map((ln) => ln.trim())
     .filter(Boolean);
-  const labelRx =
-    /^\s*(merchant|fecha|date|total|items|articulos|descripción|descripcion)\s*[:\.]/i;
-  const excludeWords = [
-    'factura comercial',
-    'factura de venta',
-    'recibo de pago',
-    'subtotal',
-    'iva',
-    'cambio',
-    'gracias',
-    'vuelva pronto',
-  ];
-  for (const lineClean of lines.slice(0, 14)) {
-    const lc = lineClean.toLowerCase();
+
+  // Prioridad 1: primera línea con sufijo C.A./S.A./Corp en las primeras 8 líneas
+  // Un ticket de Electrónica El Ávila, C.A. entra aquí directamente
+  for (const line of lines.slice(0, 8)) {
     if (
-      lc.includes('[note') ||
-      lc.includes('not visible') ||
-      lc.startsWith('unable') ||
-      lc.startsWith('cannot')
+      hasCompanySuffix(line) &&
+      !looksLikeAddressLine(line) &&
+      !isMetadataLine(line) &&
+      line.length >= 4 &&
+      line.length <= 100
     ) {
-      continue;
+      return cleanMerchantName(line);
     }
-    if (lc.startsWith('reformato')) {
-      continue;
-    }
-    if (labelRx.test(lineClean)) {
-      continue;
-    }
-    const chunkLen = lineClean.length;
-    if (chunkLen < 4 || chunkLen > 96) {
-      continue;
-    }
-    const loweredAll = lc.replace(/\s/g, '');
-    if (excludeWords.some((bad) => loweredAll.includes(bad.replace(/\s/g, '')))) {
-      continue;
-    }
-    const numericDensity = [...lineClean].filter((c) => /\d/.test(c)).length;
-    if (numericDensity >= Math.max(10, Math.floor(chunkLen / 4))) {
-      continue;
-    }
-    const spaced =
-      lc.includes('c.a.') ||
-      lc.includes('s.a.') ||
-      lc.includes(',') ||
-      lc.includes('.,')
-        ? lineClean.trim()
-        : lineClean
-            .split(' ')
-            .map((w) => w.charAt(0).toUpperCase() + w.slice(1).toLowerCase())
-            .join(' ');
-    return spaced;
   }
+
+  // Prioridad 2: primera línea que no sea dirección, metadata ni separador
+  for (const line of lines.slice(0, 8)) {
+    if (looksLikeAddressLine(line)) continue;
+    if (isMetadataLine(line)) continue;
+    if (isSubtotalLine(line)) continue;
+
+    const len = line.length;
+    if (len < 4 || len > 100) continue;
+
+    // Descartar líneas con alta densidad numérica (p. ej. RIF, factura N°)
+    const numericChars = [...line].filter((c) => /\d/.test(c)).length;
+    if (numericChars >= Math.max(8, Math.floor(len / 3))) continue;
+
+    // Descartar solo símbolos/separadores
+    if (/^[\d\s.,*=\-|]+$/.test(line)) continue;
+
+    return cleanMerchantName(line);
+  }
+
   return undefined;
+}
+
+/**
+ * Extrae las líneas de productos/ítems del ticket Tesseract.
+ * Busca líneas con nombre + precio al final, excluyendo totales y direcciones.
+ */
+export function extractProductItemsFromText(text: string): string | undefined {
+  const lines = text.split('\n').map((l) => l.trim()).filter(Boolean);
+  const items: string[] = [];
+
+  for (const line of lines) {
+    if (looksLikeAddressLine(line)) continue;
+    if (isSubtotalLine(line)) continue;
+    if (isMetadataLine(line)) continue;
+    if (!looksLikeProductLine(line)) continue;
+
+    // Extraer solo el nombre del producto, sin el precio
+    let productName = line
+      .replace(/bs[\s.]*[\d.,]+/gi, '')           // quitar "Bs 1.065,89"
+      .replace(/\d{1,3}(?:\.\d{3})+,\d{2}/g, '')  // quitar "14.500,00"
+      .replace(/\d+,\d{2}$/g, '')                  // quitar decimales simples al final
+      .replace(/^\d+\s+/, '')                       // quitar cantidad inicial (ej. "1 Lavadora...")
+      .replace(/\(G\)/gi, '')                       // quitar sufijos tipo "(G)" de algunos POS
+      .replace(/\s{2,}/g, ' ')
+      .trim();
+
+    if (productName.length >= 3) {
+      items.push(productName);
+    }
+  }
+
+  if (!items.length) return undefined;
+
+  // Deduplicar y limitar a 5 ítems para no saturar el campo
+  const unique = [...new Set(items)].slice(0, 5);
+  return unique.join(', ');
 }
 
 function normalizeStructuredDateLine(chunk: string): string | undefined {
@@ -291,26 +404,28 @@ export function parseInvoiceTextBlob(parseBlob: string): ParsedInvoiceFields {
       : heuristic.amount;
   let merchantPick = structured.merchant ?? extractMerchantFromText(blob);
   const datePick = structured.date ?? extractDateFromText(blob);
+  // Primero intentar desde labels estructurados (formato VLM legacy: ITEMS:, DESCRIPCION:)
   let descriptionPick = structured.itemsChunk;
+
+  // Si no hay labels explícitos, buscar por palabras clave simples
   if (!descriptionPick) {
     for (const line of blob.split('\n')) {
       const trimmed = line.trim();
-      if (!trimmed.includes(':')) {
-        continue;
-      }
+      if (!trimmed.includes(':')) continue;
       const colonIdx = trimmed.indexOf(':');
       const heading = trimmed.slice(0, colonIdx).trim().toLowerCase();
       const tail = trimmed.slice(colonIdx + 1).trim();
-      if (!KEYED_LABELS.has(heading)) {
-        continue;
-      }
+      if (!KEYED_LABELS.has(heading)) continue;
       const lcTail = tail.toLowerCase();
-      if (['not visible', 'nv', '---', ''].includes(lcTail)) {
-        continue;
-      }
+      if (['not visible', 'nv', '---', ''].includes(lcTail)) continue;
       descriptionPick = tail.slice(0, 520);
       break;
     }
+  }
+
+  // Fallback principal para texto Tesseract: extraer líneas de productos con precio
+  if (!descriptionPick) {
+    descriptionPick = extractProductItemsFromText(blob);
   }
   return {
     amount: amountPick,
