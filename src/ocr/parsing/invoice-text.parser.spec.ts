@@ -106,6 +106,52 @@ Tot.. en USD $ 47,40  x T. Cambio BCV 51`;
       expect(pf.description).toMatch(/lavadora/i);
       expect(pf.amount).toBeCloseTo(60552, 0);
     });
+
+    // Ticket Farmatodo: SENIAT aparece primero, luego el nombre con C.A., luego dirección,
+    // y más abajo datos internos del POS como "Tienda: 2119" que NO deben ser merchant.
+    const ticketFarmatodoOcr = `SENIAT
+RIF J-000202001
+FARMATODO, C.A.
+Av Los Guayabitos, CC Expreso Baruta
+Nivel 5 Of Unica, Urb La Trinidad
+(Sector Piedra Azul), Caracas.
+FARMACIA MELANIE, TLF:0800-FARMATODO
+CCS:Palos Grandes, 2da. Av/2da. Trsvrl
+CAJA 06
+RIF/C.I.: V26745518
+RAZON SOCIAL: ABEL JOSE SERRA
+Tienda: 2119
+Ticket: 503419
+ID de orden: 155043992
+Le Atendió: CHECKOUT, SELF
+FACTURA
+FACTURA:    00060997
+FECHA: 15-05-2026    HORA: 12:56
+111016945 CHO ST.MORITZ FLAQUI 2x (G)    Bs 1.239,95
+BI G16,00%    Bs 1.239,95  IVA G16,00%    Bs 198,39
+Tarj. Debito    Bs 1.438,34
+TOTAL    Bs 1.438,34
+# ITEMS: 1
+**Plazo para devoluciones: 30 dias**`;
+
+    it('ticket Farmatodo: merchant es "FARMATODO, C.A." y no "Tienda: 2119" ni SENIAT', () => {
+      const merchant = extractMerchantFromText(ticketFarmatodoOcr);
+      expect(merchant).toMatch(/farmatodo/i);
+      expect(merchant).not.toMatch(/tienda|2119|seniat/i);
+      expect(merchant).not.toMatch(/guayabitos|caracas/i);
+    });
+
+    it('ticket Farmatodo: description contiene el producto, no la dirección', () => {
+      const items = extractProductItemsFromText(ticketFarmatodoOcr);
+      expect(items).toMatch(/st\.moritz|flaqui/i);
+      expect(items).not.toMatch(/guayabitos|caracas|tienda/i);
+    });
+
+    it('parseInvoiceTextBlob Farmatodo extrae total correcto', () => {
+      const pf = parseInvoiceTextBlob(ticketFarmatodoOcr);
+      expect(pf.merchant).toMatch(/farmatodo/i);
+      expect(pf.amount).toBeCloseTo(1438.34, 1);
+    });
   });
 
   describe('montos venezolanos (punto=miles, coma=decimal)', () => {
