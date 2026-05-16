@@ -151,6 +151,46 @@ TOTAL GENERAL:    Bs. 60.552,00`;
       expect(pf.amount).toBeCloseTo(60552, 0);
     });
 
+    // Caso real de los logs: Tesseract lee la decoración/logo como ruido OCR alrededor del nombre.
+    // También el encabezado "TOTAL (Bs.)" de la columna NO debe cerrar la sección de productos.
+    const ticketConRuidoOcr = `ge "Electrónica El Avila, C.A. >
+RIF: J-40123456-7
+Dirección: Av. Francisco de Miranda, Edif. Centro Seguros, Piso 3,
+Chacao, Caracas. Tlf: 0212-987-6543
+FACTURA COMERCIAL    Nº 0001987
+Control Número: 00-0004321    Fecha: 20/05/2026
+CANT. DESCRIPCIÓN    P. UNITARIO (Bs.)    TOTAL (Bs.)
+1    Lavadora Samsung WA17T62    14.500,00    14.500,00
+1    Nevera Whirlpool 18p3    19.200,00    19.200,00
+2    Microondas Oster 1.1 p3    3.800,00    7.600,00
+1    Televisor LG 55" UHD ThinQ    10.900,00    10.900,00
+SUB-TOTAL:    52.200,00
+I.V.A. (16%):    8.352,00
+TOTAL GENERAL:    Bs. 60.552,00`;
+
+    it('merchant con ruido OCR: extrae el nombre limpio sin artefactos', () => {
+      const merchant = extractMerchantFromText(ticketConRuidoOcr);
+      expect(merchant).toMatch(/Electrónica El Avila, C\.A\./i);
+      // No debe quedar el ruido anterior ni posterior
+      expect(merchant).not.toMatch(/^ge\b/i);
+      expect(merchant).not.toMatch(/[><=]/);
+    });
+
+    it('TOTAL (Bs.) en cabecera de tabla NO cierra la sección: items detectados', () => {
+      const items = extractProductItemsFromText(ticketConRuidoOcr);
+      expect(items).toBeTruthy();
+      expect(items).toMatch(/lavadora/i);
+      expect(items).toMatch(/nevera|whirlpool/i);
+    });
+
+    it('parseInvoiceTextBlob con ruido OCR extrae todo correctamente', () => {
+      const pf = parseInvoiceTextBlob(ticketConRuidoOcr);
+      expect(pf.merchant).toMatch(/Electrónica El Avila/i);
+      expect(pf.merchant).not.toMatch(/^ge\b/i);
+      expect(pf.description).toMatch(/lavadora/i);
+      expect(pf.amount).toBeCloseTo(60552, 0);
+    });
+
     // Ticket Farmatodo: SENIAT aparece primero, luego el nombre con C.A., luego dirección,
     // y más abajo datos internos del POS como "Tienda: 2119" que NO deben ser merchant.
     const ticketFarmatodoOcr = `SENIAT

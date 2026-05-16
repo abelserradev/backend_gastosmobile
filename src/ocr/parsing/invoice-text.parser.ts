@@ -114,12 +114,29 @@ function looksLikeProductLine(line: string): boolean {
 }
 
 function cleanMerchantName(raw: string): string {
-  // Quitar comillas tipográficas que a veces envuelven el nombre en tickets impresos
-  let s = raw.replace(/^['"''""‛‟«»]/g, '').replace(/['"''""‛‟«»]$/g, '').trim();
-  // Quitar RIF al final si quedó pegado
+  let s = raw;
+
+  // Si la línea contiene un sufijo C.A./S.A./Corp, intentar extraer solo el nombre limpio.
+  // Cubre casos como: `ge "Electrónica El Avila, C.A. >` → `Electrónica El Avila, C.A.`
+  const suffixRx =
+    /([A-ZÁÉÍÓÚÑÜ][A-Za-záéíóúñüÁÉÍÓÚÑÜ\s',.ñÑ\-]{2,80}?\b(?:c\.a\.?|s\.a\.?|c\.r\.l\.?|corp(?:oraci[oó]n)?|compañ[ií]a)\b\.?)/i;
+  const nameMatch = s.match(suffixRx);
+  if (nameMatch) {
+    s = nameMatch[1];
+  } else {
+    // Sin sufijo: quitar comillas tipográficas y ruido al inicio/fin
+    s = s.replace(/['"''""‛‟«»'"]/g, '').trim();
+    // Quitar fragmentos de ruido OCR al inicio: letras minúsculas sueltas antes del nombre
+    s = s.replace(/^[^A-ZÁÉÍÓÚÑÜ\d]+/, '').trim();
+    // Quitar ruido al final: símbolos o letras sueltas después del punto
+    s = s.replace(/[<>=|\s]+$/, '').trim();
+    s = s.replace(/\s+[a-z]{1,3}$/, '').trim();
+  }
+
   s = s.replace(/\s+rif\s*:.*$/i, '').trim();
-  // Capitalizar solo si el texto está todo en mayúsculas y no tiene sufijo como C.A.
-  const allCaps = s === s.toUpperCase();
+
+  // Capitalizar si está todo en mayúsculas y no es un sufijo empresarial
+  const allCaps = s === s.toUpperCase() && !/[áéíóúñ]/.test(s);
   if (allCaps && !hasCompanySuffix(s)) {
     return s
       .split(' ')
@@ -255,9 +272,11 @@ function extractItemsFromTableSection(lines: string[]): string[] {
   );
   if (headerIdx === -1) return [];
 
-  // El bloque de ítems va desde la cabecera hasta el primer subtotal/total
+  // El bloque termina en el primer subtotal real (SUB-TOTAL, TOTAL GENERAL, etc.).
+  // NO usar /^total\b/i porque "TOTAL (Bs.)" puede ser parte del encabezado de la tabla
+  // y causaría que se detecte como fin de sección antes de leer cualquier producto.
   const subtotalIdx = lines.findIndex(
-    (l, i) => i > headerIdx && (isSubtotalLine(l) || /^total\b/i.test(l)),
+    (l, i) => i > headerIdx && isSubtotalLine(l),
   );
   const endIdx =
     subtotalIdx !== -1 ? subtotalIdx : Math.min(headerIdx + 25, lines.length);
