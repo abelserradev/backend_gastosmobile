@@ -56,5 +56,8 @@ export const envValidationSchema = Joi.object({
   OLLAMA_URL: Joi.string().uri().allow('').optional(),
   OLLAMA_MODEL: Joi.string().allow('').optional(),
   OLLAMA_OCR_ENABLED: Joi.string().valid('true', 'false', '0', '1', 'off', 'on').optional(),
-  OLLAMA_OCR_TIMEOUT_MS: Joi.number().integer().min(5000).optional(),
+  OLLAMA_OCR_TIMEOUT_MS: Joi.number().integer().min(30_000).optional(),
+  OLLAMA_OCR_WARMUP: Joi.string().valid('true', 'false', '0', '1', 'off', 'on').optional(),
+  OLLAMA_OCR_WARMUP_TIMEOUT_MS: Joi.number().integer().min(60_000).optional(),
+  OLLAMA_KEEP_ALIVE: Joi.string().allow('').optional(),
 });

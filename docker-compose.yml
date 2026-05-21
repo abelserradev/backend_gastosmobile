@@ -6,10 +6,21 @@ services:
     container_name: gastos-ollama
     restart: unless-stopped
     environment:
-      # Escuchar en todas las interfaces del contenedor (no solo 127.0.0.1)
       OLLAMA_HOST: 0.0.0.0:11434
+      OLLAMA_KEEP_ALIVE: 30m
+      OLLAMA_NUM_PARALLEL: 1
     volumes:
       - ollama_data:/root/.ollama
+    # GPU NVIDIA: requiere NVIDIA Container Toolkit en el host del servidor.
+    # Si el validador de Coolify rechaza "deploy:", usa Custom Docker Options: --gpus all.
+    # Con Quadro P600 (2GB VRAM) usa OLLAMA_MODEL=glm-ocr:q8_0 para reducir el modelo a ~1.6GB.
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: 1
+              capabilities: [gpu]
     healthcheck:
       test: ['CMD', 'ollama', 'list']
       interval: 20s
@@ -65,10 +76,17 @@ services:
       RESEND_API_KEY: ${RESEND_API_KEY:-}
       EMAIL_FROM: ${EMAIL_FROM:-}
       # No uses localhost aquí: desde el contenedor backend no alcanza el Ollama del host.
-      OLLAMA_URL: http://ollama:11434
-      OLLAMA_MODEL: ${OLLAMA_MODEL:-glm-ocr}
+      # Ollama en el host (systemd). Cambia a http://ollama:11434 si usas el servicio Docker.
+      OLLAMA_URL: ${OLLAMA_URL:-http://host.docker.internal:11434}
+      # glm-ocr:q8_0 (~1.6 GB) cabe en la Quadro P600 (2 GB VRAM). glm-ocr F16 no cabe.
+      OLLAMA_MODEL: ${OLLAMA_MODEL:-glm-ocr:q8_0}
       OLLAMA_OCR_ENABLED: ${OLLAMA_OCR_ENABLED:-true}
-      OLLAMA_OCR_TIMEOUT_MS: ${OLLAMA_OCR_TIMEOUT_MS:-120000}
+      OLLAMA_OCR_TIMEOUT_MS: ${OLLAMA_OCR_TIMEOUT_MS:-300000}
+      OLLAMA_OCR_WARMUP: ${OLLAMA_OCR_WARMUP:-true}
+      OLLAMA_KEEP_ALIVE: ${OLLAMA_KEEP_ALIVE:-15m}
+    extra_hosts:
+      # Permite resolver host.docker.internal → IP del host (para OLLAMA_URL)
+      - host.docker.internal:host-gateway
     depends_on:
       ollama:
         condition: service_healthy

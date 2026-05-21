@@ -1,0 +1,34 @@
+# Override: Ollama corre en el host del servidor (ya con GPU habilitada).
+# Úsalo cuando NO quieras el servicio ollama en Docker (evitas conflicto con el Ollama del host).
+#
+# En el servidor:
+#   nvidia-smi                    # verificar GPU visible
+#   ollama serve                  # o está como servicio systemd
+#   ollama pull glm-ocr:q8_0      # modelo cuantizado para Quadro P600 (2GB VRAM)
+#
+# En Coolify: variables de entorno del backend:
+#   OLLAMA_URL=http://host.docker.internal:11434
+#   OLLAMA_MODEL=glm-ocr:q8_0
+#
+# Levantar backend sin el servicio ollama del compose:
+#   docker compose -f docker-compose.yml -f docker-compose.override.gpu-host.yml up -d backend
+
+name: gastos-backend
+
+services:
+  ollama:
+    profiles:
+      - disabled
+
+  ollama-pull:
+    profiles:
+      - disabled
+
+  backend:
+    environment:
+      OLLAMA_URL: http://host.docker.internal:11434
+      OLLAMA_MODEL: ${OLLAMA_MODEL:-glm-ocr:q8_0}
+    extra_hosts:
+      - host.docker.internal:host-gateway
+    # El backend ya no espera al servicio ollama (está en el host)
+    depends_on: {}
