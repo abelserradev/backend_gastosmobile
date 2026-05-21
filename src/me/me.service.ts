@@ -15,6 +15,7 @@ import type { AuthUserPayload } from '../common/types/auth-user.payload';
 import type { Prisma } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
 import { CreateExpenseDto } from './dto/create-expense.dto';
+import { CreateExpenseWithReceiptDto } from './dto/create-expense-with-receipt.dto';
 import { CreateProfileDto } from './dto/create-profile.dto';
 import { DeleteExpensesDto } from './dto/delete-expenses.dto';
 import { MarkExpensesPaidDto } from './dto/mark-expenses-paid.dto';
@@ -383,6 +384,75 @@ export class MeService {
       include: { category: true, profile: true },
     });
     return mapExpenseToResponse(row);
+  }
+
+  /**
+   * Crea un gasto con el comprobante/factura adjunto en la misma operación.
+   * El amount puede llegar en BS o USD; si es BS se convierte con la tasa BCV del día indicado.
+   */
+  async createExpenseWithReceipt(
+    user: AuthUserPayload,
+    dto: CreateExpenseWithReceiptDto,
+    imageBuffer: Buffer,
+    imageMime: string,
+  ) {
+    const userId = user.userId;
+    const categoryId = await this.resolveCategoryId(userId, {
+      categoryName: dto.categoryName,
+    });
+    const profileId = await this.resolveProfileId(userId, undefined);
+    const rateYmd = dto.paymentDate ?? formatYmdInCaracas();
+    const { vesPerUsd, rateDate } =
+      await this.bcv.getVesPerUsdForCalendarDay(rateYmd);
+    const paymentDate = parseYmdToUtcNoon(rateYmd);
+    const refStr = startOfMonthYmdInCaracas();
+
+    const amountUsd =
+      dto.amountCurrency === 'BS'
+        ? dto.amount / vesPerUsd
+        : dto.amount;
+
+    // Título autogenerado si no viene del frontend: "Factura · YYYY-MM-DD" o "Pago · ..."
+    const title = dto.title?.trim() || `Comprobante · ${rateYmd}`;
+
+    const row = await this.prisma.expense.create({
+      data: {
+        profileId,
+        categoryId,
+        title,
+        description: '',
+        amount: amountUsd,
+        referenceMonth: toReferenceMonthDate(refStr),
+        paymentDate,
+        bcvRateApplied: vesPerUsd,
+        bcvRateDate: rateDate,
+        receiptImage: imageBuffer,
+        receiptMime: imageMime,
+      },
+      include: { category: true, profile: true },
+    });
+    return mapExpenseToResponse(row);
+  }
+
+  /**
+   * Devuelve los bytes de la imagen del comprobante.
+   * Lanza 404 si el gasto no existe, no pertenece al usuario, o no tiene imagen.
+   */
+  async getExpenseReceipt(
+    user: AuthUserPayload,
+    expenseId: string,
+  ): Promise<{ buffer: Buffer; mime: string }> {
+    const row = await this.prisma.expense.findFirst({
+      where: { id: expenseId, profile: { userId: user.userId } },
+      select: { receiptImage: true, receiptMime: true },
+    });
+    if (!row?.receiptImage) {
+      throw new NotFoundException('Este gasto no tiene imagen adjunta');
+    }
+    return {
+      buffer: row.receiptImage as Buffer,
+      mime: row.receiptMime ?? 'image/jpeg',
+    };
   }
 
   async patchExpense(

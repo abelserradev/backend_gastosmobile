@@ -138,6 +138,10 @@ model Expense {
   bcvRateApplied Decimal? @db.Decimal(14, 6)
   /// Día calendario de la tasa aplicada.
   bcvRateDate    DateTime? @db.Date
+  /// Imagen del comprobante/factura (bytes crudos, máx ~1 MB por validación en frontend).
+  receiptImage   Bytes?
+  /// MIME type de receiptImage (image/jpeg, image/png, image/webp).
+  receiptMime    String?
   createdAt      DateTime @default(now())
   updatedAt      DateTime @updatedAt
 

@@ -19,6 +19,7 @@ export function mapExpenseToResponse(e: {
   paidAt?: Date | null;
   paidByMemberId?: string | null;
   category: { name: string };
+  receiptImage?: Buffer | null;
 }): {
   id: string;
   profileId: string;
@@ -35,6 +36,7 @@ export function mapExpenseToResponse(e: {
   paidByDisplayName: string | null;
   paidAt: string | null;
   paidByMemberId: string | null;
+  hasReceipt: boolean;
 } {
   return {
     id: e.id,
@@ -58,6 +60,7 @@ export function mapExpenseToResponse(e: {
     paidByDisplayName: e.paidByDisplayName ?? null,
     paidAt: e.paidAt ? e.paidAt.toISOString() : null,
     paidByMemberId: e.paidByMemberId ?? null,
+    hasReceipt: e.receiptImage != null && e.receiptImage.length > 0,
   };
 }
 
