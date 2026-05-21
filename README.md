@@ -34,7 +34,15 @@ docker compose -f docker-compose.local.yml --env-file .env.docker.local up -d --
 
 Si Ollama ya corre en el host: `docker compose -f docker-compose.local.yml -f docker-compose.host-ollama.yml up -d postgres backend`.
 
-**Coolify:** `docker-compose.yml` incluye `ollama` + job `ollama-pull` en la red `coolify`. Añade las variables `OLLAMA_*` en el panel. Si despliegas Ollama como **recurso aparte**, pon `OLLAMA_URL=http://<nombre-interno>:11434` y elimina los servicios `ollama` / `ollama-pull` del compose (y `depends_on` en `backend`).
+**Coolify:** `docker-compose.yml` incluye `ollama` + job `ollama-pull` en la red `coolify`.
+
+**Si ves `fetch failed` y `glm=0 chars`:**
+
+1. En variables de entorno del backend en Coolify, **no** uses `OLLAMA_URL=http://localhost:11434` (desde Docker eso apunta al propio contenedor Nest). Usa `http://ollama:11434` o el hostname interno del servicio Ollama.
+2. Tras redeploy, en logs de arranque debe aparecer `Ollama OK en http://ollama:11434` o un aviso explícito de conexión.
+3. Ollama y backend deben estar en el **mismo** despliegue Compose o en la misma red Docker con DNS interno.
+
+Si Ollama es **recurso aparte** en Coolify: `OLLAMA_URL=http://<hostname-interno-coolify>:11434` y quita `ollama` / `ollama-pull` del compose del backend.
 
 ## Docker (producción)
 
