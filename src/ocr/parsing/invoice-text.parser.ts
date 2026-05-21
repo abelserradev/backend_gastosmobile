@@ -570,8 +570,10 @@ export function resolveCurrencyForMergedAmount(
   amount: number | undefined,
   tessBlob: string,
   tessPf: ParsedInvoiceFields,
+  vlmBlob?: string,
+  vlmPf?: ParsedInvoiceFields,
 ): string {
-  const combinedLc = tessBlob.toLowerCase();
+  const combinedLc = `${tessBlob}\n${vlmBlob ?? ''}`.toLowerCase();
   let sc: string | undefined;
   let hc: string | undefined;
   if (amountMatchesSource(amount, tessPf.amount)) {
@@ -588,6 +590,21 @@ export function resolveCurrencyForMergedAmount(
       tessPf.heuristicCurrency.trim()
     ) {
       hc = tessPf.heuristicCurrency.trim();
+    }
+  } else if (vlmPf && amountMatchesSource(amount, vlmPf.amount)) {
+    if (
+      vlmPf.structuredAmount !== undefined &&
+      vlmPf.structuredAmount > 0 &&
+      vlmPf.structuredCurrencyHint.trim()
+    ) {
+      sc = vlmPf.structuredCurrencyHint.trim();
+    }
+    if (
+      vlmPf.heuristicAmount !== undefined &&
+      vlmPf.heuristicAmount > 0 &&
+      vlmPf.heuristicCurrency.trim()
+    ) {
+      hc = vlmPf.heuristicCurrency.trim();
     }
   }
   return resolveInvoiceCurrency(combinedLc, sc, hc);

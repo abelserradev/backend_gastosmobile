@@ -1,0 +1,101 @@
+# Stack local: Postgres + Ollama (glm-ocr) + API Nest.
+# Uso: cp .env.docker.local.example .env.docker.local && docker compose -f docker-compose.local.yml --env-file .env.docker.local up -d --build
+#
+# Nest en el host (npm run start:dev): OLLAMA_URL=http://localhost:11434 en backend/.env
+# Backend en Docker: OLLAMA_URL=http://ollama:11434 (ya definido abajo).
+
+name: gastos-local
+
+services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: gastos-postgres-local
+    restart: unless-stopped
+    ports:
+      - "${POSTGRES_PORT:-55432}:5432"
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-mobilegastos}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-mobilegastos_dev}
+      POSTGRES_DB: ${POSTGRES_DB:-mobilegastos}
+    volumes:
+      - postgres_data_local:/var/lib/postgresql/data
+    healthcheck:
+      test: ['CMD-SHELL', 'pg_isready -U $$POSTGRES_USER -d $$POSTGRES_DB']
+      interval: 5s
+      timeout: 5s
+      retries: 10
+    networks:
+      - gastos_local
+
+  ollama:
+    image: ollama/ollama:latest
+    container_name: gastos-ollama-local
+    restart: unless-stopped
+    ports:
+      - "${OLLAMA_PORT:-11434}:11434"
+    volumes:
+      - ollama_data_local:/root/.ollama
+    healthcheck:
+      test: ['CMD', 'ollama', 'list']
+      interval: 15s
+      timeout: 10s
+      retries: 8
+      start_period: 40s
+    networks:
+      - gastos_local
+
+  ollama-pull:
+    image: ollama/ollama:latest
+    container_name: gastos-ollama-pull-local
+    depends_on:
+      ollama:
+        condition: service_healthy
+    environment:
+      OLLAMA_HOST: http://ollama:11434
+    entrypoint:
+      - /bin/sh
+      - -c
+      - |
+        echo "Descargando modelo ${OLLAMA_MODEL:-glm-ocr}…"
+        ollama pull "${OLLAMA_MODEL:-glm-ocr}"
+        echo "Modelo listo."
+    restart: 'no'
+    networks:
+      - gastos_local
+
+  backend:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: gastos-backend-local
+    restart: unless-stopped
+    ports:
+      - "${BACKEND_PORT:-3088}:3088"
+    env_file:
+      - path: .env.docker.local
+        required: false
+    environment:
+      NODE_ENV: development
+      PORT: 3088
+      DATABASE_URL: postgresql://${POSTGRES_USER:-mobilegastos}:${POSTGRES_PASSWORD:-mobilegastos_dev}@postgres:5432/${POSTGRES_DB:-mobilegastos}
+      FRONTEND_URL: ${FRONTEND_URL:-http://localhost:4300}
+      JWT_SECRET: ${JWT_SECRET:-dev_secret_min_16_chars}
+      OLLAMA_URL: http://ollama:11434
+      OLLAMA_MODEL: ${OLLAMA_MODEL:-glm-ocr}
+      OLLAMA_OCR_ENABLED: ${OLLAMA_OCR_ENABLED:-true}
+      OLLAMA_OCR_TIMEOUT_MS: ${OLLAMA_OCR_TIMEOUT_MS:-120000}
+    depends_on:
+      postgres:
+        condition: service_healthy
+      ollama:
+        condition: service_healthy
+    networks:
+      - gastos_local
+
+networks:
+  gastos_local:
+    driver: bridge
+
+volumes:
+  postgres_data_local:
+  ollama_data_local:

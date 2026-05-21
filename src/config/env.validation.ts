@@ -52,4 +52,9 @@ export const envValidationSchema = Joi.object({
   RESEND_API_KEY: Joi.string().allow('').optional(),
   /** Remitente verificado en Resend, p. ej. Gastos &lt;noreply@buildforge.work&gt; */
   EMAIL_FROM: Joi.string().allow('').optional(),
+  /** Ollama (glm-ocr): URL interna, p. ej. http://ollama:11434 en Docker/Coolify. */
+  OLLAMA_URL: Joi.string().uri().allow('').optional(),
+  OLLAMA_MODEL: Joi.string().allow('').optional(),
+  OLLAMA_OCR_ENABLED: Joi.string().valid('true', 'false', '0', '1', 'off', 'on').optional(),
+  OLLAMA_OCR_TIMEOUT_MS: Joi.number().integer().min(5000).optional(),
 });

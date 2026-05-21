@@ -1,0 +1,14 @@
+# Override: Ollama en el host (ya tienes `ollama pull glm-ocr`).
+# Levantar solo DB + API: docker compose -f docker-compose.local.yml -f docker-compose.host-ollama.yml up -d postgres backend
+
+name: gastos-local
+
+services:
+  backend:
+    environment:
+      OLLAMA_URL: http://host.docker.internal:11434
+    extra_hosts:
+      - host.docker.internal:host-gateway
+    depends_on:
+      postgres:
+        condition: service_healthy

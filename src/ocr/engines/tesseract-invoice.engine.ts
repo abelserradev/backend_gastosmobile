@@ -2,7 +2,7 @@ import { Injectable, Logger, ServiceUnavailableException } from '@nestjs/common'
 import { createWorker, PSM, type Worker } from 'tesseract.js';
 
 /**
- * OCR local vía Tesseract.js (WASM); sin servicio Python ni Moondream en VPS.
+ * OCR local vía Tesseract.js (WASM); complementado por glm-ocr en Ollama si está configurado.
  * Un worker reutilizado evita descargar modelos en cada foto del usuario.
  */
 @Injectable()

@@ -1,6 +1,39 @@
 name: gastos-backend
 
 services:
+  ollama:
+    image: ollama/ollama:latest
+    container_name: gastos-ollama
+    restart: unless-stopped
+    volumes:
+      - ollama_data:/root/.ollama
+    healthcheck:
+      test: ['CMD', 'ollama', 'list']
+      interval: 20s
+      timeout: 10s
+      retries: 6
+      start_period: 60s
+    networks:
+      - coolify
+    # No publicar 11434 en Internet; solo red interna Coolify.
+
+  ollama-pull:
+    image: ollama/ollama:latest
+    container_name: gastos-ollama-pull
+    depends_on:
+      ollama:
+        condition: service_healthy
+    environment:
+      OLLAMA_HOST: http://ollama:11434
+    entrypoint:
+      - /bin/sh
+      - -c
+      - |
+        ollama pull "${OLLAMA_MODEL:-glm-ocr}" || exit 1
+    restart: 'no'
+    networks:
+      - coolify
+
   backend:
     build:
       context: .
@@ -25,6 +58,13 @@ services:
       FIREBASE_SERVICE_ACCOUNT_JSON: ${FIREBASE_SERVICE_ACCOUNT_JSON:-}
       RESEND_API_KEY: ${RESEND_API_KEY:-}
       EMAIL_FROM: ${EMAIL_FROM:-}
+      OLLAMA_URL: ${OLLAMA_URL:-http://ollama:11434}
+      OLLAMA_MODEL: ${OLLAMA_MODEL:-glm-ocr}
+      OLLAMA_OCR_ENABLED: ${OLLAMA_OCR_ENABLED:-true}
+      OLLAMA_OCR_TIMEOUT_MS: ${OLLAMA_OCR_TIMEOUT_MS:-120000}
+    depends_on:
+      ollama:
+        condition: service_healthy
     networks:
       - coolify
 
@@ -32,3 +72,6 @@ networks:
   coolify:
     name: coolify
     external: true
+
+volumes:
+  ollama_data:
