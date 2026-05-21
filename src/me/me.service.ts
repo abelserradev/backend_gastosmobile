@@ -15,6 +15,7 @@ import type { AuthUserPayload } from '../common/types/auth-user.payload';
 import type { Prisma } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
 import { CreateExpenseDto } from './dto/create-expense.dto';
+import { CreateExpenseWithReceiptDto } from './dto/create-expense-with-receipt.dto';
 import { CreateProfileDto } from './dto/create-profile.dto';
 import { DeleteExpensesDto } from './dto/delete-expenses.dto';
 import { MarkExpensesPaidDto } from './dto/mark-expenses-paid.dto';
@@ -80,8 +81,7 @@ export class MeService {
         orderBy: { createdAt: 'desc' },
       }),
     ]);
-    const needsMonthlyIncomeSetup =
-      !pref || this.incomeMonthNeedsRefresh(pref);
+    const needsMonthlyIncomeSetup = !pref || this.incomeMonthNeedsRefresh(pref);
     return {
       preferences: await this.mapPreferencesToResponse(pref),
       categories: categories.map((c) => ({ id: c.id, name: c.name })),
@@ -99,91 +99,21 @@ export class MeService {
   async updatePreferences(user: AuthUserPayload, dto: UpdatePreferencesDto) {
     const uid = user.userId;
     const incomeRef = toReferenceMonthDate(startOfMonthYmdInCaracas());
+
     if (dto.defaultCurrency === 'USD') {
-      if (dto.monthlyIncome === undefined || dto.monthlyIncome === null) {
+      if (dto.monthlyIncome == null) {
         throw new BadRequestException('Indica el ingreso en USD');
       }
-      await this.prisma.userPreference.upsert({
-        where: { userId: uid },
-        create: {
-          userId: uid,
-          defaultCurrency: dto.defaultCurrency,
-          monthlyIncome: dto.monthlyIncome,
-          incomeFixedBs: null,
-          incomeRegisteredBcvRateId: null,
-          incomeReferenceMonth: incomeRef,
-        },
-        update: {
-          defaultCurrency: dto.defaultCurrency,
-          monthlyIncome: dto.monthlyIncome,
-          incomeFixedBs: null,
-          incomeRegisteredBcvRateId: null,
-          incomeReferenceMonth: incomeRef,
-        },
+      await this.saveUserPreference(uid, incomeRef, {
+        defaultCurrency: 'USD',
+        monthlyIncome: dto.monthlyIncome,
+        incomeFixedBs: null,
+        incomeRegisteredBcvRateId: null,
       });
     } else {
-      const tieneBsNominal =
-        dto.monthlyIncomeBs != null && dto.monthlyIncomeBs > 0;
-      if (tieneBsNominal) {
-        const ymd = formatYmdInCaracas();
-        const { vesPerUsd, rateDate } =
-          await this.bcv.getVesPerUsdForCalendarDay(ymd);
-        const rateRow = await this.prisma.bcVOfficialRate.findUnique({
-          where: { rateDate },
-        });
-        if (!rateRow) {
-          throw new ServiceUnavailableException(
-            'No se pudo registrar la tasa del día',
-          );
-        }
-        const usdCaptura = dto.monthlyIncomeBs! / Number(vesPerUsd.toString());
-        await this.prisma.userPreference.upsert({
-          where: { userId: uid },
-          create: {
-            userId: uid,
-            defaultCurrency: 'BS',
-            monthlyIncome: usdCaptura,
-            incomeFixedBs: dto.monthlyIncomeBs,
-            incomeRegisteredBcvRateId: rateRow.id,
-            incomeReferenceMonth: incomeRef,
-          },
-          update: {
-            defaultCurrency: 'BS',
-            monthlyIncome: usdCaptura,
-            incomeFixedBs: dto.monthlyIncomeBs,
-            incomeRegisteredBcvRateId: rateRow.id,
-            incomeReferenceMonth: incomeRef,
-          },
-        });
-      } else if (
-        dto.monthlyIncome !== undefined &&
-        dto.monthlyIncome !== null
-      ) {
-        // Cliente antiguo: solo guardaba USD equivalente; sin monto fijo en Bs.
-        await this.prisma.userPreference.upsert({
-          where: { userId: uid },
-          create: {
-            userId: uid,
-            defaultCurrency: 'BS',
-            monthlyIncome: dto.monthlyIncome,
-            incomeFixedBs: null,
-            incomeRegisteredBcvRateId: null,
-            incomeReferenceMonth: incomeRef,
-          },
-          update: {
-            defaultCurrency: 'BS',
-            monthlyIncome: dto.monthlyIncome,
-            incomeFixedBs: null,
-            incomeRegisteredBcvRateId: null,
-            incomeReferenceMonth: incomeRef,
-          },
-        });
-      } else {
-        throw new BadRequestException(
-          'Indica el ingreso en bolívares (monthlyIncomeBs) o el equivalente (formato anterior)',
-        );
-      }
+      await this.updateBsPreferences(uid, incomeRef, dto);
     }
+
     const fresh = await this.prisma.userPreference.findUnique({
       where: { userId: uid },
       include: { incomeRegisteredBcvRate: true },
@@ -193,6 +123,70 @@ export class MeService {
       throw new BadRequestException('No se pudieron leer las preferencias');
     }
     return mapped;
+  }
+
+  /** Maneja el flujo BS: nominal en Bs (nuevo) o equivalente USD heredado (cliente antiguo). */
+  private async updateBsPreferences(
+    uid: string,
+    incomeRef: Date,
+    dto: UpdatePreferencesDto,
+  ) {
+    const tieneBsNominal =
+      dto.monthlyIncomeBs != null && dto.monthlyIncomeBs > 0;
+    if (tieneBsNominal) {
+      const ymd = formatYmdInCaracas();
+      const { vesPerUsd, rateDate } =
+        await this.bcv.getVesPerUsdForCalendarDay(ymd);
+      const rateRow = await this.prisma.bcVOfficialRate.findUnique({
+        where: { rateDate },
+      });
+      if (!rateRow) {
+        throw new ServiceUnavailableException(
+          'No se pudo registrar la tasa del día',
+        );
+      }
+      const usdCaptura = dto.monthlyIncomeBs! / Number(vesPerUsd.toString());
+      await this.saveUserPreference(uid, incomeRef, {
+        defaultCurrency: 'BS',
+        monthlyIncome: usdCaptura,
+        incomeFixedBs: dto.monthlyIncomeBs!,
+        incomeRegisteredBcvRateId: rateRow.id,
+      });
+      return;
+    }
+
+    if (dto.monthlyIncome != null) {
+      // Cliente antiguo: solo guardaba USD equivalente; sin monto fijo en Bs.
+      await this.saveUserPreference(uid, incomeRef, {
+        defaultCurrency: 'BS',
+        monthlyIncome: dto.monthlyIncome,
+        incomeFixedBs: null,
+        incomeRegisteredBcvRateId: null,
+      });
+      return;
+    }
+
+    throw new BadRequestException(
+      'Indica el ingreso en bolívares (monthlyIncomeBs) o el equivalente (formato anterior)',
+    );
+  }
+
+  /** Upsert unificado para preferencias del usuario; evita repetir create/update idénticos. */
+  private async saveUserPreference(
+    uid: string,
+    incomeRef: Date,
+    data: {
+      defaultCurrency: 'USD' | 'BS';
+      monthlyIncome: number;
+      incomeFixedBs: number | null;
+      incomeRegisteredBcvRateId: string | null;
+    },
+  ) {
+    await this.prisma.userPreference.upsert({
+      where: { userId: uid },
+      create: { userId: uid, incomeReferenceMonth: incomeRef, ...data },
+      update: { incomeReferenceMonth: incomeRef, ...data },
+    });
   }
 
   async replaceCategories(user: AuthUserPayload, dto: ReplaceCategoriesDto) {
@@ -361,7 +355,10 @@ export class MeService {
 
   async createExpense(user: AuthUserPayload, dto: CreateExpenseDto) {
     const userId = user.userId;
-    const categoryId = await this.resolveCategoryId(userId, dto);
+    const categoryId = await this.findCategoryOrThrow(userId, {
+      id: dto.categoryId,
+      name: dto.categoryName,
+    });
     const profileId = await this.resolveProfileId(userId, dto.profileId);
     const refStr = dto.referenceMonth ?? startOfMonthYmdInCaracas();
     const rateYmd = dto.paymentDate ?? formatYmdInCaracas();
@@ -385,87 +382,136 @@ export class MeService {
     return mapExpenseToResponse(row);
   }
 
+  /**
+   * Crea un gasto con el comprobante/factura adjunto en la misma operación.
+   * El amount puede llegar en BS o USD; si es BS se convierte con la tasa BCV del día indicado.
+   */
+  async createExpenseWithReceipt(
+    user: AuthUserPayload,
+    dto: CreateExpenseWithReceiptDto,
+    imageBuffer: Buffer,
+    imageMime: string,
+  ) {
+    const userId = user.userId;
+    const categoryId = await this.findCategoryOrThrow(userId, {
+      name: dto.categoryName,
+    });
+    const profileId = await this.resolveProfileId(userId, undefined);
+    const rateYmd = dto.paymentDate ?? formatYmdInCaracas();
+    const { vesPerUsd, rateDate } =
+      await this.bcv.getVesPerUsdForCalendarDay(rateYmd);
+    const paymentDate = parseYmdToUtcNoon(rateYmd);
+    const refStr = startOfMonthYmdInCaracas();
+
+    const vesPerUsdNum = Number(vesPerUsd.toString());
+    const amountUsd =
+      dto.amountCurrency === 'BS' ? dto.amount / vesPerUsdNum : dto.amount;
+
+    // Título autogenerado si no viene del frontend: "Factura · YYYY-MM-DD" o "Pago · ..."
+    const title = dto.title?.trim() || `Comprobante · ${rateYmd}`;
+
+    const row = await this.prisma.expense.create({
+      data: {
+        profileId,
+        categoryId,
+        title,
+        description: '',
+        amount: amountUsd,
+        referenceMonth: toReferenceMonthDate(refStr),
+        paymentDate,
+        bcvRateApplied: vesPerUsd,
+        bcvRateDate: rateDate,
+        receiptImage: new Uint8Array(imageBuffer),
+        receiptMime: imageMime,
+      },
+      include: { category: true, profile: true },
+    });
+    return mapExpenseToResponse(row);
+  }
+
+  /**
+   * Devuelve los bytes de la imagen del comprobante.
+   * Lanza 404 si el gasto no existe, no pertenece al usuario, o no tiene imagen.
+   */
+  async getExpenseReceipt(
+    user: AuthUserPayload,
+    expenseId: string,
+  ): Promise<{ buffer: Buffer; mime: string }> {
+    const row = await this.prisma.expense.findFirst({
+      where: { id: expenseId, profile: { userId: user.userId } },
+      select: { receiptImage: true, receiptMime: true },
+    });
+    if (!row?.receiptImage) {
+      throw new NotFoundException('Este gasto no tiene imagen adjunta');
+    }
+    return {
+      buffer: Buffer.from(row.receiptImage),
+      mime: row.receiptMime ?? 'image/jpeg',
+    };
+  }
+
   async patchExpense(
     user: AuthUserPayload,
     expenseId: string,
     dto: PatchExpenseDto,
   ) {
     const row = await this.prisma.expense.findFirst({
-      where: {
-        id: expenseId,
-        profile: { userId: user.userId },
-      },
+      where: { id: expenseId, profile: { userId: user.userId } },
       include: { category: true, profile: true },
     });
-    if (!row) {
-      throw new NotFoundException('Gasto no encontrado');
-    }
-    if (dto.isPaid) {
-      const paidByMemberId = dto.paidByMemberId?.trim();
-      const paidByLegacy = dto.paidByDisplayName?.trim();
-      if (!paidByMemberId && !paidByLegacy) {
-        throw new BadRequestException('Indica quién pagó');
-      }
-      let paidByDisplayName = paidByLegacy ?? '';
-      if (paidByMemberId) {
-        const member = await this.prisma.profileMember.findFirst({
-          where: { id: paidByMemberId, profileId: row.profileId },
-          select: { id: true, displayName: true },
-        });
-        if (!member) {
-          throw new BadRequestException('Integrante inválido para este perfil');
-        }
-        paidByDisplayName = member.displayName;
-      }
+    if (!row) throw new NotFoundException('Gasto no encontrado');
+
+    if (!dto.isPaid) {
       const updated = await this.prisma.expense.update({
         where: { id: expenseId },
         data: {
-          isPaid: true,
-          paidByDisplayName,
-          paidByMemberId: paidByMemberId ?? null,
-          paidAt: new Date(),
+          isPaid: false,
+          paidByDisplayName: null,
+          paidByMemberId: null,
+          paidAt: null,
         },
         include: { category: true, profile: true },
       });
-      // La app usa POST /me/expenses/mark-paid; esto mantiene correo si alguien marca vía PATCH directo.
-      this.resendEmail
-        .sendExpensesPaidSummaryEmail({
-          to: user.email,
-          paidByDisplayName,
-          items: [
-            {
-              expenseTitle: updated.title,
-              categoryName: updated.category.name,
-              amountUsd: Number(updated.amount),
-              profileName: updated.profile.name,
-            },
-          ],
-        })
-        .catch((err: unknown) => {
-          this.logger.warn(`Error sending paid email: ${String(err)}`);
-        });
       return mapExpenseToResponse(updated);
     }
+
+    const paidByMemberId = dto.paidByMemberId?.trim();
+    const fallback = dto.paidByDisplayName?.trim();
+    if (!paidByMemberId && !fallback) {
+      throw new BadRequestException('Indica quién pagó');
+    }
+    const paidByDisplayName = await this.resolvePaidByDisplayName(
+      row.profileId,
+      paidByMemberId,
+      fallback ?? '',
+    );
+
     const updated = await this.prisma.expense.update({
       where: { id: expenseId },
       data: {
-        isPaid: false,
-        paidByDisplayName: null,
-        paidByMemberId: null,
-        paidAt: null,
+        isPaid: true,
+        paidByDisplayName,
+        paidByMemberId: paidByMemberId ?? null,
+        paidAt: new Date(),
       },
       include: { category: true, profile: true },
     });
+    // La app usa POST /me/expenses/mark-paid; este path cubre marcado vía PATCH directo.
+    this.firePaidEmailSilently(user.email, paidByDisplayName, [
+      {
+        expenseTitle: updated.title,
+        categoryName: updated.category.name,
+        amountUsd: Number(updated.amount),
+        profileName: updated.profile.name,
+      },
+    ]);
     return mapExpenseToResponse(updated);
   }
 
   async markExpensesPaid(user: AuthUserPayload, dto: MarkExpensesPaidDto) {
     const uniqueIds = [...new Set(dto.ids)];
     const rows = await this.prisma.expense.findMany({
-      where: {
-        id: { in: uniqueIds },
-        profile: { userId: user.userId },
-      },
+      where: { id: { in: uniqueIds }, profile: { userId: user.userId } },
       include: { category: true, profile: true },
     });
     if (rows.length !== uniqueIds.length) {
@@ -473,40 +519,38 @@ export class MeService {
         'Uno o más gastos no existen o no pertenecen a tu cuenta',
       );
     }
-    const unpaid = rows.filter((r) => !r.isPaid);
-    if (unpaid.length !== rows.length) {
+    if (rows.some((r) => r.isPaid)) {
       throw new BadRequestException(
         'Solo se pueden marcar gastos pendientes; quitá los ya pagados de la selección',
       );
     }
+
     const paidByMemberId = dto.paidByMemberId?.trim();
     let paidByDisplayName = dto.paidByDisplayName.trim();
     if (paidByMemberId) {
-      const firstProfileId = unpaid[0].profileId;
-      if (!unpaid.every((r) => r.profileId === firstProfileId)) {
+      const firstProfileId = rows[0].profileId;
+      if (!rows.every((r) => r.profileId === firstProfileId)) {
         throw new BadRequestException(
           'Si indicás integrante, todos los gastos deben ser del mismo perfil',
         );
       }
-      const member = await this.prisma.profileMember.findFirst({
-        where: { id: paidByMemberId, profileId: firstProfileId },
-        select: { id: true, displayName: true },
-      });
-      if (!member) {
-        throw new BadRequestException('Integrante inválido para este perfil');
-      }
-      paidByDisplayName = member.displayName;
+      paidByDisplayName = await this.resolvePaidByDisplayName(
+        firstProfileId,
+        paidByMemberId,
+        paidByDisplayName,
+      );
     }
-    const paidAt = new Date();
+
     await this.prisma.expense.updateMany({
       where: { id: { in: uniqueIds } },
       data: {
         isPaid: true,
         paidByDisplayName,
         paidByMemberId: paidByMemberId ?? null,
-        paidAt,
+        paidAt: new Date(),
       },
     });
+
     const updated = await this.prisma.expense.findMany({
       where: { id: { in: uniqueIds } },
       include: { category: true, profile: true },
@@ -515,21 +559,17 @@ export class MeService {
     updated.sort(
       (a, b) => (orderMap.get(a.id) ?? 0) - (orderMap.get(b.id) ?? 0),
     );
-    const emailItems = updated.map((e) => ({
-      expenseTitle: e.title,
-      categoryName: e.category.name,
-      amountUsd: Number(e.amount),
-      profileName: e.profile.name,
-    }));
-    this.resendEmail
-      .sendExpensesPaidSummaryEmail({
-        to: user.email,
-        paidByDisplayName,
-        items: emailItems,
-      })
-      .catch((err: unknown) => {
-        this.logger.warn(`Error sending bulk paid email: ${String(err)}`);
-      });
+
+    this.firePaidEmailSilently(
+      user.email,
+      paidByDisplayName,
+      updated.map((e) => ({
+        expenseTitle: e.title,
+        categoryName: e.category.name,
+        amountUsd: Number(e.amount),
+        profileName: e.profile.name,
+      })),
+    );
     return updated.map((e) => mapExpenseToResponse(e));
   }
 
@@ -579,7 +619,7 @@ export class MeService {
       return base;
     }
     const nominalBs =
-      pref.incomeFixedBs != null ? Number(pref.incomeFixedBs.toString()) : null;
+      pref.incomeFixedBs == null ? null : Number(pref.incomeFixedBs.toString());
     if (nominalBs == null) {
       return {
         ...base,
@@ -647,30 +687,60 @@ export class MeService {
     };
   }
 
-  private async resolveCategoryId(
+  /** Lookup unificado de categoría por id o nombre; evita duplicar la misma query en dos métodos. */
+  private async findCategoryOrThrow(
     userId: string,
-    dto: CreateExpenseDto,
+    opts: { id?: string; name?: string },
   ): Promise<string> {
-    if (dto.categoryId) {
+    if (opts.id) {
       const cat = await this.prisma.category.findFirst({
-        where: { id: dto.categoryId, userId },
+        where: { id: opts.id, userId },
       });
-      if (!cat) {
-        throw new BadRequestException('Categoría inválida');
-      }
+      if (!cat) throw new BadRequestException('Categoría inválida');
       return cat.id;
     }
-    const name = dto.categoryName?.trim();
-    if (name) {
-      const cat = await this.prisma.category.findFirst({
-        where: { userId, name },
+    const name = opts.name?.trim();
+    if (!name)
+      throw new BadRequestException('Indica categoría por id o nombre');
+    const cat = await this.prisma.category.findFirst({
+      where: { userId, name },
+    });
+    if (!cat) throw new BadRequestException(`No existe la categoría "${name}"`);
+    return cat.id;
+  }
+
+  /** Resuelve el nombre de quien pagó; si hay memberId lo valida contra el perfil. */
+  private async resolvePaidByDisplayName(
+    profileId: string,
+    memberId: string | undefined,
+    fallbackName: string,
+  ): Promise<string> {
+    if (!memberId) return fallbackName;
+    const member = await this.prisma.profileMember.findFirst({
+      where: { id: memberId, profileId },
+      select: { displayName: true },
+    });
+    if (!member)
+      throw new BadRequestException('Integrante inválido para este perfil');
+    return member.displayName;
+  }
+
+  /** Fire-and-forget: el correo de resumen nunca debe romper el flujo principal. */
+  private firePaidEmailSilently(
+    to: string,
+    paidByDisplayName: string,
+    items: Array<{
+      expenseTitle: string;
+      categoryName: string;
+      amountUsd: number;
+      profileName: string;
+    }>,
+  ): void {
+    this.resendEmail
+      .sendExpensesPaidSummaryEmail({ to, paidByDisplayName, items })
+      .catch((err: unknown) => {
+        this.logger.warn(`Error sending paid email: ${String(err)}`);
       });
-      if (!cat) {
-        throw new BadRequestException(`No existe la categoría "${name}"`);
-      }
-      return cat.id;
-    }
-    throw new BadRequestException('Indica categoría por id o nombre');
   }
 
   private async resolveProfileId(

@@ -1,4 +1,5 @@
 import {
+  BadRequestException,
   Body,
   Controller,
   Delete,
@@ -8,10 +9,16 @@ import {
   Patch,
   Post,
   Put,
+  Res,
+  UploadedFile,
+  UseInterceptors,
 } from '@nestjs/common';
+import { FileInterceptor } from '@nestjs/platform-express';
+import type { Response } from 'express';
 import { CurrentUser } from '../common/decorators/current-user.decorator';
 import type { AuthUserPayload } from '../common/types/auth-user.payload';
 import { CreateExpenseDto } from './dto/create-expense.dto';
+import { CreateExpenseWithReceiptDto } from './dto/create-expense-with-receipt.dto';
 import { CreateProfileMemberDto } from './dto/create-profile-member.dto';
 import { CreateProfileDto } from './dto/create-profile.dto';
 import { DeleteExpensesDto } from './dto/delete-expenses.dto';
@@ -117,6 +124,41 @@ export class MeController {
     @Body() dto: CreateExpenseDto,
   ) {
     return this.me.createExpense(user, dto);
+  }
+
+  @Post('expenses/with-receipt')
+  @UseInterceptors(
+    FileInterceptor('file', {
+      limits: { fileSize: 1.2 * 1024 * 1024 }, // 1.2MB — el front valida ≤1MB
+      fileFilter: (_req, file, cb) => {
+        const allowed = ['image/jpeg', 'image/png', 'image/webp'];
+        if (allowed.includes(file.mimetype)) return cb(null, true);
+        cb(
+          new BadRequestException('Solo se aceptan JPG, PNG o WebP'),
+          false,
+        );
+      },
+    }),
+  )
+  createExpenseWithReceipt(
+    @CurrentUser() user: AuthUserPayload,
+    @UploadedFile() file: Express.Multer.File,
+    @Body() dto: CreateExpenseWithReceiptDto,
+  ) {
+    if (!file) throw new BadRequestException('Se requiere imagen');
+    return this.me.createExpenseWithReceipt(user, dto, file.buffer, file.mimetype);
+  }
+
+  @Get('expenses/:id/receipt')
+  async getExpenseReceipt(
+    @CurrentUser() user: AuthUserPayload,
+    @Param('id', ParseUUIDPipe) id: string,
+    @Res() res: Response,
+  ) {
+    const { buffer, mime } = await this.me.getExpenseReceipt(user, id);
+    res.setHeader('Content-Type', mime);
+    res.setHeader('Cache-Control', 'private, max-age=3600');
+    res.send(buffer);
   }
 
   @Post('expenses/mark-paid')
