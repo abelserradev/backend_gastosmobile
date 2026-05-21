@@ -31,6 +31,8 @@ services:
     image: ollama/ollama:latest
     container_name: gastos-ollama-local
     restart: unless-stopped
+    environment:
+      OLLAMA_HOST: 0.0.0.0:11434
     ports:
       - "${OLLAMA_PORT:-11434}:11434"
     volumes:

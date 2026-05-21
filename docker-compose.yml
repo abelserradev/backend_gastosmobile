@@ -5,6 +5,9 @@ services:
     image: ollama/ollama:latest
     container_name: gastos-ollama
     restart: unless-stopped
+    environment:
+      # Escuchar en todas las interfaces del contenedor (no solo 127.0.0.1)
+      OLLAMA_HOST: 0.0.0.0:11434
     volumes:
       - ollama_data:/root/.ollama
     healthcheck:
@@ -14,7 +17,10 @@ services:
       retries: 6
       start_period: 60s
     networks:
-      - coolify
+      coolify:
+        aliases:
+          - ollama
+          - gastos-ollama
     # No publicar 11434 en Internet; solo red interna Coolify.
 
   ollama-pull:
@@ -58,7 +64,8 @@ services:
       FIREBASE_SERVICE_ACCOUNT_JSON: ${FIREBASE_SERVICE_ACCOUNT_JSON:-}
       RESEND_API_KEY: ${RESEND_API_KEY:-}
       EMAIL_FROM: ${EMAIL_FROM:-}
-      OLLAMA_URL: ${OLLAMA_URL:-http://ollama:11434}
+      # No uses localhost aquí: desde el contenedor backend no alcanza el Ollama del host.
+      OLLAMA_URL: http://ollama:11434
       OLLAMA_MODEL: ${OLLAMA_MODEL:-glm-ocr}
       OLLAMA_OCR_ENABLED: ${OLLAMA_OCR_ENABLED:-true}
       OLLAMA_OCR_TIMEOUT_MS: ${OLLAMA_OCR_TIMEOUT_MS:-120000}
