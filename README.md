@@ -21,7 +21,8 @@ El endpoint `POST /api/ocr/parse-invoice` ejecuta **Tesseract.js** y, si Ollama 
 | `OLLAMA_URL` | `http://localhost:11434` | URL del servidor Ollama |
 | `OLLAMA_MODEL` | `glm-ocr` | Modelo en [Ollama](https://ollama.com/library/glm-ocr) |
 | `OLLAMA_OCR_ENABLED` | `true` | `false` → solo Tesseract |
-| `OLLAMA_OCR_TIMEOUT_MS` | `120000` | Timeout inferencia VLM |
+| `OLLAMA_OCR_TIMEOUT_MS` | `300000` | Timeout inferencia VLM (CPU sin GPU suele necesitar ≥5 min) |
+| `OLLAMA_OCR_WARMUP` | `true` | Precarga del modelo al arrancar Nest |
 
 **Host local (sin Docker):** `ollama serve` + `ollama pull glm-ocr`, luego `OLLAMA_URL=http://localhost:11434` en `.env`.
 
@@ -43,6 +44,8 @@ Si Ollama ya corre en el host: `docker compose -f docker-compose.local.yml -f do
 3. Ollama y backend deben estar en el **mismo** despliegue Compose o en la misma red Docker con DNS interno.
 
 Si Ollama es **recurso aparte** en Coolify: `OLLAMA_URL=http://<hostname-interno-coolify>:11434` y quita `ollama` / `ollama-pull` del compose del backend.
+
+**Timeout `120000ms` y `glm=0 chars`:** en logs de Ollama aparece `library=cpu` y `total_vram=0 B` — glm-ocr en CPU puede tardar **más de 2 minutos** por factura. Sube `OLLAMA_OCR_TIMEOUT_MS=300000` (o `600000` si sigue cortando) y espera en logs `glm-ocr precargado`. Opcional: `OLLAMA_MODEL=glm-ocr:q8_0` o GPU en el servidor.
 
 ## Docker (producción)
 
