@@ -23,6 +23,8 @@ const DEFAULT_WARMUP_TIMEOUT_MS = 600_000;
 export class OllamaGlmOcrService implements OnModuleInit {
   private readonly logger = new Logger(OllamaGlmOcrService.name);
   private resolvedBaseUrl = '';
+  /** Nombre exacto en Ollama tras resolver tags (p. ej. glm-ocr:latest si falta q8_0). */
+  private resolvedModel = '';
   private modelWarmed = false;
 
   constructor(private readonly config: ConfigService) {}
@@ -34,7 +36,7 @@ export class OllamaGlmOcrService implements OnModuleInit {
       return;
     }
     this.logger.log(
-      `OCR glm-ocr: modelo=${this.getModel()}, url=${this.resolvedBaseUrl}, timeout=${this.getTimeoutMs()}ms`,
+      `OCR glm-ocr: modelo=${this.getConfiguredModel()}, url=${this.resolvedBaseUrl}, timeout=${this.getTimeoutMs()}ms`,
     );
     void this.probeAndWarmup();
   }
@@ -59,6 +61,7 @@ export class OllamaGlmOcrService implements OnModuleInit {
     }
     const base64 = imageBuffer.toString('base64');
     const baseUrl = this.resolveBaseUrl();
+    await this.ensureModelResolved(baseUrl);
     const t0 = Date.now();
     try {
       const raw = await this.callChat(base64, baseUrl, this.getTimeoutMs());
@@ -100,23 +103,46 @@ export class OllamaGlmOcrService implements OnModuleInit {
       const names = (data.models ?? [])
         .map((m) => m.name ?? '')
         .filter(Boolean);
-      const model = this.getModel();
-      const hasModel = names.some(
-        (n) => n === model || n.startsWith(`${model}:`),
-      );
-      if (!hasModel) {
+      const requested = this.getConfiguredModel();
+      const resolved = this.resolveInstalledModel(requested, names);
+      if (!resolved) {
         this.logger.warn(
-          `Ollama alcanzable pero falta modelo "${model}". Instalados: ${names.join(', ') || '(ninguno)'}`,
+          `Ollama alcanzable pero falta modelo "${requested}". Instalados: ${names.join(', ') || '(ninguno)'}. ` +
+            `Ejecuta: ollama pull ${requested} — o define OLLAMA_MODEL=glm-ocr:latest`,
         );
         return false;
       }
-      this.logger.log(`Ollama OK en ${baseUrl} (modelo ${model} presente)`);
+      this.resolvedModel = resolved;
+      if (resolved !== requested) {
+        this.logger.warn(
+          `Modelo "${requested}" no instalado; usando "${resolved}" (instalados: ${names.join(', ')})`,
+        );
+      }
+      this.logger.log(`Ollama OK en ${baseUrl} (modelo ${resolved})`);
       return true;
     } catch (err) {
       this.logger.warn(
         `No se pudo conectar a Ollama en ${baseUrl}: ${this.formatFetchError(err, baseUrl)}`,
       );
       return false;
+    }
+  }
+
+  private async ensureModelResolved(baseUrl: string): Promise<void> {
+    if (this.resolvedModel) {
+      return;
+    }
+    const names = await this.fetchInstalledModelNames(baseUrl);
+    const requested = this.getConfiguredModel();
+    const resolved = this.resolveInstalledModel(requested, names);
+    if (!resolved) {
+      return;
+    }
+    this.resolvedModel = resolved;
+    if (resolved !== requested) {
+      this.logger.warn(
+        `Modelo "${requested}" no instalado; usando "${resolved}" para inferencia`,
+      );
     }
   }
 
@@ -194,8 +220,52 @@ export class OllamaGlmOcrService implements OnModuleInit {
     return flag !== 'false' && flag !== '0' && flag !== 'off';
   }
 
-  private getModel(): string {
+  private getConfiguredModel(): string {
     return this.config.get<string>('OLLAMA_MODEL')?.trim() || 'glm-ocr';
+  }
+
+  /** Nombre que Ollama espera en /api/chat (resuelto contra /api/tags). */
+  private getModelForRequest(): string {
+    return this.resolvedModel || this.getConfiguredModel();
+  }
+
+  private async fetchInstalledModelNames(baseUrl: string): Promise<string[]> {
+    const res = await fetch(`${baseUrl}/api/tags`, {
+      signal: AbortSignal.timeout(8_000),
+    });
+    if (!res.ok) {
+      return [];
+    }
+    const data = (await res.json()) as { models?: { name?: string }[] };
+    return (data.models ?? []).map((m) => m.name ?? '').filter(Boolean);
+  }
+
+  /**
+   * Ollama guarda variantes con tag (glm-ocr:latest, glm-ocr:q8_0).
+   * Si el tag pedido no existe, usa otra variante de la misma familia.
+   */
+  resolveInstalledModel(requested: string, installed: string[]): string | null {
+    if (installed.includes(requested)) {
+      return requested;
+    }
+    const base = requested.includes(':')
+      ? requested.slice(0, requested.indexOf(':'))
+      : requested;
+    const family = installed.filter(
+      (n) => n === base || n.startsWith(`${base}:`),
+    );
+    if (family.length === 0) {
+      return null;
+    }
+    const rank = (name: string): number => {
+      if (name === requested) return 0;
+      if (name === base) return 1;
+      if (name === `${base}:latest`) return 2;
+      if (name === `${base}:q8_0`) return 3;
+      return 10;
+    };
+    family.sort((a, b) => rank(a) - rank(b));
+    return family[0] ?? null;
   }
 
   private getKeepAlive(): string {
@@ -239,7 +309,7 @@ export class OllamaGlmOcrService implements OnModuleInit {
         signal: controller.signal,
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          model: this.getModel(),
+          model: this.getModelForRequest(),
           messages: [
             {
               role: 'user',
