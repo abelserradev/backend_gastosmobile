@@ -1,12 +1,12 @@
 # CI en la raíz del repo backend (Nest + Prisma).
-# Branch protection: exigir el check de este workflow en main/master/backend.
+# Ramas: develop + main/master/backend. Branch protection: ver docs/ci-seguridad-github.md
 name: CI
 
 on:
   pull_request:
-    branches: [main, master, backend]
+    branches: [main, master, backend, develop]
   push:
-    branches: [main, master, backend]
+    branches: [main, master, backend, develop]
 
 permissions:
   contents: read
@@ -35,15 +35,21 @@ jobs:
           cache: npm
           cache-dependency-path: package-lock.json
 
-      - name: Instalar dependencias
+      - name: Instalar dependencias (lockfile estricto)
         run: npm ci
 
-      - name: npm audit (informativo)
+      - name: npm audit — bloquea high/critical
+        run: npm audit --audit-level=high
+
+      - name: npm audit — aviso moderate (no bloquea)
         continue-on-error: true
         run: npm audit --audit-level=moderate
 
       - name: Validar schema Prisma
         run: npx prisma validate
+
+      - name: Tests unitarios
+        run: npm test -- --passWithNoTests
 
       - name: Build NestJS
         run: npm run build

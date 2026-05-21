@@ -1,6 +1,11 @@
-name: Security audit (cron)
+# Auditoría de dependencias: cada push/PR en ramas protegidas + cron semanal.
+name: Security audit
 
 on:
+  pull_request:
+    branches: [main, master, backend, develop]
+  push:
+    branches: [main, master, backend, develop]
   schedule:
     - cron: '0 6 * * 1'
   workflow_dispatch:
@@ -8,19 +13,36 @@ on:
 permissions:
   contents: read
 
+concurrency:
+  group: security-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
 jobs:
   npm-audit:
+    name: Dependencias (npm audit)
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v6
+
+      - uses: step-security/harden-runner@v2
+        with:
+          egress-policy: audit
+
       - uses: actions/setup-node@v6
         with:
           node-version: '22'
           cache: npm
           cache-dependency-path: package-lock.json
-      - run: npm ci
-      - name: npm audit
+
+      - name: Instalar dependencias (lockfile estricto)
+        run: npm ci
+
+      - name: npm audit — bloquea high/critical
+        run: npm audit --audit-level=high
+
+      - name: npm audit — moderate (informativo en cron/PR)
         continue-on-error: true
         run: npm audit --audit-level=moderate
-      - name: Resumen dependencias
+
+      - name: Resumen dependencias directas
         run: npm ls --depth=0 || true

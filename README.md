@@ -87,6 +87,12 @@ La comprobación más útil en despliegue es:
 curl -i http://localhost:3088/api/auth/health
 ```
 
+## CI y seguridad (GitHub Actions)
+
+En cada push/PR a **`develop`**, `main`, `master` o `backend` se ejecutan **CI** y **Security audit** (`npm ci`, audit high/critical, lint, tests, build).
+
+Configuración de branch protection y flujo de PR: [`docs/ci-seguridad-github.md`](docs/ci-seguridad-github.md).
+
 ## Despliegue con Coolify
 
 La guía completa para desplegar este backend con Cloudflare y Coolify está en:
