@@ -19,7 +19,7 @@ export function mapExpenseToResponse(e: {
   paidAt?: Date | null;
   paidByMemberId?: string | null;
   category: { name: string };
-  receiptImage?: Buffer | null;
+  receiptImage?: Uint8Array | null;
 }): {
   id: string;
   profileId: string;
