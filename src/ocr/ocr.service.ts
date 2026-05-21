@@ -1,17 +1,21 @@
 import { BadRequestException, Injectable, Logger } from '@nestjs/common';
 import { TesseractInvoiceEngine } from './engines/tesseract-invoice.engine';
+import { buildParseInvoiceHybrid } from './parsing/build-invoice-result-hybrid';
 import { buildParseInvoiceFromTesseract } from './parsing/build-invoice-result';
 import { ParseInvoiceResultDto } from './dto/parse-invoice-result.dto';
+import { OllamaGlmOcrService } from './services/ollama-glm-ocr.service';
 
 /**
- * OCR de facturas integrado en Nest (Tesseract.js).
- * El front solo llama POST /api/ocr/parse-invoice; no hay servicio Python aparte.
+ * OCR híbrido: Tesseract.js (rápido, local) + glm-ocr vía Ollama cuando está habilitado.
  */
 @Injectable()
 export class OcrService {
   private readonly logger = new Logger(OcrService.name);
 
-  constructor(private readonly tesseractEngine: TesseractInvoiceEngine) {}
+  constructor(
+    private readonly tesseractEngine: TesseractInvoiceEngine,
+    private readonly ollamaGlm: OllamaGlmOcrService,
+  ) {}
 
   async parseInvoice(
     fileBuffer: Buffer,
@@ -20,11 +24,24 @@ export class OcrService {
   ): Promise<ParseInvoiceResultDto> {
     const forwardMime = this.resolveImageMimeTypeForForward(mimetype, filename);
     this.assertImageAcceptableForForward(fileBuffer, forwardMime, mimetype);
-    const tessText = await this.tesseractEngine.recognizeText(fileBuffer);
-    const result = buildParseInvoiceFromTesseract(tessText);
-    this.logger.log(
-      `OCR procesado: confidence=${result.confidence.toFixed(2)}, amount=${result.amount}, merchant=${result.merchant}`,
-    );
+    const useHybrid = this.ollamaGlm.isEnabled();
+    let result: ParseInvoiceResultDto;
+    if (useHybrid) {
+      const [tessText, glmText] = await Promise.all([
+        this.tesseractEngine.recognizeText(fileBuffer),
+        this.ollamaGlm.transcribeReceipt(fileBuffer),
+      ]);
+      result = buildParseInvoiceHybrid(tessText, glmText);
+      this.logger.log(
+        `OCR híbrido: tess=${tessText.length} chars, glm=${glmText.length} chars, confidence=${result.confidence.toFixed(2)}`,
+      );
+    } else {
+      const tessText = await this.tesseractEngine.recognizeText(fileBuffer);
+      result = buildParseInvoiceFromTesseract(tessText);
+      this.logger.log(
+        `OCR Tesseract: confidence=${result.confidence.toFixed(2)}, amount=${result.amount}`,
+      );
+    }
     return result;
   }
 

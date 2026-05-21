@@ -1,5 +1,5 @@
 /**
- * Puntuación de confianza alineada con el servicio Python (sin rama VLM).
+ * Puntuación de confianza alineada con el servicio Python (Tesseract + VLM opcional).
  */
 
 export function invoiceTranscriptBonusOk(rawText: string): boolean {
@@ -39,6 +39,8 @@ export function calculateInvoiceConfidence(params: {
   description?: string;
   rawText: string;
   tessText: string;
+  vlmText?: string;
+  vlmUnreliable?: boolean;
 }): number {
   let score = 0;
   if (params.amount !== undefined && params.amount > 0) {
@@ -54,9 +56,12 @@ export function calculateInvoiceConfidence(params: {
     score += 0.05;
   }
   const tessBody = params.tessText ?? '';
-  const transcriptSignal = tessTranscriptStrong(tessBody)
-    ? true
-    : invoiceTranscriptBonusOk(params.rawText);
+  let transcriptSignal = tessTranscriptStrong(tessBody);
+  if (!transcriptSignal) {
+    const vlmUnreliable = params.vlmUnreliable ?? false;
+    transcriptSignal =
+      invoiceTranscriptBonusOk(params.rawText) && !vlmUnreliable;
+  }
   if (transcriptSignal) {
     score += 0.1;
   }

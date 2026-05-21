@@ -12,9 +12,33 @@ npm run start:prod
 npx prisma migrate deploy
 ```
 
+## OCR híbrido (Tesseract + glm-ocr)
+
+El endpoint `POST /api/ocr/parse-invoice` ejecuta **Tesseract.js** y, si Ollama está disponible, **glm-ocr** en paralelo y fusiona campos (misma lógica que el servicio Python histórico).
+
+| Variable | Default | Uso |
+|----------|---------|-----|
+| `OLLAMA_URL` | `http://localhost:11434` | URL del servidor Ollama |
+| `OLLAMA_MODEL` | `glm-ocr` | Modelo en [Ollama](https://ollama.com/library/glm-ocr) |
+| `OLLAMA_OCR_ENABLED` | `true` | `false` → solo Tesseract |
+| `OLLAMA_OCR_TIMEOUT_MS` | `120000` | Timeout inferencia VLM |
+
+**Host local (sin Docker):** `ollama serve` + `ollama pull glm-ocr`, luego `OLLAMA_URL=http://localhost:11434` en `.env`.
+
+**Docker local (Postgres + Ollama + API):**
+
+```bash
+cp .env.docker.local.example .env.docker.local
+docker compose -f docker-compose.local.yml --env-file .env.docker.local up -d --build
+```
+
+Si Ollama ya corre en el host: `docker compose -f docker-compose.local.yml -f docker-compose.host-ollama.yml up -d postgres backend`.
+
+**Coolify:** `docker-compose.yml` incluye `ollama` + job `ollama-pull` en la red `coolify`. Añade las variables `OLLAMA_*` en el panel. Si despliegas Ollama como **recurso aparte**, pon `OLLAMA_URL=http://<nombre-interno>:11434` y elimina los servicios `ollama` / `ollama-pull` del compose (y `depends_on` en `backend`).
+
 ## Docker (producción)
 
-**Stack completo (Postgres 16 + API)** en `docker-compose.yml` y `Dockerfile`. Plantilla de variables:
+**Stack API (+ Ollama en compose)** en `docker-compose.yml` y `Dockerfile`. Plantilla de variables:
 
 ```bash
 cp .env.production.example .env.production

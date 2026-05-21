@@ -1,1 +1,1 @@
-# tener un postgresql en local y un servicio en la misma red
+# Obsoleto: usar docker-compose.local.yml (Postgres + Ollama + backend).
