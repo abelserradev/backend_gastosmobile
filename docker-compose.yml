@@ -78,8 +78,8 @@ services:
       # No uses localhost aquí: desde el contenedor backend no alcanza el Ollama del host.
       # Ollama en el host (systemd). Cambia a http://ollama:11434 si usas el servicio Docker.
       OLLAMA_URL: ${OLLAMA_URL:-http://host.docker.internal:11434}
-      # glm-ocr:q8_0 (~1.6 GB) cabe en la Quadro P600 (2 GB VRAM). glm-ocr F16 no cabe.
-      OLLAMA_MODEL: ${OLLAMA_MODEL:-glm-ocr:q8_0}
+      # glm-ocr:latest funciona out-of-the-box; q8_0 (~1.6 GB) solo si GPU ≤2 GB VRAM
+      OLLAMA_MODEL: ${OLLAMA_MODEL:-glm-ocr}
       OLLAMA_OCR_ENABLED: ${OLLAMA_OCR_ENABLED:-true}
       OLLAMA_OCR_TIMEOUT_MS: ${OLLAMA_OCR_TIMEOUT_MS:-300000}
       OLLAMA_OCR_WARMUP: ${OLLAMA_OCR_WARMUP:-true}
