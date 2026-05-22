@@ -133,10 +133,7 @@ export class MeController {
       fileFilter: (_req, file, cb) => {
         const allowed = ['image/jpeg', 'image/png', 'image/webp'];
         if (allowed.includes(file.mimetype)) return cb(null, true);
-        cb(
-          new BadRequestException('Solo se aceptan JPG, PNG o WebP'),
-          false,
-        );
+        cb(new BadRequestException('Solo se aceptan JPG, PNG o WebP'), false);
       },
     }),
   )
@@ -146,7 +143,12 @@ export class MeController {
     @Body() dto: CreateExpenseWithReceiptDto,
   ) {
     if (!file) throw new BadRequestException('Se requiere imagen');
-    return this.me.createExpenseWithReceipt(user, dto, file.buffer, file.mimetype);
+    return this.me.createExpenseWithReceipt(
+      user,
+      dto,
+      file.buffer,
+      file.mimetype,
+    );
   }
 
   @Get('expenses/:id/receipt')

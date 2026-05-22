@@ -28,7 +28,9 @@ export function invoiceTranscriptBonusOk(rawText: string): boolean {
 
 export function tessTranscriptStrong(tessBody: string): boolean {
   const tessChars = tessBody.trim().length;
-  const tessLetters = [...tessBody].filter((c) => /[a-záéíóúñ]/i.test(c)).length;
+  const tessLetters = [...tessBody].filter((c) =>
+    /[a-záéíóúñ]/i.test(c),
+  ).length;
   return tessChars >= 90 || (tessChars >= 40 && tessLetters >= 14);
 }
 

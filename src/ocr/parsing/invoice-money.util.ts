@@ -3,9 +3,7 @@
  */
 
 export function inferCurrencyNearAmount(fragmentLower: string): string {
-  if (
-    /\bbg\s*[\d]{1,3}(?:[.,][\d]{3})*(?:[.,]\d{1,4})?/i.test(fragmentLower)
-  ) {
+  if (/\bbg\s*\d{1,3}(?:[.,]\d{3})*(?:[.,]\d{1,4})?/i.test(fragmentLower)) {
     return 'BS';
   }
   if (/(bs\.?|bol[ií]v|ves\b)/i.test(fragmentLower)) {
@@ -22,102 +20,112 @@ export function inferCurrencyNearAmount(fragmentLower: string): string {
  * Formato VE: 60.552,00 (punto=miles, coma=decimal)
  * Formato US: 60,552.00 (coma=miles, punto=decimal)
  */
+
+function asPositiveAmount(n: number): number | undefined {
+  return n > 0 ? n : undefined;
+}
+
+/** Con coma: coma como decimal VE si hay 1–2 dígitos finales; si no, se eliminan separadores. */
+function parseMoneyTokenWithComma(normalized: string): number | undefined {
+  const commaIdx = normalized.lastIndexOf(',');
+  const afterComma = normalized.slice(commaIdx + 1);
+  const beforeComma = normalized.slice(0, commaIdx);
+  if (/^\d{1,2}$/.test(afterComma)) {
+    const whole = beforeComma.replaceAll('.', '');
+    return asPositiveAmount(Number.parseFloat(`${whole}.${afterComma}`));
+  }
+  const condensed = normalized.replaceAll('.', '').replaceAll(',', '');
+  return asPositiveAmount(Number.parseFloat(condensed));
+}
+
+/** Solo puntos: último grupo 3 dígitos → miles VE; 1–2 → decimal; resto → concatena. */
+function parseMoneyTokenDotsOnly(normalized: string): number | undefined {
+  const parts = normalized.split('.');
+  const lastPart = parts.at(-1) ?? '';
+  if (lastPart.length === 3) {
+    return asPositiveAmount(Number.parseFloat(normalized.replaceAll('.', '')));
+  }
+  if (lastPart.length <= 2) {
+    return asPositiveAmount(Number.parseFloat(normalized));
+  }
+  return asPositiveAmount(Number.parseFloat(normalized.replaceAll('.', '')));
+}
+
 export function parseLocalizedMoneyToken(token: string): number | undefined {
   const normalized = token.trim();
-  if (!normalized) return undefined;
-
+  if (!normalized) {
+    return undefined;
+  }
   try {
-    // Caso 1: Tiene coma → Formato venezolano (coma=decimal, punto=miles)
-    // Ej: "60.552,00" → 60552.00 | "24,79" → 24.79 | "24.792,00" → 24792.00
     if (normalized.includes(',')) {
-      const commaIdx = normalized.lastIndexOf(',');
-      const afterComma = normalized.slice(commaIdx + 1);
-      const beforeComma = normalized.slice(0, commaIdx);
-
-      // Si después de la coma hay 1-2 dígitos → es decimal
-      if (/^\d{1,2}$/.test(afterComma)) {
-        const whole = beforeComma.replace(/\./g, ''); // quitar separadores de miles
-        const result = Number.parseFloat(`${whole}.${afterComma}`);
-        return result > 0 ? result : undefined;
-      }
-
-      // Si después de la coma hay 3 dígitos → podría ser separador de miles (raro)
-      // O si hay más dígitos → tratar todo como número grande
-      const allDigits = normalized.replace(/[.,]/g, '');
-      const result = Number.parseFloat(allDigits);
-      return result > 0 ? result : undefined;
+      return parseMoneyTokenWithComma(normalized);
     }
-
-    // Caso 2: Solo puntos → determinar si son miles o decimales
-    // Regla: si el último grupo tiene exactamente 3 dígitos → son miles
-    // Ej: "24.792" → 24792 (miles) | "24.7" → 24.7 (decimal)
-    if (normalized.includes('.') && !normalized.includes(',')) {
-      const parts = normalized.split('.');
-
-      // Si el último grupo tiene exactamente 3 dígitos → separador de miles
-      const lastPart = parts[parts.length - 1];
-      if (lastPart.length === 3) {
-        // Es formato venezolano: 24.792 = veinticuatro mil...
-        const allDigits = normalized.replace(/\./g, '');
-        const result = Number.parseFloat(allDigits);
-        return result > 0 ? result : undefined;
-      }
-
-      // Si el último grupo tiene 1-2 dígitos → podría ser decimal
-      if (lastPart.length <= 2) {
-        // Ambiguo: "1.50" podría ser 1.50 USD o 1500 Bs
-        // Por defecto asumimos formato US (punto=decimal) pero devolvemos el número
-        const result = Number.parseFloat(normalized);
-        return result > 0 ? result : undefined;
-      }
-
-      // Si hay más de 3 dígitos en el último grupo → número raro, concatenar todo
-      const allDigits = normalized.replace(/\./g, '');
-      const result = Number.parseFloat(allDigits);
-      return result > 0 ? result : undefined;
+    if (normalized.includes('.')) {
+      return parseMoneyTokenDotsOnly(normalized);
     }
-
-    // Caso 3: Solo comas → similar a solo puntos pero invertido
-    // En VE esto no debería pasar (la coma es decimal), pero por si acaso
-    if (normalized.includes(',') && !normalized.includes('.')) {
-      const parts = normalized.split(',');
-      const lastPart = parts[parts.length - 1];
-
-      // Si el último grupo tiene exactamente 3 dígitos → separador de miles (formato US)
-      if (lastPart.length === 3) {
-        const allDigits = normalized.replace(/,/g, '');
-        const result = Number.parseFloat(allDigits);
-        return result > 0 ? result : undefined;
-      }
-
-      // Si tiene 1-2 dígitos → decimal
-      const result = Number.parseFloat(normalized.replace(/,/g, '.'));
-      return result > 0 ? result : undefined;
-    }
-
-    // Caso 4: Solo dígitos
-    const result = Number.parseFloat(normalized);
-    return result > 0 ? result : undefined;
-
+    return asPositiveAmount(Number.parseFloat(normalized));
   } catch {
     return undefined;
   }
 }
 
-export function parseMoneyFragment(
-  fragment: string,
-): { amount?: number; currency: string } {
+/** VE con grupos miles; debe ir antes del patrón suelto (equivale al `|` izquierdo de un regexp unificado). */
+const RE_COMPRESSED_MONEY_VE_GROUPS_FROM_START =
+  /^\d{1,3}(?:[.,]\d{3})+(?:[.,]\d{1,4})?/;
+
+/** Dígitos con un bloque opcional decimal/miles después de separador. */
+const RE_COMPRESSED_SIMPLE_NUMBER_FROM_START = /^\d+(?:[.,]\d+)?/;
+
+/**
+ * Extrae todos los números “tipo monto” de un texto ya compacto (sin espacios ni moneda).
+ * Sonar marca el regexp unificado por complejidad; aquí repetimos la semántica con dos patrones anchos (~^…) y barrido manual.
+ */
+function extractCompressedMoneyTokens(fragment: string): string[] {
+  const tokens: string[] = [];
+  let pos = 0;
+  const lim = fragment.length;
+
+  while (pos < lim) {
+    const c = fragment.charAt(pos);
+    if (c < '0' || c > '9') {
+      pos += 1;
+      continue;
+    }
+    const rest = fragment.slice(pos);
+    let m = RE_COMPRESSED_MONEY_VE_GROUPS_FROM_START.exec(rest);
+    m ??= RE_COMPRESSED_SIMPLE_NUMBER_FROM_START.exec(rest);
+    if (!m) {
+      pos += 1;
+      continue;
+    }
+    const hit = m[0];
+    tokens.push(hit);
+    pos += hit.length;
+  }
+
+  return tokens;
+}
+
+export function parseMoneyFragment(fragment: string): {
+  amount?: number;
+  currency: string;
+} {
   let s = fragment.trim();
   const currency = inferCurrencyNearAmount(s.toLowerCase());
   s = s.replace(/\b(bs\.?|ves|usd)\b\s*/gi, '');
-  s = s.replace(/\$/g, '').replace(/\u2009/g, '').replace(/\s/g, '').trim();
-  const numeric = s.match(
-    /[\d]{1,3}(?:[.,]\d{3})+(?:[.,]\d{1,4})?|\d+(?:[.,]\d+)?/gi,
-  );
+  s = s
+    .replaceAll('$', '')
+    .replaceAll('\u2009', '')
+    .replaceAll(/\s/g, '')
+    .trim();
+  const numeric = extractCompressedMoneyTokens(s);
   if (!numeric?.length) {
     return { amount: undefined, currency: currency || '' };
   }
-  const candidate = numeric[numeric.length - 1];
+  const candidate = numeric.at(-1);
+  if (candidate === undefined) {
+    return { amount: undefined, currency: currency || '' };
+  }
   const amount = parseLocalizedMoneyToken(candidate);
   if (amount === undefined || amount <= 0) {
     return { amount: undefined, currency: currency || '' };
@@ -126,7 +134,7 @@ export function parseMoneyFragment(
 }
 
 export function dominantBsSignal(low: string): boolean {
-  if ((low.match(/\bbs\.?\s*[\d]/gi) ?? []).length >= 2) {
+  if ((low.match(/\bbs\.?\s*\d/gi) ?? []).length >= 2) {
     return true;
   }
   if ((low.match(/\bbs\.?\b/gi) ?? []).length >= 3) {
@@ -137,7 +145,7 @@ export function dominantBsSignal(low: string): boolean {
       return true;
     }
   }
-  if (/\bbg\s*[\d]{1,3}(?:[.,][\d]{3})*(?:[.,]\d{1,4})?/i.test(low)) {
+  if (/\bbg\s*\d{1,3}(?:[.,]\d{3})*(?:[.,]\d{1,4})?/i.test(low)) {
     if (/\bbs\.?/i.test(low)) {
       return true;
     }

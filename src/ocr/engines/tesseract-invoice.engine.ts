@@ -1,4 +1,8 @@
-import { Injectable, Logger, ServiceUnavailableException } from '@nestjs/common';
+import {
+  Injectable,
+  Logger,
+  ServiceUnavailableException,
+} from '@nestjs/common';
 import { createWorker, PSM, type Worker } from 'tesseract.js';
 
 /**
@@ -29,9 +33,7 @@ export class TesseractInvoiceEngine {
   }
 
   private getWorker(): Promise<Worker> {
-    if (!this.workerPromise) {
-      this.workerPromise = this.bootstrapWorker();
-    }
+    this.workerPromise ??= this.bootstrapWorker();
     return this.workerPromise;
   }
 

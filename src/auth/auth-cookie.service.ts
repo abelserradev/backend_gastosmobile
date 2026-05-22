@@ -4,11 +4,27 @@ import type { Response } from 'express';
 import { AUTH_ACCESS_COOKIE } from './auth.constants';
 import { jwtExpiresToMaxAgeMs } from './auth-cookie.util';
 
+/** Valores admitidos por Express para SameSite en cookies del JWT de acceso. */
+type CookieSameSite = 'strict' | 'lax' | 'none';
+
 interface CookieShape {
   path: string;
   httpOnly: boolean;
   secure: boolean;
-  sameSite: 'strict' | 'lax' | 'none';
+  sameSite: CookieSameSite;
+}
+
+function coerceCookieSameSite(raw: string): CookieSameSite {
+  switch (raw) {
+    case 'strict':
+      return 'strict';
+    case 'lax':
+      return 'lax';
+    case 'none':
+      return 'none';
+    default:
+      return 'lax';
+  }
 }
 
 /**
@@ -49,13 +65,13 @@ export class AuthCookieService {
   }
 
   private resolveSameSiteAndSecure(): {
-    sameSite: 'strict' | 'lax' | 'none';
+    sameSite: CookieSameSite;
     secure: boolean;
   } {
-    const raw = (this.config.get<string>('COOKIE_SAME_SITE') ?? 'lax').toLowerCase();
-    const sameSite = ['strict', 'lax', 'none'].includes(raw)
-      ? (raw as 'strict' | 'lax' | 'none')
-      : 'lax';
+    const raw = (
+      this.config.get<string>('COOKIE_SAME_SITE') ?? 'lax'
+    ).toLowerCase();
+    const sameSite = coerceCookieSameSite(raw);
     const forceSecure = this.config.get<string>('COOKIE_SECURE') === 'true';
     const prod = this.config.get<string>('NODE_ENV') === 'production';
     const secure = forceSecure || prod || sameSite === 'none';

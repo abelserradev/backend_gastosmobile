@@ -10,7 +10,10 @@ import { BcvRateService } from './bcv-rate.service';
       imports: [ConfigModule],
       inject: [ConfigService],
       useFactory: (config: ConfigService) => ({
-        baseURL: config.get<string>('DOLARAPI_BASE_URL', 'https://ve.dolarapi.com'),
+        baseURL: config.get<string>(
+          'DOLARAPI_BASE_URL',
+          'https://ve.dolarapi.com',
+        ),
         timeout: 15_000,
         headers: { Accept: 'application/json' },
       }),
