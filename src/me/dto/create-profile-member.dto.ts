@@ -6,4 +6,3 @@ export class CreateProfileMemberDto {
   @MaxLength(60)
   displayName!: string;
 }
-

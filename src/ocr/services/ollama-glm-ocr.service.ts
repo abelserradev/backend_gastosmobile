@@ -339,6 +339,7 @@ export class OllamaGlmOcrService implements OnModuleInit {
       if (err instanceof Error && err.name === 'AbortError') {
         throw new Error(
           `Ollama glm-ocr no respondió a tiempo (${timeoutMs}ms; revisa CPU/GPU y OLLAMA_OCR_TIMEOUT_MS)`,
+          { cause: err },
         );
       }
       throw err;

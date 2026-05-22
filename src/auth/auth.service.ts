@@ -55,10 +55,7 @@ export class AuthService {
     private readonly resendEmail: ResendEmailService,
   ) {}
 
-  async register(
-    dto: RegisterDto,
-    res: Response,
-  ): Promise<AuthSessionBody> {
+  async register(dto: RegisterDto, res: Response): Promise<AuthSessionBody> {
     const email = dto.email.trim().toLowerCase();
     const existing = await this.prisma.user.findUnique({ where: { email } });
     if (existing) {
@@ -103,7 +100,9 @@ export class AuthService {
       typeof decoded.name === 'string' ? decoded.name.trim() : '';
     const fallbackName = emailRaw.split('@')[0] ?? 'Usuario';
     const displayName = nameFromToken || fallbackName;
-    let user = await this.prisma.user.findUnique({ where: { email: emailRaw } });
+    let user = await this.prisma.user.findUnique({
+      where: { email: emailRaw },
+    });
     let createdWithFirebase = false;
     if (!user) {
       user = await this.prisma.user.create({
@@ -211,11 +210,7 @@ export class AuthService {
       include: { user: true },
     });
     const now = Date.now();
-    if (
-      !row ||
-      row.expiresAt.getTime() <= now ||
-      !row.user.email
-    ) {
+    if (!row || row.expiresAt.getTime() <= now || !row.user.email) {
       throw new BadRequestException(
         'El enlace no es válido o expiró; solicitá uno nuevo.',
       );
@@ -243,7 +238,10 @@ export class AuthService {
   }
 
   /** Primera contraseña tras Google (sesión activa); si ya hay hash, error explícito. */
-  async setupPassword(userId: string, dto: SetupPasswordDto): Promise<AuthSessionBody> {
+  async setupPassword(
+    userId: string,
+    dto: SetupPasswordDto,
+  ): Promise<AuthSessionBody> {
     const user = await this.prisma.user.findUnique({ where: { id: userId } });
     if (!user?.email) {
       throw new UnauthorizedException();

@@ -1,4 +1,7 @@
-import { buildHybridRawText, buildParseInvoiceHybrid } from './build-invoice-result-hybrid';
+import {
+  buildHybridRawText,
+  buildParseInvoiceHybrid,
+} from './build-invoice-result-hybrid';
 
 describe('build-invoice-result-hybrid', () => {
   it('combina rawText con secciones Tesseract y GLM-OCR', () => {

@@ -23,11 +23,7 @@ export function buildParseInvoiceFromTesseract(
       heuristicCurrency: '',
     };
   }
-  const currency = resolveCurrencyForMergedAmount(
-    pf.amount,
-    tessBlob,
-    pf,
-  );
+  const currency = resolveCurrencyForMergedAmount(pf.amount, tessBlob, pf);
   const rawText = buildTesseractRawText(tesseractText);
   const confidence = calculateInvoiceConfidence({
     amount: pf.amount,
