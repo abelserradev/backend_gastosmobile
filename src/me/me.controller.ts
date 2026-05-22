@@ -4,6 +4,8 @@ import {
   Controller,
   Delete,
   Get,
+  HttpCode,
+  HttpStatus,
   Param,
   ParseUUIDPipe,
   Patch,
@@ -25,6 +27,7 @@ import { DeleteExpensesDto } from './dto/delete-expenses.dto';
 import { MarkExpensesPaidDto } from './dto/mark-expenses-paid.dto';
 import { PatchExpenseDto } from './dto/patch-expense.dto';
 import { ReplaceCategoriesDto } from './dto/replace-categories.dto';
+import { SubmitOcrFeedbackDto } from './dto/submit-ocr-feedback.dto';
 import { UpdatePreferencesDto } from './dto/update-preferences.dto';
 import { MeService } from './me.service';
 
@@ -64,6 +67,15 @@ export class MeController {
     @Param('ym') ym: string,
   ) {
     return this.me.listExpenseHistoryForMonth(user, ym);
+  }
+
+  @Post('ocr-feedback')
+  @HttpCode(HttpStatus.CREATED)
+  submitOcrFeedback(
+    @CurrentUser() user: AuthUserPayload,
+    @Body() dto: SubmitOcrFeedbackDto,
+  ): Promise<{ id: string }> {
+    return this.me.submitOcrFeedback(user, dto);
   }
 
   @Get('profiles')
