@@ -386,6 +386,11 @@ const STRUCTURED_FIELD_RULES: Array<{ rx: RegExp; key: string }> = [
     rx: /^TOTAL(?:\s+A\s+PAGAR|\s+PAGADO)?\s*[:.]?\s*(.+)$/gim,
     key: 'total',
   },
+  /** Comprobantes bancarios (Pagomóvil, etc.): el monto canónico va en esta etiqueta con (Bs.) o (USD). */
+  {
+    rx: /^monto\s+(?:de\s+la\s+)?(?:operaci[oó]n|operacion)(?:\s*\([^)]{0,48}\))?\s*[:.]?\s*(.+)$/gim,
+    key: 'monto_operacion',
+  },
   { rx: /^DATE\s*[:.]?\s*(.+)$/gim, key: 'date' },
   { rx: /^MERCHANT\s*[:.]?\s*(.+)$/gim, key: 'merchant' },
   { rx: /^(?:FECHA)\s*[:.]?\s*(.+)$/gim, key: 'date_es' },
@@ -486,6 +491,7 @@ function applyStructuredRuleHit(
       mergeDateFromStructured(chunk, state);
       return;
     case 'total':
+    case 'monto_operacion':
       mergeTotalFromStructured(chunk, state);
       return;
     case 'items_en':
@@ -551,6 +557,7 @@ export function isDegenerateTranscript(text: string): boolean {
 
 /** Varias rutas cortas evitan una sola regex con alteración muy costosa para Sonar. */
 const LABELED_TOTAL_PATTERNS: RegExp[] = [
+  /\bmonto\s+(?:de\s+la\s+)?(?:operaci[oó]n|operacion)(?:\s*\([^)]{0,48}\))?\s*[:.]?\s*([^\n\r]{1,120})/gi,
   /\btotal\s+a\s+pagar\s*[:.]?\s*([^\n\r]{1,120})/gi,
   /\btotal\s+pagado\s*[:.]?\s*([^\n\r]{1,120})/gi,
   /\btotal\s+factura\s*[:.]?\s*([^\n\r]{1,120})/gi,
