@@ -5,6 +5,7 @@ import {
   parseInvoiceTextBlob,
   resolveCurrencyForMergedAmount,
   tessTranscriptIsSubstantial,
+  transcriptHasBankOperationAmountLine,
 } from './invoice-text.parser';
 import {
   isDegenerateVlmTranscript,
@@ -30,7 +31,10 @@ export function buildHybridRawText(
 }
 
 /**
- * Fusiona Tesseract + glm-ocr con preferencia por Tesseract cuando aporta texto sustancial.
+ * Fusiona Tesseract + glm-ocr: campos estructurados priorizan Tess si ambos tienen valor (`??`),
+ * salvo comprobantes Pagomóvil donde sólo el VLM conserva "Monto operación" legible.
+ *
+ * `rawText` siempre concatena ambos motores (cuando glm devuelve texto): ver `buildHybridRawText`.
  */
 export function buildParseInvoiceHybrid(
   tesseractText: string,
@@ -40,10 +44,28 @@ export function buildParseInvoiceHybrid(
   const vlmParseBlob = pickVlmParseBlob(glmRaw);
   const tessPf = parseInvoiceTextBlob(tessBlob);
   const vlmPf = parseInvoiceTextBlob(vlmParseBlob);
-  let amount = tessPf.amount ?? vlmPf.amount;
+  const tessOk = tessTranscriptIsSubstantial(tessBlob);
+  const vlmGarbage =
+    (looksLikePromptEcho(glmRaw) && vlmParseBlob.trim().length < 40) ||
+    isDegenerateVlmTranscript(glmRaw) ||
+    isDegenerateVlmTranscript(vlmParseBlob);
+
+  const tessOpLine = transcriptHasBankOperationAmountLine(tessBlob);
+  const vlmOpLine = transcriptHasBankOperationAmountLine(vlmParseBlob);
+  const preferVlmBankOpAmount =
+    vlmOpLine &&
+    !tessOpLine &&
+    !vlmGarbage &&
+    vlmPf.amount !== undefined &&
+    vlmPf.amount > 0;
+
+  let amount = preferVlmBankOpAmount
+    ? vlmPf.amount
+    : (tessPf.amount ?? vlmPf.amount);
   let merchant = tessPf.merchant ?? vlmPf.merchant;
   let date = tessPf.date ?? vlmPf.date;
   let description = tessPf.description ?? vlmPf.description;
+
   const currency = resolveCurrencyForMergedAmount(
     amount,
     tessBlob,
@@ -52,11 +74,6 @@ export function buildParseInvoiceHybrid(
     vlmPf,
   );
   const hybridRaw = buildHybridRawText(tesseractText, glmRaw);
-  const tessOk = tessTranscriptIsSubstantial(tessBlob);
-  const vlmGarbage =
-    (looksLikePromptEcho(glmRaw) && vlmParseBlob.trim().length < 40) ||
-    isDegenerateVlmTranscript(glmRaw) ||
-    isDegenerateVlmTranscript(vlmParseBlob);
   if (!tessOk && vlmGarbage) {
     amount = undefined;
     merchant = undefined;
