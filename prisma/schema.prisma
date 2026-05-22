@@ -31,6 +31,8 @@ model User {
   categories           Category[]
   profiles             Profile[]
   passwordResetTokens  PasswordResetToken[]
+  /** Muestras de corrección post-OCR (v1.3, FEAT-OCR-FB). */
+  ocrCorrectionSamples OcrCorrectionSample[]
 }
 
 /// Token de un solo uso para restablecer contraseña (hash en BD; el enlace lleva el secreto en claro).
@@ -148,4 +150,30 @@ model Expense {
   @@index([profileId, referenceMonth])
   @@index([categoryId])
   @@index([paidByMemberId])
+  ocrCorrectionSamples OcrCorrectionSample[]
+}
+
+/// Predicción OCR vs valores confirmados por el usuario (mobile gastos v1.3+).
+model OcrCorrectionSample {
+  id     String @id @default(uuid())
+  userId String
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  expenseId String?
+  expense   Expense? @relation(fields: [expenseId], references: [id], onDelete: SetNull)
+
+  /// IMAGE_UPLOAD_FLOW | EDIT_EXPENSE
+  source String
+  /// quick_confirm | detail_form (opcional, solo estadística cuando source = IMAGE_UPLOAD_FLOW)
+  submissionVariant   String?
+  /// payment_screenshot | physical_receipt | fiscal_or_formal_invoice | unknown
+  documentKindGuess   String?
+
+  parseSnapshot Json
+  corrected     Json
+
+  createdAt DateTime @default(now())
+
+  @@index([userId, createdAt])
+  @@index([expenseId])
 }

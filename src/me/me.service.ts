@@ -12,7 +12,7 @@ import {
   startOfMonthYmdInCaracas,
 } from '../common/utils/caracas-date';
 import type { AuthUserPayload } from '../common/types/auth-user.payload';
-import type { Prisma } from '@prisma/client';
+import { type Prisma } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
 import { CreateExpenseDto } from './dto/create-expense.dto';
 import { CreateExpenseWithReceiptDto } from './dto/create-expense-with-receipt.dto';
@@ -24,6 +24,10 @@ import { ReplaceCategoriesDto } from './dto/replace-categories.dto';
 import { UpdatePreferencesDto } from './dto/update-preferences.dto';
 import { CreateProfileMemberDto } from './dto/create-profile-member.dto';
 import {
+  SubmitOcrFeedbackDto,
+  type InvoiceOcrSnapshotDto,
+} from './dto/submit-ocr-feedback.dto';
+import {
   buildBsIncomeNarrativeLine,
   mapExpenseToResponse,
   type MePreferencesResponse,
@@ -33,6 +37,26 @@ import { ResendEmailService } from '../email/resend-email.service';
 
 type UserPreferenceWithRegRate = Prisma.UserPreferenceGetPayload<{
   include: { incomeRegisteredBcvRate: true };
+}>;
+
+/** Alineado con `OcrCorrectionSample`; evita cascadas `no-unsafe-*` cuando el proyecto TS del IDE no levanta el delegate Prisma fresco. */
+type OcrCorrectionSampleInsertData = Readonly<{
+  userId: string;
+  expenseId: string | null;
+  source: string;
+  submissionVariant: string | null;
+  documentKindGuess: string | null;
+  parseSnapshot: Prisma.InputJsonValue;
+  corrected: Prisma.InputJsonValue;
+}>;
+
+/** Firma reducida de `ocrCorrectionSample.create` para crear filas sin enlazar contra tipos codegen frágiles en el analyzer. */
+type OcrCorrectionSampleCreateOp = (
+  args: Readonly<{ data: OcrCorrectionSampleInsertData; select: { id: true } }>,
+) => Promise<{ id: string }>;
+
+type PrismaOcrCorrectionSubset = Readonly<{
+  ocrCorrectionSample: Readonly<{ create: OcrCorrectionSampleCreateOp }>;
 }>;
 
 @Injectable()
@@ -741,6 +765,90 @@ export class MeService {
       .catch((err: unknown) => {
         this.logger.warn(`Error sending paid email: ${String(err)}`);
       });
+  }
+
+  private snapshotDtoToJson(
+    snapshot: InvoiceOcrSnapshotDto,
+  ): Prisma.InputJsonValue {
+    const rt = snapshot.rawText ?? '';
+    const maxChars = 8192;
+    const clipped = rt.length <= maxChars ? rt : rt.slice(0, maxChars);
+    const j: Prisma.JsonObject = {
+      rawText: clipped,
+      confidence: snapshot.confidence,
+      currency: snapshot.currency,
+    };
+    if (snapshot.amount !== undefined) j.amount = snapshot.amount;
+    if (snapshot.date !== undefined) j.date = snapshot.date;
+    if (snapshot.merchant !== undefined) j.merchant = snapshot.merchant;
+    if (snapshot.description !== undefined) {
+      j.description = snapshot.description;
+    }
+    return j;
+  }
+
+  private correctedDtoToJson(
+    corrected: SubmitOcrFeedbackDto['corrected'],
+  ): Prisma.InputJsonValue {
+    const j: Prisma.JsonObject = {
+      title: corrected.title,
+      amountUsd: corrected.amountUsd,
+    };
+    if (corrected.description !== undefined) {
+      j.description = corrected.description;
+    }
+    if (corrected.paymentDate !== undefined) {
+      j.paymentDate = corrected.paymentDate;
+    }
+    if (corrected.currencyCapture !== undefined) {
+      j.currencyCapture = corrected.currencyCapture;
+    }
+    if (corrected.categoryName !== undefined) {
+      j.categoryName = corrected.categoryName;
+    }
+    if (corrected.bankLabel !== undefined) {
+      j.bankLabel = corrected.bankLabel;
+    }
+    return j;
+  }
+
+  /**
+   * Almacena predicción vs corrección humana sin bloquear el flujo gasto/OCR (v1.3 FEAT-OCR-FB).
+   */
+  async submitOcrFeedback(
+    user: AuthUserPayload,
+    dto: SubmitOcrFeedbackDto,
+  ): Promise<{ id: string }> {
+    if (dto.expenseId) {
+      const ok = await this.prisma.expense.findFirst({
+        where: {
+          id: dto.expenseId,
+          profile: { userId: user.userId },
+        },
+        select: { id: true },
+      });
+      if (!ok) {
+        throw new BadRequestException(
+          'Gasto inválido o no pertenece a tu cuenta',
+        );
+      }
+    }
+    const insertPayload: OcrCorrectionSampleInsertData = {
+      userId: user.userId,
+      expenseId: dto.expenseId ?? null,
+      source: dto.source,
+      submissionVariant: dto.submissionVariant ?? null,
+      documentKindGuess: dto.documentKindGuess ?? null,
+      parseSnapshot: this.snapshotDtoToJson(dto.parseSnapshot),
+      corrected: this.correctedDtoToJson(dto.corrected),
+    };
+    // El runtime es PrismaService; el analyzer a veces no enlaza codegen → subset explícito
+    const prismaOcrSubset = this.prisma as unknown as PrismaOcrCorrectionSubset;
+    const row = await prismaOcrSubset.ocrCorrectionSample.create({
+      data: insertPayload,
+      select: { id: true },
+    });
+    return { id: row.id };
   }
 
   private async resolveProfileId(
