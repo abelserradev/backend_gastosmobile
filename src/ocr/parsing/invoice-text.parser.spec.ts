@@ -4,6 +4,7 @@ import {
   extractMerchantFromText,
   extractProductItemsFromText,
   parseInvoiceTextBlob,
+  transcriptHasBankOperationAmountLine,
 } from './invoice-text.parser';
 import { parseLocalizedMoneyToken, parseMoneyFragment } from './invoice-money.util';
 
@@ -273,6 +274,33 @@ Banco de Venezuela, S.A.`;
       const parsed = extractAmountFromText(blob);
       expect(parsed.amount).toBeCloseTo(99.09, 2);
       expect(parsed.currency).toBe('USD');
+    });
+  });
+
+  describe('Mercantil Tpago y Monto (Bs.)', () => {
+    const mercantilTpagoSnippet = `¡Listo! Tu Tpago fue exitoso
+Monto (Bs.):
+2.580,00
+Nro. de referencia:
+1419809
+Fecha y hora del envío:
+06/03/2026 a las 1:20:47 PM`;
+
+    it('parseInvoiceTextBlob toma línea Mercantil Monto (Bs.)', () => {
+      const pf = parseInvoiceTextBlob(mercantilTpagoSnippet);
+      expect(pf.amount).toBeCloseTo(2580, 2);
+    });
+
+    it('transcriptHasBankOperationAmountLine detecta Monto (Bs.) sin "operación"', () => {
+      expect(transcriptHasBankOperationAmountLine(mercantilTpagoSnippet)).toBe(
+        true,
+      );
+    });
+
+    it('extractAmountFromText prioriza etiqueta sobre ruidos con otros números', () => {
+      const messy = `1419809
+${mercantilTpagoSnippet}`;
+      expect(extractAmountFromText(messy).amount).toBeCloseTo(2580, 2);
     });
   });
 
