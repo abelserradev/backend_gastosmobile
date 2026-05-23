@@ -505,7 +505,7 @@ export class MeService {
       throw new BadRequestException('Indica quién pagó');
     }
     const paidByDisplayName = await this.resolvePaidByDisplayName(
-      row.profileId,
+      user.userId,
       paidByMemberId,
       fallback ?? '',
     );
@@ -526,7 +526,7 @@ export class MeService {
         expenseTitle: updated.title,
         categoryName: updated.category.name,
         amountUsd: Number(updated.amount),
-        profileName: updated.profile.name,
+        profileName: paidByDisplayName, // consistente con el flujo bulk
       },
     ]);
     return mapExpenseToResponse(updated);
@@ -552,14 +552,10 @@ export class MeService {
     const paidByMemberId = dto.paidByMemberId?.trim();
     let paidByDisplayName = dto.paidByDisplayName.trim();
     if (paidByMemberId) {
-      const firstProfileId = rows[0].profileId;
-      if (!rows.every((r) => r.profileId === firstProfileId)) {
-        throw new BadRequestException(
-          'Si indicás integrante, todos los gastos deben ser del mismo perfil',
-        );
-      }
+      // El integrante pertenece al perfil del PAGADOR, no al perfil del gasto.
+      // Validamos contra userId para cubrir gastos de distintos perfiles en un solo bulk.
       paidByDisplayName = await this.resolvePaidByDisplayName(
-        firstProfileId,
+        user.userId,
         paidByMemberId,
         paidByDisplayName,
       );
@@ -591,7 +587,9 @@ export class MeService {
         expenseTitle: e.title,
         categoryName: e.category.name,
         amountUsd: Number(e.amount),
-        profileName: e.profile.name,
+        // El perfil del correo debe ser quien pagó, no el perfil propietario
+        // del gasto (e.profile.name), que puede ser un grupo distinto y confunde.
+        profileName: paidByDisplayName,
       })),
     );
     return updated.map((e) => mapExpenseToResponse(e));
@@ -733,20 +731,23 @@ export class MeService {
     return cat.id;
   }
 
-  /** Resuelve el nombre de quien pagó; si hay memberId lo valida contra el perfil. */
+  /**
+   * Resuelve el nombre de quien pagó.
+   * Si hay memberId lo busca en cualquier perfil del usuario (no del gasto)
+   * y devuelve "Nombre (Perfil)" para que el correo sea explícito.
+   */
   private async resolvePaidByDisplayName(
-    profileId: string,
+    userId: string,
     memberId: string | undefined,
     fallbackName: string,
   ): Promise<string> {
     if (!memberId) return fallbackName;
     const member = await this.prisma.profileMember.findFirst({
-      where: { id: memberId, profileId },
-      select: { displayName: true },
+      where: { id: memberId, profile: { userId } },
+      include: { profile: { select: { name: true } } },
     });
-    if (!member)
-      throw new BadRequestException('Integrante inválido para este perfil');
-    return member.displayName;
+    if (!member) throw new BadRequestException('Integrante inválido');
+    return `${member.displayName} (${member.profile.name})`;
   }
 
   /** Fire-and-forget: el correo de resumen nunca debe romper el flujo principal. */
