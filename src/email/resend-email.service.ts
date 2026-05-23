@@ -179,7 +179,7 @@ export class ResendEmailService {
         <tr style="background:#f3f4f6;">
           <th style="padding:8px;border:1px solid #ddd;text-align:left;">Deuda</th>
           <th style="padding:8px;border:1px solid #ddd;text-align:left;">Categoría</th>
-          <th style="padding:8px;border:1px solid #ddd;text-align:left;">Perfil</th>
+          <th style="padding:8px;border:1px solid #ddd;text-align:left;">Pagado por</th>
           <th style="padding:8px;border:1px solid #ddd;text-align:right;">USD</th>
         </tr>
       </thead>
