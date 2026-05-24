@@ -1,6 +1,16 @@
 packages:
   - '.'
 
+allowBuilds:
+  '@firebase/util': true
+  '@nestjs/core': true
+  '@prisma/engines': true
+  bcrypt: true
+  prisma: true
+  protobufjs: true
+  tesseract.js: true
+  unrs-resolver: true
+
 overrides:
   '@hono/node-server': ^1.19.13
   '@tootallnate/once': ^3.0.1
