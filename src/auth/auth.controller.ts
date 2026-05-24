@@ -11,6 +11,8 @@ import { RegisterDto } from './dto/register.dto';
 import { ForgotPasswordDto } from './dto/forgot-password.dto';
 import { ResetPasswordDto } from './dto/reset-password.dto';
 import { SetupPasswordDto } from './dto/setup-password.dto';
+import { UnlockAccountRequestDto } from './dto/unlock-account-request.dto';
+import { UnlockAccountVerifyDto } from './dto/unlock-account-verify.dto';
 
 @Controller('auth')
 export class AuthController {
@@ -64,6 +66,24 @@ export class AuthController {
   @Post('reset-password')
   resetPassword(@Body() dto: ResetPasswordDto): Promise<{ ok: true }> {
     return this.auth.resetPassword(dto);
+  }
+
+  @Public()
+  @Throttle({ default: { limit: 5, ttl: 3600000 } })
+  @Post('unlock/request')
+  requestAccountUnlock(
+    @Body() dto: UnlockAccountRequestDto,
+  ): Promise<{ ok: true }> {
+    return this.auth.requestAccountUnlock(dto);
+  }
+
+  @Public()
+  @Throttle({ default: { limit: 10, ttl: 60000 } })
+  @Post('unlock/verify')
+  verifyAccountUnlock(
+    @Body() dto: UnlockAccountVerifyDto,
+  ): Promise<{ ok: true }> {
+    return this.auth.verifyAccountUnlock(dto);
   }
 
   /** Contraseña inicial tras Google (cookie JWT); no usar @Public: solo usuario autenticado sin hash previo. */

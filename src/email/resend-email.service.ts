@@ -132,6 +132,35 @@ export class ResendEmailService {
     }
   }
 
+  /** OTP de 6 dígitos para desbloquear cuenta tras intentos fallidos de login. */
+  async sendAccountUnlockCodeEmail(to: string, code: string): Promise<void> {
+    if (!this.client) {
+      throw new BadRequestException(
+        'Resend no está configurado: define RESEND_API_KEY',
+      );
+    }
+    const html = `
+      <p>Tu cuenta en Gastos fue bloqueada por demasiados intentos fallidos de inicio de sesión.</p>
+      <p>Tu código de verificación es:</p>
+      <p style="font-size:28px;font-weight:bold;letter-spacing:4px;">${this.escapeHtml(code)}</p>
+      <p>Ingresalo en la pantalla de inicio de sesión para desbloquear tu cuenta.</p>
+      <p>Si no fuiste tú, cambiá tu contraseña en cuanto recuperes el acceso.</p>
+      <p style="color:#6b7280;font-size:12px;">El código caduca en 15 minutos.</p>
+    `;
+    const { error } = await this.client.emails.send({
+      from: this.resolveFromAddress(),
+      to: [to],
+      subject: 'Código para desbloquear tu cuenta — Gastos',
+      html,
+    });
+    if (error) {
+      this.logger.warn(`Resend account unlock: ${error.message}`);
+      throw new BadGatewayException(
+        'No se pudo enviar el correo; intentá de nuevo más tarde',
+      );
+    }
+  }
+
   /**
    * Un solo envío para uno o N gastos (evita quemar cuota de Resend en pagos masivos).
    */
