@@ -30,8 +30,6 @@ jobs:
           egress-policy: audit
 
       - uses: pnpm/action-setup@v4
-        with:
-          version: 11
 
       - uses: actions/setup-node@v6
         with:
@@ -53,7 +51,7 @@ jobs:
         run: pnpm prisma validate
 
       - name: Tests unitarios
-        run: pnpm test -- --passWithNoTests
+        run: pnpm test --passWithNoTests
 
       - name: Build NestJS
         run: pnpm run build
