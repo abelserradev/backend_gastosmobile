@@ -29,27 +29,31 @@ jobs:
         with:
           egress-policy: audit
 
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 9
+
       - uses: actions/setup-node@v6
         with:
           node-version: '22'
-          cache: npm
-          cache-dependency-path: package-lock.json
+          cache: pnpm
+          cache-dependency-path: pnpm-lock.yaml
 
       - name: Instalar dependencias (lockfile estricto)
-        run: npm ci
+        run: pnpm install --frozen-lockfile
 
-      - name: npm audit — bloquea high/critical
-        run: npm audit --audit-level=high
+      - name: pnpm audit — bloquea high/critical
+        run: pnpm audit --audit-level=high
 
-      - name: npm audit — aviso moderate (no bloquea)
+      - name: pnpm audit — aviso moderate (no bloquea)
         continue-on-error: true
-        run: npm audit --audit-level=moderate
+        run: pnpm audit --audit-level=moderate
 
       - name: Validar schema Prisma
-        run: npx prisma validate
+        run: pnpm prisma validate
 
       - name: Tests unitarios
-        run: npm test -- --passWithNoTests
+        run: pnpm test -- --passWithNoTests
 
       - name: Build NestJS
-        run: npm run build
+        run: pnpm run build
