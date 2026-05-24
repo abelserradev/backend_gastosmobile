@@ -37,4 +37,5 @@ USER node
 EXPOSE 3088
 
 # prisma está en dependencies; migrate deploy antes de arrancar Nest.
-CMD ["sh", "-c", "pnpm prisma migrate deploy && node dist/main.js"]
+# En runtime no hay pnpm (solo en builder); npx usa el binario de node_modules.
+CMD ["sh", "-c", "npx prisma migrate deploy && node dist/main.js"]

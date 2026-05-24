@@ -65,6 +65,15 @@ services:
     networks:
       - gastos_local
 
+  redis:
+    image: redis:7-alpine
+    container_name: gastos-redis-local
+    restart: unless-stopped
+    ports:
+      - "${REDIS_PORT:-6379}:6379"
+    networks:
+      - gastos_local
+
   backend:
     build:
       context: .
@@ -86,9 +95,12 @@ services:
       OLLAMA_MODEL: ${OLLAMA_MODEL:-glm-ocr}
       OLLAMA_OCR_ENABLED: ${OLLAMA_OCR_ENABLED:-true}
       OLLAMA_OCR_TIMEOUT_MS: ${OLLAMA_OCR_TIMEOUT_MS:-120000}
+      REDIS_URL: ${REDIS_URL:-redis://redis:6379}
     depends_on:
       postgres:
         condition: service_healthy
+      redis:
+        condition: service_started
       ollama:
         condition: service_healthy
     networks:
