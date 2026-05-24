@@ -20,19 +20,35 @@ enum ProfileType {
 
 /// Registro vía /api/auth exige email + hash; filas antiguas pueden tener null hasta limpiar datos.
 model User {
-  id           String   @id @default(uuid())
-  email        String?  @unique
-  passwordHash String?
-  name         String   @default("")
-  createdAt    DateTime @default(now())
-  updatedAt    DateTime @updatedAt
+  id                   String    @id @default(uuid())
+  email                String?   @unique
+  passwordHash         String?
+  name                 String    @default("")
+  failedLoginAttempts  Int       @default(0)
+  lockedAt             DateTime?
+  createdAt            DateTime  @default(now())
+  updatedAt            DateTime  @updatedAt
 
   preferences          UserPreference?
   categories           Category[]
   profiles             Profile[]
   passwordResetTokens  PasswordResetToken[]
+  accountUnlockCodes   AccountUnlockCode[]
   /** Muestras de corrección post-OCR (v1.3, FEAT-OCR-FB). */
   ocrCorrectionSamples OcrCorrectionSample[]
+}
+
+/// Código OTP hasheado para desbloquear cuenta tras intentos fallidos de login.
+model AccountUnlockCode {
+  id        String   @id @default(uuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  codeHash  String   @unique
+  expiresAt DateTime
+  attempts  Int      @default(0)
+  createdAt DateTime @default(now())
+
+  @@index([userId])
 }
 
 /// Token de un solo uso para restablecer contraseña (hash en BD; el enlace lleva el secreto en claro).

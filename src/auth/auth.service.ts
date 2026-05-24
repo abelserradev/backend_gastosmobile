@@ -1,6 +1,7 @@
 import {
   BadRequestException,
   ConflictException,
+  ForbiddenException,
   Injectable,
   Logger,
   UnauthorizedException,
@@ -12,7 +13,11 @@ import type { Response } from 'express';
 import { PrismaService } from '../prisma/prisma.service';
 import { AuthCookieService } from './auth-cookie.service';
 import {
+  ACCOUNT_UNLOCK_CODE_TTL_MS,
+  AUTH_ERROR_ACCOUNT_LOCKED,
   BCRYPT_SALT_ROUNDS,
+  MAX_FAILED_LOGIN_ATTEMPTS,
+  MAX_UNLOCK_CODE_ATTEMPTS,
   PASSWORD_RESET_TOKEN_TTL_MS,
 } from './auth.constants';
 import { LoginDto } from './dto/login.dto';
@@ -21,6 +26,8 @@ import { RegisterDto } from './dto/register.dto';
 import { ForgotPasswordDto } from './dto/forgot-password.dto';
 import { ResetPasswordDto } from './dto/reset-password.dto';
 import { SetupPasswordDto } from './dto/setup-password.dto';
+import { UnlockAccountRequestDto } from './dto/unlock-account-request.dto';
+import { UnlockAccountVerifyDto } from './dto/unlock-account-verify.dto';
 import { ResendEmailService } from '../email/resend-email.service';
 
 export interface AuthResponseUser {
@@ -113,6 +120,8 @@ export class AuthService {
         },
       });
       createdWithFirebase = true;
+    } else if (user.lockedAt) {
+      throw this.buildAccountLockedException();
     } else if (!user.name?.trim() && displayName) {
       user = await this.prisma.user.update({
         where: { id: user.id },
@@ -136,15 +145,103 @@ export class AuthService {
   async login(dto: LoginDto, res: Response): Promise<AuthSessionBody> {
     const email = dto.email.trim().toLowerCase();
     const user = await this.prisma.user.findUnique({ where: { email } });
+    if (user?.lockedAt) {
+      throw this.buildAccountLockedException();
+    }
     const hashForCompare = user?.passwordHash ?? this.getTimingDummyHash();
     const passwordOk = await bcrypt.compare(dto.password, hashForCompare);
     if (!user?.passwordHash || !passwordOk) {
+      if (user?.passwordHash) {
+        const justLocked = await this.recordFailedPasswordLogin(user.id);
+        if (justLocked) {
+          throw this.buildAccountLockedException();
+        }
+      }
       throw new UnauthorizedException('Credenciales inválidas');
+    }
+    if (user.failedLoginAttempts > 0) {
+      await this.prisma.user.update({
+        where: { id: user.id },
+        data: { failedLoginAttempts: 0 },
+      });
     }
     const displayName = user.name?.trim() ? user.name : '';
     const body = this.buildSessionPayload(user.id, email, displayName, true);
     this.cookies.setAccessJwt(res, body.token);
     return { user: body.user };
+  }
+
+  /** Envía OTP por correo si la cuenta existe, tiene clave y está bloqueada. */
+  async requestAccountUnlock(dto: UnlockAccountRequestDto): Promise<{ ok: true }> {
+    const email = dto.email.trim().toLowerCase();
+    const user = await this.prisma.user.findUnique({ where: { email } });
+    const genericOk = { ok: true as const };
+    if (!user?.passwordHash || !user.lockedAt) {
+      return genericOk;
+    }
+    await this.prisma.accountUnlockCode.deleteMany({
+      where: { userId: user.id },
+    });
+    const rawCode = crypto.randomInt(100_000, 1_000_000).toString();
+    const codeHash = this.hashUnlockCode(rawCode);
+    const expiresAt = new Date(Date.now() + ACCOUNT_UNLOCK_CODE_TTL_MS);
+    await this.prisma.accountUnlockCode.create({
+      data: { userId: user.id, codeHash, expiresAt },
+    });
+    if (!this.resendEmail.isConfigured()) {
+      this.logger.warn(
+        `Sin RESEND_API_KEY — unlock ${email}: código ${rawCode}`,
+      );
+      return genericOk;
+    }
+    try {
+      await this.resendEmail.sendAccountUnlockCodeEmail(email, rawCode);
+    } catch (err: unknown) {
+      await this.prisma.accountUnlockCode.deleteMany({
+        where: { userId: user.id },
+      });
+      throw err;
+    }
+    return genericOk;
+  }
+
+  async verifyAccountUnlock(dto: UnlockAccountVerifyDto): Promise<{ ok: true }> {
+    const email = dto.email.trim().toLowerCase();
+    const user = await this.prisma.user.findUnique({ where: { email } });
+    if (!user?.lockedAt) {
+      throw new BadRequestException(
+        'La cuenta no está bloqueada o el correo no es válido.',
+      );
+    }
+    const row = await this.prisma.accountUnlockCode.findFirst({
+      where: { userId: user.id },
+      orderBy: { createdAt: 'desc' },
+    });
+    const now = Date.now();
+    if (!row || row.expiresAt.getTime() <= now) {
+      throw new BadRequestException('Código inválido o expirado.');
+    }
+    const codeHash = this.hashUnlockCode(dto.code.trim());
+    if (row.codeHash !== codeHash) {
+      const attempts = row.attempts + 1;
+      if (attempts >= MAX_UNLOCK_CODE_ATTEMPTS) {
+        await this.prisma.accountUnlockCode.delete({ where: { id: row.id } });
+      } else {
+        await this.prisma.accountUnlockCode.update({
+          where: { id: row.id },
+          data: { attempts },
+        });
+      }
+      throw new BadRequestException('Código inválido o expirado.');
+    }
+    await this.prisma.$transaction([
+      this.prisma.user.update({
+        where: { id: user.id },
+        data: { failedLoginAttempts: 0, lockedAt: null },
+      }),
+      this.prisma.accountUnlockCode.deleteMany({ where: { userId: user.id } }),
+    ]);
+    return { ok: true };
   }
 
   async getSessionUser(userId: string): Promise<AuthSessionBody> {
@@ -265,6 +362,36 @@ export class AuthService {
 
   private hashPasswordResetToken(rawToken: string): string {
     return crypto.createHash('sha256').update(rawToken, 'utf8').digest('hex');
+  }
+
+  private hashUnlockCode(rawCode: string): string {
+    return crypto.createHash('sha256').update(rawCode, 'utf8').digest('hex');
+  }
+
+  private buildAccountLockedException(): ForbiddenException {
+    return new ForbiddenException({
+      message:
+        'Cuenta bloqueada por intentos fallidos. Solicita un código de verificación por correo.',
+      code: AUTH_ERROR_ACCOUNT_LOCKED,
+    });
+  }
+
+  /** Incrementa contador; devuelve true si acaba de bloquearse en este intento. */
+  private async recordFailedPasswordLogin(userId: string): Promise<boolean> {
+    const updated = await this.prisma.user.update({
+      where: { id: userId },
+      data: { failedLoginAttempts: { increment: 1 } },
+    });
+    if (updated.failedLoginAttempts < MAX_FAILED_LOGIN_ATTEMPTS) {
+      return false;
+    }
+    if (!updated.lockedAt) {
+      await this.prisma.user.update({
+        where: { id: userId },
+        data: { lockedAt: new Date() },
+      });
+    }
+    return true;
   }
 
   private getTimingDummyHash(): string {
