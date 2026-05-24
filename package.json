@@ -5,6 +5,7 @@
   "author": "",
   "private": true,
   "license": "UNLICENSED",
+  "packageManager": "pnpm@11.3.0",
   "scripts": {
     "build": "nest build",
     "postinstall": "prisma generate",
@@ -101,12 +102,5 @@
     ],
     "coverageDirectory": "../coverage",
     "testEnvironment": "node"
-  },
-  "overrides": {
-    "@hono/node-server": "^1.19.13",
-    "@tootallnate/once": "^3.0.1",
-    "http-proxy-agent": "^7.0.2",
-    "teeny-request": "^9.0.0",
-    "uuid": ">=11.1.1"
   }
 }
