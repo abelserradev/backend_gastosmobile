@@ -12,12 +12,13 @@ export class BcvController {
   async oficialPorDia(@Query('date') date?: string) {
     const ymd =
       date && /^\d{4}-\d{2}-\d{2}$/.test(date) ? date : formatYmdInCaracas();
-    const { vesPerUsd, rateDate } =
+    const { vesPerUsd, rateDate, usedFallback } =
       await this.bcv.getVesPerUsdForCalendarDay(ymd);
     return {
       date: ymd,
       vesPerUsd: Number(vesPerUsd.toString()),
       rateDate: rateDate.toISOString().slice(0, 10),
+      stale: usedFallback,
     };
   }
 }

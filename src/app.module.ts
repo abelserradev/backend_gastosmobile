@@ -3,6 +3,7 @@ import { ConfigModule } from '@nestjs/config';
 import { APP_GUARD } from '@nestjs/core';
 import { ThrottlerGuard, ThrottlerModule } from '@nestjs/throttler';
 import { envValidationSchema } from './config/env.validation';
+import { CacheModule } from './common/cache/cache.module';
 import { AuthModule } from './auth/auth.module';
 import { JwtAuthGuard } from './auth/jwt-auth.guard';
 import { AppController } from './app.controller';
@@ -31,6 +32,7 @@ import { PrismaModule } from './prisma/prisma.module';
         },
       ],
     }),
+    CacheModule,
     PrismaModule,
     AuthModule,
     MeModule,

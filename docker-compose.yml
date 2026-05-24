@@ -84,6 +84,7 @@ services:
       OLLAMA_OCR_TIMEOUT_MS: ${OLLAMA_OCR_TIMEOUT_MS:-300000}
       OLLAMA_OCR_WARMUP: ${OLLAMA_OCR_WARMUP:-true}
       OLLAMA_KEEP_ALIVE: ${OLLAMA_KEEP_ALIVE:-15m}
+      REDIS_URL: ${REDIS_URL:-}
     extra_hosts:
       # Permite resolver host.docker.internal → IP del host (para OLLAMA_URL)
       - host.docker.internal:host-gateway
