@@ -29,6 +29,7 @@ import { PatchExpenseDto } from './dto/patch-expense.dto';
 import { ReplaceCategoriesDto } from './dto/replace-categories.dto';
 import { SubmitOcrFeedbackDto } from './dto/submit-ocr-feedback.dto';
 import { UpdatePreferencesDto } from './dto/update-preferences.dto';
+import { MonthRolloverDto } from './dto/month-rollover.dto';
 import { MeService } from './me.service';
 
 @Controller('me')
@@ -46,6 +47,14 @@ export class MeController {
     @Body() dto: UpdatePreferencesDto,
   ) {
     return this.me.updatePreferences(user, dto);
+  }
+
+  @Post('month-rollover')
+  rolloverMonth(
+    @CurrentUser() user: AuthUserPayload,
+    @Body() dto: MonthRolloverDto,
+  ) {
+    return this.me.rolloverMonth(user, dto);
   }
 
   @Put('categories')

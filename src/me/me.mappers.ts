@@ -79,6 +79,10 @@ export interface MePreferencesResponse {
   usdEquivalentDelta: number | null;
   bsIncomeNarrative: string | null;
   bcvQuoteIsStale: boolean;
+  /** USD arrastrados del mes anterior al presupuesto vigente. */
+  carryoverUsd: number;
+  /** Presupuesto efectivo del mes (ingreso base + arrastre). */
+  effectiveMonthlyIncomeUsd: number;
 }
 
 /** Texto para la UI / asistentes: mismo nominal en Bs., distinto poder en USD por la tasa. */

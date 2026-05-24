@@ -22,6 +22,7 @@ import { MarkExpensesPaidDto } from './dto/mark-expenses-paid.dto';
 import { PatchExpenseDto } from './dto/patch-expense.dto';
 import { ReplaceCategoriesDto } from './dto/replace-categories.dto';
 import { UpdatePreferencesDto } from './dto/update-preferences.dto';
+import { MonthRolloverDto } from './dto/month-rollover.dto';
 import { CreateProfileMemberDto } from './dto/create-profile-member.dto';
 import {
   SubmitOcrFeedbackDto,
@@ -106,6 +107,10 @@ export class MeService {
       }),
     ]);
     const needsMonthlyIncomeSetup = !pref || this.incomeMonthNeedsRefresh(pref);
+    const monthRenewal =
+      pref && this.incomeMonthNeedsRefresh(pref)
+        ? await this.buildMonthRenewalContext(userId, pref)
+        : null;
     return {
       preferences: await this.mapPreferencesToResponse(pref),
       categories: categories.map((c) => ({ id: c.id, name: c.name })),
@@ -117,25 +122,77 @@ export class MeService {
       expenses: expenses.map((e) => mapExpenseToResponse(e)),
       activeReferenceMonth: activeYmd,
       needsMonthlyIncomeSetup,
+      monthRenewal,
     };
+  }
+
+  /** Cierra el mes anterior sin sobrante: avanza referencia y limpia arrastre. */
+  async rolloverMonth(user: AuthUserPayload, dto: MonthRolloverDto) {
+    const pref = await this.prisma.userPreference.findUnique({
+      where: { userId: user.userId },
+      include: { incomeRegisteredBcvRate: true },
+    });
+    if (!pref || !this.incomeMonthNeedsRefresh(pref)) {
+      throw new BadRequestException('No hay cambio de mes pendiente');
+    }
+    const renewal = await this.buildMonthRenewalContext(user.userId, pref);
+    if (renewal.requiresSurplusPrompt && dto.applySurplus === undefined) {
+      throw new BadRequestException(
+        'Indica si deseas sumar el saldo sobrante al mes entrante',
+      );
+    }
+    const carryoverUsd =
+      renewal.requiresSurplusPrompt && dto.applySurplus === true
+        ? renewal.surplusUsd
+        : 0;
+    await this.advanceIncomeReferenceMonth(user.userId, carryoverUsd);
+    const fresh = await this.prisma.userPreference.findUnique({
+      where: { userId: user.userId },
+      include: { incomeRegisteredBcvRate: true },
+    });
+    const mapped = await this.mapPreferencesToResponse(fresh);
+    if (!mapped) {
+      throw new BadRequestException('No se pudieron leer las preferencias');
+    }
+    return mapped;
   }
 
   async updatePreferences(user: AuthUserPayload, dto: UpdatePreferencesDto) {
     const uid = user.userId;
+    const prefBefore = await this.prisma.userPreference.findUnique({
+      where: { userId: uid },
+      include: { incomeRegisteredBcvRate: true },
+    });
+    const monthStale = this.incomeMonthNeedsRefresh(prefBefore);
+    const renewal =
+      prefBefore && monthStale
+        ? await this.buildMonthRenewalContext(uid, prefBefore)
+        : null;
+    if (renewal?.requiresSurplusPrompt && dto.applySurplus === undefined) {
+      throw new BadRequestException(
+        'Indica si deseas sumar el saldo sobrante al mes entrante',
+      );
+    }
     const incomeRef = toReferenceMonthDate(startOfMonthYmdInCaracas());
+    const carryoverUsd =
+      renewal?.requiresSurplusPrompt && dto.applySurplus === true
+        ? renewal.surplusUsd
+        : monthStale
+          ? 0
+          : Number(prefBefore?.carryoverUsd?.toString() ?? 0);
 
     if (dto.defaultCurrency === 'USD') {
       if (dto.monthlyIncome == null) {
         throw new BadRequestException('Indica el ingreso en USD');
       }
-      await this.saveUserPreference(uid, incomeRef, {
+      await this.saveUserPreference(uid, incomeRef, carryoverUsd, {
         defaultCurrency: 'USD',
         monthlyIncome: dto.monthlyIncome,
         incomeFixedBs: null,
         incomeRegisteredBcvRateId: null,
       });
     } else {
-      await this.updateBsPreferences(uid, incomeRef, dto);
+      await this.updateBsPreferences(uid, incomeRef, carryoverUsd, dto);
     }
 
     const fresh = await this.prisma.userPreference.findUnique({
@@ -153,6 +210,7 @@ export class MeService {
   private async updateBsPreferences(
     uid: string,
     incomeRef: Date,
+    carryoverUsd: number,
     dto: UpdatePreferencesDto,
   ) {
     const tieneBsNominal =
@@ -170,7 +228,7 @@ export class MeService {
         );
       }
       const usdCaptura = dto.monthlyIncomeBs! / Number(vesPerUsd.toString());
-      await this.saveUserPreference(uid, incomeRef, {
+      await this.saveUserPreference(uid, incomeRef, carryoverUsd, {
         defaultCurrency: 'BS',
         monthlyIncome: usdCaptura,
         incomeFixedBs: dto.monthlyIncomeBs!,
@@ -181,7 +239,7 @@ export class MeService {
 
     if (dto.monthlyIncome != null) {
       // Cliente antiguo: solo guardaba USD equivalente; sin monto fijo en Bs.
-      await this.saveUserPreference(uid, incomeRef, {
+      await this.saveUserPreference(uid, incomeRef, carryoverUsd, {
         defaultCurrency: 'BS',
         monthlyIncome: dto.monthlyIncome,
         incomeFixedBs: null,
@@ -199,6 +257,7 @@ export class MeService {
   private async saveUserPreference(
     uid: string,
     incomeRef: Date,
+    carryoverUsd: number,
     data: {
       defaultCurrency: 'USD' | 'BS';
       monthlyIncome: number;
@@ -208,9 +267,89 @@ export class MeService {
   ) {
     await this.prisma.userPreference.upsert({
       where: { userId: uid },
-      create: { userId: uid, incomeReferenceMonth: incomeRef, ...data },
-      update: { incomeReferenceMonth: incomeRef, ...data },
+      create: {
+        userId: uid,
+        incomeReferenceMonth: incomeRef,
+        carryoverUsd,
+        ...data,
+      },
+      update: {
+        incomeReferenceMonth: incomeRef,
+        carryoverUsd,
+        ...data,
+      },
     });
+  }
+
+  private async advanceIncomeReferenceMonth(
+    userId: string,
+    carryoverUsd: number,
+  ): Promise<void> {
+    const incomeRef = toReferenceMonthDate(startOfMonthYmdInCaracas());
+    await this.prisma.userPreference.update({
+      where: { userId },
+      data: { incomeReferenceMonth: incomeRef, carryoverUsd },
+    });
+  }
+
+  private async buildMonthRenewalContext(
+    userId: string,
+    pref: UserPreferenceWithRegRate,
+  ): Promise<{
+    closingMonthYmd: string;
+    surplusUsd: number;
+    requiresSurplusPrompt: boolean;
+  }> {
+    const closingMonthYmd = pref.incomeReferenceMonth!.toISOString().slice(0, 10);
+    const closingMonthDate = toReferenceMonthDate(closingMonthYmd);
+    const surplusUsd = await this.computeClosingMonthSurplusUsd(
+      userId,
+      pref,
+      closingMonthDate,
+    );
+    return {
+      closingMonthYmd,
+      surplusUsd,
+      requiresSurplusPrompt: surplusUsd > 0,
+    };
+  }
+
+  private async computeClosingMonthSurplusUsd(
+    userId: string,
+    pref: UserPreferenceWithRegRate,
+    closingMonthDate: Date,
+  ): Promise<number> {
+    const mapped = await this.mapPreferencesToResponse(pref);
+    if (!mapped) {
+      return 0;
+    }
+    const effectiveIncome = mapped.effectiveMonthlyIncomeUsd;
+    const agg = await this.prisma.expense.aggregate({
+      where: {
+        profile: { userId },
+        referenceMonth: closingMonthDate,
+        isPaid: true,
+      },
+      _sum: { amount: true },
+    });
+    const paidUsd = Number(agg._sum.amount?.toString() ?? 0);
+    const surplus = effectiveIncome - paidUsd;
+    if (surplus <= 0) {
+      return 0;
+    }
+    return Math.round(surplus * 100) / 100;
+  }
+
+  private withEffectiveIncome(
+    base: MePreferencesResponse,
+    carryoverUsd: number,
+  ): MePreferencesResponse {
+    return {
+      ...base,
+      carryoverUsd,
+      effectiveMonthlyIncomeUsd:
+        Math.round((base.monthlyIncome + carryoverUsd) * 100) / 100,
+    };
   }
 
   async replaceCategories(user: AuthUserPayload, dto: ReplaceCategoriesDto) {
@@ -621,6 +760,7 @@ export class MeService {
       return null;
     }
     const monthlyStored = Number(pref.monthlyIncome.toString());
+    const carryoverUsd = Number(pref.carryoverUsd?.toString() ?? 0);
     const base: MePreferencesResponse = {
       defaultCurrency: pref.defaultCurrency,
       monthlyIncome: monthlyStored,
@@ -636,29 +776,37 @@ export class MeService {
       usdEquivalentDelta: null,
       bsIncomeNarrative: null,
       bcvQuoteIsStale: false,
+      carryoverUsd,
+      effectiveMonthlyIncomeUsd: monthlyStored + carryoverUsd,
     };
     if (pref.defaultCurrency !== 'BS') {
-      return base;
+      return this.withEffectiveIncome(base, carryoverUsd);
     }
     const nominalBs =
       pref.incomeFixedBs == null ? null : Number(pref.incomeFixedBs.toString());
     if (nominalBs == null) {
-      return {
-        ...base,
-        defaultCurrency: 'BS',
-        monthlyIncome: monthlyStored,
-      };
+      return this.withEffectiveIncome(
+        {
+          ...base,
+          defaultCurrency: 'BS',
+          monthlyIncome: monthlyStored,
+        },
+        carryoverUsd,
+      );
     }
     const reg = pref.incomeRegisteredBcvRate;
     const vesReg = reg ? Number(reg.vesPerUsd.toString()) : null;
     const dateReg = reg ? reg.rateDate.toISOString().slice(0, 10) : null;
     if (vesReg == null || vesReg <= 0 || dateReg == null) {
-      return {
-        ...base,
-        defaultCurrency: 'BS',
-        monthlyIncome: monthlyStored,
-        incomeFixedBs: nominalBs,
-      };
+      return this.withEffectiveIncome(
+        {
+          ...base,
+          defaultCurrency: 'BS',
+          monthlyIncome: monthlyStored,
+          incomeFixedBs: nominalBs,
+        },
+        carryoverUsd,
+      );
     }
     const usdAlRegistrar = nominalBs / vesReg;
     let latest: {
@@ -669,44 +817,50 @@ export class MeService {
     try {
       latest = await this.bcv.getLatestVesPerUsdPreferToday();
     } catch {
-      return {
-        ...base,
-        defaultCurrency: 'BS',
-        monthlyIncome: monthlyStored,
-        incomeFixedBs: nominalBs,
-        monthlyIncomeUsdAtRegistration: usdAlRegistrar,
-        bcvVesPerUsdAtRegistration: vesReg,
-        bcvRateDateAtRegistration: dateReg,
-        bcvQuoteIsStale: true,
-      };
+      return this.withEffectiveIncome(
+        {
+          ...base,
+          defaultCurrency: 'BS',
+          monthlyIncome: monthlyStored,
+          incomeFixedBs: nominalBs,
+          monthlyIncomeUsdAtRegistration: usdAlRegistrar,
+          bcvVesPerUsdAtRegistration: vesReg,
+          bcvRateDateAtRegistration: dateReg,
+          bcvQuoteIsStale: true,
+        },
+        carryoverUsd,
+      );
     }
     const vesAhora = Number(latest.vesPerUsd.toString());
     const dateNow = latest.rateDate.toISOString().slice(0, 10);
     const usdAhora = nominalBs / vesAhora;
     const delta = usdAhora - usdAlRegistrar;
-    return {
-      ...base,
-      defaultCurrency: 'BS',
-      monthlyIncome: usdAhora,
-      incomeFixedBs: nominalBs,
-      monthlyIncomeUsdAtRegistration: usdAlRegistrar,
-      bcvVesPerUsdNow: vesAhora,
-      bcvRateDateNow: dateNow,
-      bcvVesPerUsdAtRegistration: vesReg,
-      bcvRateDateAtRegistration: dateReg,
-      usdEquivalentDelta: delta,
-      bsIncomeNarrative: buildBsIncomeNarrativeLine({
-        nominalBs,
-        usdNow: usdAhora,
-        usdAtReg: usdAlRegistrar,
-        vesNow: vesAhora,
-        vesReg,
-        dateRegYmd: dateReg,
-        dateNowYmd: dateNow,
-        stale: latest.usedFallback,
-      }),
-      bcvQuoteIsStale: latest.usedFallback,
-    };
+    return this.withEffectiveIncome(
+      {
+        ...base,
+        defaultCurrency: 'BS',
+        monthlyIncome: usdAhora,
+        incomeFixedBs: nominalBs,
+        monthlyIncomeUsdAtRegistration: usdAlRegistrar,
+        bcvVesPerUsdNow: vesAhora,
+        bcvRateDateNow: dateNow,
+        bcvVesPerUsdAtRegistration: vesReg,
+        bcvRateDateAtRegistration: dateReg,
+        usdEquivalentDelta: delta,
+        bsIncomeNarrative: buildBsIncomeNarrativeLine({
+          nominalBs,
+          usdNow: usdAhora,
+          usdAtReg: usdAlRegistrar,
+          vesNow: vesAhora,
+          vesReg,
+          dateRegYmd: dateReg,
+          dateNowYmd: dateNow,
+          stale: latest.usedFallback,
+        }),
+        bcvQuoteIsStale: latest.usedFallback,
+      },
+      carryoverUsd,
+    );
   }
 
   /** Lookup unificado de categoría por id o nombre; evita duplicar la misma query en dos métodos. */
