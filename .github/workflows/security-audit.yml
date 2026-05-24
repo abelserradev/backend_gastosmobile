@@ -18,8 +18,8 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
-  npm-audit:
-    name: Dependencias (npm audit)
+  pnpm-audit:
+    name: Dependencias (pnpm audit)
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v6
@@ -28,21 +28,25 @@ jobs:
         with:
           egress-policy: audit
 
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 9
+
       - uses: actions/setup-node@v6
         with:
           node-version: '22'
-          cache: npm
-          cache-dependency-path: package-lock.json
+          cache: pnpm
+          cache-dependency-path: pnpm-lock.yaml
 
       - name: Instalar dependencias (lockfile estricto)
-        run: npm ci
+        run: pnpm install --frozen-lockfile
 
-      - name: npm audit — bloquea high/critical
-        run: npm audit --audit-level=high
+      - name: pnpm audit — bloquea high/critical
+        run: pnpm audit --audit-level=high
 
-      - name: npm audit — moderate (informativo en cron/PR)
+      - name: pnpm audit — moderate (informativo en cron/PR)
         continue-on-error: true
-        run: npm audit --audit-level=moderate
+        run: pnpm audit --audit-level=moderate
 
       - name: Resumen dependencias directas
-        run: npm ls --depth=0 || true
+        run: pnpm ls --depth=0 || true
