@@ -1,5 +1,6 @@
 # Producción: multi-stage. bcrypt compila en Alpine (musl) con toolchain en builder.
-FROM node:22.12.0-alpine AS builder
+# pnpm 11.3+ exige Node >=22.13 (ver packageManager en package.json).
+FROM node:22.14.0-alpine AS builder
 
 WORKDIR /app
 
@@ -8,9 +9,9 @@ RUN apk add --no-cache python3 make g++
 ARG DATABASE_URL=postgresql://ci:ci@127.0.0.1:5432/ci
 ENV DATABASE_URL=${DATABASE_URL}
 
-RUN npm install -g pnpm
+RUN corepack enable
 
-COPY package.json pnpm-lock.yaml ./
+COPY package.json pnpm-lock.yaml pnpm-workspace.yaml ./
 COPY prisma ./prisma/
 COPY prisma.config.ts ./prisma.config.ts
 # Coolify suele pasar NODE_ENV=production al build; sin devDeps no hay Nest/TS para compilar.
@@ -20,7 +21,7 @@ COPY . .
 RUN pnpm run build
 RUN pnpm prune --prod
 
-FROM node:22.12.0-alpine AS runner
+FROM node:22.14.0-alpine AS runner
 
 WORKDIR /app
 
