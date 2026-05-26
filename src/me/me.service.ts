@@ -302,7 +302,9 @@ export class MeService {
     surplusUsd: number;
     requiresSurplusPrompt: boolean;
   }> {
-    const closingMonthYmd = pref.incomeReferenceMonth!.toISOString().slice(0, 10);
+    const closingMonthYmd = pref
+      .incomeReferenceMonth!.toISOString()
+      .slice(0, 10);
     const closingMonthDate = toReferenceMonthDate(closingMonthYmd);
     const surplusUsd = await this.computeClosingMonthSurplusUsd(
       userId,
