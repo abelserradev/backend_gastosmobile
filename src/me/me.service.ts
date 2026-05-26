@@ -174,12 +174,14 @@ export class MeService {
       );
     }
     const incomeRef = toReferenceMonthDate(startOfMonthYmdInCaracas());
-    const carryoverUsd =
-      renewal?.requiresSurplusPrompt && dto.applySurplus === true
-        ? renewal.surplusUsd
-        : monthStale
-          ? 0
-          : Number(prefBefore?.carryoverUsd?.toString() ?? 0);
+    let carryoverUsd: number;
+    if (renewal?.requiresSurplusPrompt && dto.applySurplus === true) {
+      carryoverUsd = renewal.surplusUsd;
+    } else if (monthStale) {
+      carryoverUsd = 0;
+    } else {
+      carryoverUsd = Number(prefBefore?.carryoverUsd?.toString() ?? 0);
+    }
 
     if (dto.defaultCurrency === 'USD') {
       if (dto.monthlyIncome == null) {
@@ -300,7 +302,9 @@ export class MeService {
     surplusUsd: number;
     requiresSurplusPrompt: boolean;
   }> {
-    const closingMonthYmd = pref.incomeReferenceMonth!.toISOString().slice(0, 10);
+    const closingMonthYmd = pref
+      .incomeReferenceMonth!.toISOString()
+      .slice(0, 10);
     const closingMonthDate = toReferenceMonthDate(closingMonthYmd);
     const surplusUsd = await this.computeClosingMonthSurplusUsd(
       userId,
