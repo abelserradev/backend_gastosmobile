@@ -150,7 +150,7 @@ export class MeController {
   @Post('expenses/with-receipt')
   @UseInterceptors(
     FileInterceptor('file', {
-      limits: { fileSize: 1.2 * 1024 * 1024 }, // 1.2MB — el front valida ≤1MB
+      limits: { fileSize: 5 * 1024 * 1024 }, // 5MB — el front valida ≤5MB
       fileFilter: (_req, file, cb) => {
         const allowed = ['image/jpeg', 'image/png', 'image/webp'];
         if (allowed.includes(file.mimetype)) return cb(null, true);
