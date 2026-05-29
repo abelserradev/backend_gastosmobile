@@ -6,6 +6,7 @@ import {
 } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { Resend } from 'resend';
+import { enmascararCorreo } from '../common/utils/mask-correo-for-log.util';
 
 /**
  * Resend vive solo en el servidor: la API key no debe exponerse al cliente Angular.
@@ -52,8 +53,12 @@ export class ResendEmailService {
    * Correo de bienvenida tras registro: no bloquea el flujo HTTP si Resend falla.
    */
   async sendWelcomeEmail(to: string, displayName: string): Promise<void> {
+    const destino = enmascararCorreo(to);
+    this.logger.log(`[Correo bienvenida] Arrancando envío pa' ${destino}`);
     if (!this.client) {
-      this.logger.debug('Omitido: RESEND_API_KEY vacío');
+      this.logger.warn(
+        `[Correo bienvenida] Na' más: no hay RESEND_API_KEY (${destino})`,
+      );
       return;
     }
     const safeName = displayName.trim() || 'Usuario';
@@ -63,21 +68,29 @@ export class ResendEmailService {
       <p>Una app hecha a la medida para ti.</p>
       <p>Si no fuiste tu que se registro, por favor contacta con soporte.</p>
     `;
-    const { error } = await this.client.emails.send({
+    const { data, error } = await this.client.emails.send({
       from: this.resolveFromAddress(),
       to: [to],
       subject: 'Bienvenido a Gastos',
       html,
     });
     if (error) {
-      this.logger.warn(`Resend welcome: ${error.message}`);
+      this.logger.warn(
+        `[Correo bienvenida] Se fue en la olla (${destino}): ${error.message}`,
+      );
+      return;
     }
+    this.logger.log(
+      `[Correo bienvenida] Salió fino pa' ${destino} (id=${data?.id ?? 'sin-id'})`,
+    );
   }
 
   /**
    * Enlace mágico de un solo uso; si Resend falla el caller debe invalidar el token en BD.
    */
   async sendPasswordResetEmail(to: string, resetUrl: string): Promise<void> {
+    const destino = enmascararCorreo(to);
+    this.logger.log(`[Correo reset clave] Preparando pa' ${destino}`);
     if (!this.client) {
       throw new BadRequestException(
         'Resend no está configurado: define RESEND_API_KEY',
@@ -89,24 +102,31 @@ export class ResendEmailService {
       <p>Si no realizaste esta solicitud, ignora este mensaje.</p>
       <p style="color:#6b7280;font-size:12px;">El enlace caduca en una hora.</p>
     `;
-    const { error } = await this.client.emails.send({
+    const { data, error } = await this.client.emails.send({
       from: this.resolveFromAddress(),
       to: [to],
       subject: 'Restablecer contraseña — Gastos',
       html,
     });
     if (error) {
-      this.logger.warn(`Resend password reset: ${error.message}`);
+      this.logger.warn(
+        `[Correo reset clave] Falló (${destino}): ${error.message}`,
+      );
       throw new BadGatewayException(
         'No se pudo enviar el correo; intentá de nuevo más tarde',
       );
     }
+    this.logger.log(
+      `[Correo reset clave] Listo pa' ${destino} (id=${data?.id ?? 'sin-id'})`,
+    );
   }
 
   /**
    * Cuenta solo-Google: mismo enlace técnico que reset, copy orientado a crear acceso por correo/clave.
    */
   async sendPasswordCreationEmail(to: string, setupUrl: string): Promise<void> {
+    const destino = enmascararCorreo(to);
+    this.logger.log(`[Correo crear clave] Preparando pa' ${destino}`);
     if (!this.client) {
       throw new BadRequestException(
         'Resend no está configurado: define RESEND_API_KEY',
@@ -118,22 +138,29 @@ export class ResendEmailService {
       <p>Si no realizaste esta solicitud, ignora este mensaje.</p>
       <p style="color:#6b7280;font-size:12px;">El enlace caduca en una hora.</p>
     `;
-    const { error } = await this.client.emails.send({
+    const { data, error } = await this.client.emails.send({
       from: this.resolveFromAddress(),
       to: [to],
       subject: 'Crear contraseña — Gastos',
       html,
     });
     if (error) {
-      this.logger.warn(`Resend password creation: ${error.message}`);
+      this.logger.warn(
+        `[Correo crear clave] Falló (${destino}): ${error.message}`,
+      );
       throw new BadGatewayException(
         'No se pudo enviar el correo; intentá de nuevo más tarde',
       );
     }
+    this.logger.log(
+      `[Correo crear clave] Listo pa' ${destino} (id=${data?.id ?? 'sin-id'})`,
+    );
   }
 
   /** OTP de 6 dígitos para desbloquear cuenta tras intentos fallidos de login. */
   async sendAccountUnlockCodeEmail(to: string, code: string): Promise<void> {
+    const destino = enmascararCorreo(to);
+    this.logger.log(`[Correo desbloqueo] Mandando OTP a ${destino}`);
     if (!this.client) {
       throw new BadRequestException(
         'Resend no está configurado: define RESEND_API_KEY',
@@ -147,18 +174,23 @@ export class ResendEmailService {
       <p>Si no fuiste tú, cambiá tu contraseña en cuanto recuperes el acceso.</p>
       <p style="color:#6b7280;font-size:12px;">El código caduca en 15 minutos.</p>
     `;
-    const { error } = await this.client.emails.send({
+    const { data, error } = await this.client.emails.send({
       from: this.resolveFromAddress(),
       to: [to],
       subject: 'Código para desbloquear tu cuenta — Gastos',
       html,
     });
     if (error) {
-      this.logger.warn(`Resend account unlock: ${error.message}`);
+      this.logger.warn(
+        `[Correo desbloqueo] Falló (${destino}): ${error.message}`,
+      );
       throw new BadGatewayException(
         'No se pudo enviar el correo; intentá de nuevo más tarde',
       );
     }
+    this.logger.log(
+      `[Correo desbloqueo] OTP salió fino pa' ${destino} (id=${data?.id ?? 'sin-id'})`,
+    );
   }
 
   /**
@@ -174,12 +206,18 @@ export class ResendEmailService {
       profileName: string;
     }[];
   }): Promise<void> {
+    const destino = enmascararCorreo(input.to);
+    const n = input.items.length;
+    this.logger.log(
+      `[Correo gastos pagados] Armando resumen de ${n} gasto(s) pa' ${destino} (pagó: ${input.paidByDisplayName})`,
+    );
     if (!this.client) {
-      this.logger.debug('Omitido: RESEND_API_KEY vacío');
+      this.logger.warn(
+        `[Correo gastos pagados] Na' más: sin RESEND_API_KEY (${destino})`,
+      );
       return;
     }
     const origin = this.appOriginForLinks();
-    const n = input.items.length;
     const totalUsd = input.items.reduce((s, it) => s + it.amountUsd, 0);
     const subject =
       n === 1
@@ -217,15 +255,21 @@ export class ResendEmailService {
     <p style="margin-top:12px;"><strong>Total USD:</strong> $ ${totalUsd.toFixed(2)}</p>
     <p>Ver en la app: ${this.escapeHtml(origin)}</p>
     `;
-    const { error } = await this.client.emails.send({
+    const { data, error } = await this.client.emails.send({
       from: this.resolveFromAddress(),
       to: [input.to],
       subject,
       html,
     });
     if (error) {
-      this.logger.warn(`Resend paid summary: ${error.message}`);
+      this.logger.warn(
+        `[Correo gastos pagados] Se fue en la olla (${destino}): ${error.message}`,
+      );
+      return;
     }
+    this.logger.log(
+      `[Correo gastos pagados] Salió fino: ${n} ítem(s), total $${totalUsd.toFixed(2)} USD → ${destino} (id=${data?.id ?? 'sin-id'})`,
+    );
   }
 
   /**
