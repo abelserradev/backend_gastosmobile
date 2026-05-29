@@ -29,4 +29,25 @@ TOTAL: $ 12.50`;
     expect(dto.rawText).toContain('# Tesseract');
     expect(dto.rawText).not.toContain('GLM-OCR');
   });
+
+  it('usa monto glm-ocr cuando sólo el VLM tiene línea Monto operación (Pagomóvil)', () => {
+    const tessNoLabel = `Algo de ruido
+TOTAL 50.000
+Bs 999`;
+    const glm = `Monto operación (Bs.): 3.000,00`;
+    const dto = buildParseInvoiceHybrid(tessNoLabel, glm);
+    expect(dto.amount).toBeCloseTo(3000, 2);
+  });
+
+  it('si ambos tienen Monto operación, sigue primero Tesseract', () => {
+    const tess = `Monto operación (Bs.): 4.000,00`;
+    const glm = `Monto operación (Bs.): 9.999,00`;
+    expect(buildParseInvoiceHybrid(tess, glm).amount).toBeCloseTo(4000, 2);
+  });
+
+  it('usa VLM cuando sólo él trae Monto (Bs.) tipo Mercantil Tpago', () => {
+    const tess = 'Beneficiario 0424';
+    const glm = 'Monto (Bs.):\n2.580,00';
+    expect(buildParseInvoiceHybrid(tess, glm).amount).toBeCloseTo(2580, 2);
+  });
 });

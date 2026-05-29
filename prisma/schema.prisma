@@ -20,17 +20,35 @@ enum ProfileType {
 
 /// Registro vía /api/auth exige email + hash; filas antiguas pueden tener null hasta limpiar datos.
 model User {
-  id           String   @id @default(uuid())
-  email        String?  @unique
-  passwordHash String?
-  name         String   @default("")
-  createdAt    DateTime @default(now())
-  updatedAt    DateTime @updatedAt
+  id                   String    @id @default(uuid())
+  email                String?   @unique
+  passwordHash         String?
+  name                 String    @default("")
+  failedLoginAttempts  Int       @default(0)
+  lockedAt             DateTime?
+  createdAt            DateTime  @default(now())
+  updatedAt            DateTime  @updatedAt
 
   preferences          UserPreference?
   categories           Category[]
   profiles             Profile[]
   passwordResetTokens  PasswordResetToken[]
+  accountUnlockCodes   AccountUnlockCode[]
+  /** Muestras de corrección post-OCR (v1.3, FEAT-OCR-FB). */
+  ocrCorrectionSamples OcrCorrectionSample[]
+}
+
+/// Código OTP hasheado para desbloquear cuenta tras intentos fallidos de login.
+model AccountUnlockCode {
+  id        String   @id @default(uuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  codeHash  String   @unique
+  expiresAt DateTime
+  attempts  Int      @default(0)
+  createdAt DateTime @default(now())
+
+  @@index([userId])
 }
 
 /// Token de un solo uso para restablecer contraseña (hash en BD; el enlace lleva el secreto en claro).
@@ -61,6 +79,8 @@ model UserPreference {
   incomeRegisteredBcvRate     BcVOfficialRate? @relation("income_registered_rate", fields: [incomeRegisteredBcvRateId], references: [id], onDelete: SetNull)
   /// Primer día del mes (Caracas) para el cual el usuario confirmó ingreso y control mensual.
   incomeReferenceMonth DateTime? @db.Date
+  /// Extra en USD arrastrado del mes anterior (no altera el ingreso base habitual).
+  carryoverUsd         Decimal   @default(0) @db.Decimal(14, 2)
   updatedAt       DateTime     @updatedAt
 }
 
@@ -148,4 +168,30 @@ model Expense {
   @@index([profileId, referenceMonth])
   @@index([categoryId])
   @@index([paidByMemberId])
+  ocrCorrectionSamples OcrCorrectionSample[]
+}
+
+/// Predicción OCR vs valores confirmados por el usuario (mobile gastos v1.3+).
+model OcrCorrectionSample {
+  id     String @id @default(uuid())
+  userId String
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  expenseId String?
+  expense   Expense? @relation(fields: [expenseId], references: [id], onDelete: SetNull)
+
+  /// IMAGE_UPLOAD_FLOW | EDIT_EXPENSE
+  source String
+  /// quick_confirm | detail_form (opcional, solo estadística cuando source = IMAGE_UPLOAD_FLOW)
+  submissionVariant   String?
+  /// payment_screenshot | physical_receipt | fiscal_or_formal_invoice | unknown
+  documentKindGuess   String?
+
+  parseSnapshot Json
+  corrected     Json
+
+  createdAt DateTime @default(now())
+
+  @@index([userId, createdAt])
+  @@index([expenseId])
 }

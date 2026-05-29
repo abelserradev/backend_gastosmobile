@@ -12,7 +12,7 @@ import {
   startOfMonthYmdInCaracas,
 } from '../common/utils/caracas-date';
 import type { AuthUserPayload } from '../common/types/auth-user.payload';
-import type { Prisma } from '@prisma/client';
+import { type Prisma } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
 import { CreateExpenseDto } from './dto/create-expense.dto';
 import { CreateExpenseWithReceiptDto } from './dto/create-expense-with-receipt.dto';
@@ -22,17 +22,43 @@ import { MarkExpensesPaidDto } from './dto/mark-expenses-paid.dto';
 import { PatchExpenseDto } from './dto/patch-expense.dto';
 import { ReplaceCategoriesDto } from './dto/replace-categories.dto';
 import { UpdatePreferencesDto } from './dto/update-preferences.dto';
+import { MonthRolloverDto } from './dto/month-rollover.dto';
 import { CreateProfileMemberDto } from './dto/create-profile-member.dto';
+import {
+  SubmitOcrFeedbackDto,
+  type InvoiceOcrSnapshotDto,
+} from './dto/submit-ocr-feedback.dto';
 import {
   buildBsIncomeNarrativeLine,
   mapExpenseToResponse,
   type MePreferencesResponse,
   toReferenceMonthDate,
 } from './me.mappers';
+import { enmascararCorreo } from '../common/utils/mask-correo-for-log.util';
 import { ResendEmailService } from '../email/resend-email.service';
 
 type UserPreferenceWithRegRate = Prisma.UserPreferenceGetPayload<{
   include: { incomeRegisteredBcvRate: true };
+}>;
+
+/** Alineado con `OcrCorrectionSample`; evita cascadas `no-unsafe-*` cuando el proyecto TS del IDE no levanta el delegate Prisma fresco. */
+type OcrCorrectionSampleInsertData = Readonly<{
+  userId: string;
+  expenseId: string | null;
+  source: string;
+  submissionVariant: string | null;
+  documentKindGuess: string | null;
+  parseSnapshot: Prisma.InputJsonValue;
+  corrected: Prisma.InputJsonValue;
+}>;
+
+/** Firma reducida de `ocrCorrectionSample.create` para crear filas sin enlazar contra tipos codegen frágiles en el analyzer. */
+type OcrCorrectionSampleCreateOp = (
+  args: Readonly<{ data: OcrCorrectionSampleInsertData; select: { id: true } }>,
+) => Promise<{ id: string }>;
+
+type PrismaOcrCorrectionSubset = Readonly<{
+  ocrCorrectionSample: Readonly<{ create: OcrCorrectionSampleCreateOp }>;
 }>;
 
 @Injectable()
@@ -82,6 +108,10 @@ export class MeService {
       }),
     ]);
     const needsMonthlyIncomeSetup = !pref || this.incomeMonthNeedsRefresh(pref);
+    const monthRenewal =
+      pref && this.incomeMonthNeedsRefresh(pref)
+        ? await this.buildMonthRenewalContext(userId, pref)
+        : null;
     return {
       preferences: await this.mapPreferencesToResponse(pref),
       categories: categories.map((c) => ({ id: c.id, name: c.name })),
@@ -93,25 +123,79 @@ export class MeService {
       expenses: expenses.map((e) => mapExpenseToResponse(e)),
       activeReferenceMonth: activeYmd,
       needsMonthlyIncomeSetup,
+      monthRenewal,
     };
+  }
+
+  /** Cierra el mes anterior sin sobrante: avanza referencia y limpia arrastre. */
+  async rolloverMonth(user: AuthUserPayload, dto: MonthRolloverDto) {
+    const pref = await this.prisma.userPreference.findUnique({
+      where: { userId: user.userId },
+      include: { incomeRegisteredBcvRate: true },
+    });
+    if (!pref || !this.incomeMonthNeedsRefresh(pref)) {
+      throw new BadRequestException('No hay cambio de mes pendiente');
+    }
+    const renewal = await this.buildMonthRenewalContext(user.userId, pref);
+    if (renewal.requiresSurplusPrompt && dto.applySurplus === undefined) {
+      throw new BadRequestException(
+        'Indica si deseas sumar el saldo sobrante al mes entrante',
+      );
+    }
+    const carryoverUsd =
+      renewal.requiresSurplusPrompt && dto.applySurplus === true
+        ? renewal.surplusUsd
+        : 0;
+    await this.advanceIncomeReferenceMonth(user.userId, carryoverUsd);
+    const fresh = await this.prisma.userPreference.findUnique({
+      where: { userId: user.userId },
+      include: { incomeRegisteredBcvRate: true },
+    });
+    const mapped = await this.mapPreferencesToResponse(fresh);
+    if (!mapped) {
+      throw new BadRequestException('No se pudieron leer las preferencias');
+    }
+    return mapped;
   }
 
   async updatePreferences(user: AuthUserPayload, dto: UpdatePreferencesDto) {
     const uid = user.userId;
+    const prefBefore = await this.prisma.userPreference.findUnique({
+      where: { userId: uid },
+      include: { incomeRegisteredBcvRate: true },
+    });
+    const monthStale = this.incomeMonthNeedsRefresh(prefBefore);
+    const renewal =
+      prefBefore && monthStale
+        ? await this.buildMonthRenewalContext(uid, prefBefore)
+        : null;
+    if (renewal?.requiresSurplusPrompt && dto.applySurplus === undefined) {
+      throw new BadRequestException(
+        'Indica si deseas sumar el saldo sobrante al mes entrante',
+      );
+    }
     const incomeRef = toReferenceMonthDate(startOfMonthYmdInCaracas());
+    let carryoverUsd: number;
+    if (renewal?.requiresSurplusPrompt && dto.applySurplus === true) {
+      carryoverUsd = renewal.surplusUsd;
+    } else if (monthStale) {
+      carryoverUsd = 0;
+    } else {
+      carryoverUsd = Number(prefBefore?.carryoverUsd?.toString() ?? 0);
+    }
 
     if (dto.defaultCurrency === 'USD') {
       if (dto.monthlyIncome == null) {
         throw new BadRequestException('Indica el ingreso en USD');
       }
-      await this.saveUserPreference(uid, incomeRef, {
+      await this.saveUserPreference(uid, incomeRef, carryoverUsd, {
         defaultCurrency: 'USD',
         monthlyIncome: dto.monthlyIncome,
         incomeFixedBs: null,
         incomeRegisteredBcvRateId: null,
       });
     } else {
-      await this.updateBsPreferences(uid, incomeRef, dto);
+      await this.updateBsPreferences(uid, incomeRef, carryoverUsd, dto);
     }
 
     const fresh = await this.prisma.userPreference.findUnique({
@@ -129,6 +213,7 @@ export class MeService {
   private async updateBsPreferences(
     uid: string,
     incomeRef: Date,
+    carryoverUsd: number,
     dto: UpdatePreferencesDto,
   ) {
     const tieneBsNominal =
@@ -146,7 +231,7 @@ export class MeService {
         );
       }
       const usdCaptura = dto.monthlyIncomeBs! / Number(vesPerUsd.toString());
-      await this.saveUserPreference(uid, incomeRef, {
+      await this.saveUserPreference(uid, incomeRef, carryoverUsd, {
         defaultCurrency: 'BS',
         monthlyIncome: usdCaptura,
         incomeFixedBs: dto.monthlyIncomeBs!,
@@ -157,7 +242,7 @@ export class MeService {
 
     if (dto.monthlyIncome != null) {
       // Cliente antiguo: solo guardaba USD equivalente; sin monto fijo en Bs.
-      await this.saveUserPreference(uid, incomeRef, {
+      await this.saveUserPreference(uid, incomeRef, carryoverUsd, {
         defaultCurrency: 'BS',
         monthlyIncome: dto.monthlyIncome,
         incomeFixedBs: null,
@@ -175,6 +260,7 @@ export class MeService {
   private async saveUserPreference(
     uid: string,
     incomeRef: Date,
+    carryoverUsd: number,
     data: {
       defaultCurrency: 'USD' | 'BS';
       monthlyIncome: number;
@@ -184,9 +270,91 @@ export class MeService {
   ) {
     await this.prisma.userPreference.upsert({
       where: { userId: uid },
-      create: { userId: uid, incomeReferenceMonth: incomeRef, ...data },
-      update: { incomeReferenceMonth: incomeRef, ...data },
+      create: {
+        userId: uid,
+        incomeReferenceMonth: incomeRef,
+        carryoverUsd,
+        ...data,
+      },
+      update: {
+        incomeReferenceMonth: incomeRef,
+        carryoverUsd,
+        ...data,
+      },
     });
+  }
+
+  private async advanceIncomeReferenceMonth(
+    userId: string,
+    carryoverUsd: number,
+  ): Promise<void> {
+    const incomeRef = toReferenceMonthDate(startOfMonthYmdInCaracas());
+    await this.prisma.userPreference.update({
+      where: { userId },
+      data: { incomeReferenceMonth: incomeRef, carryoverUsd },
+    });
+  }
+
+  private async buildMonthRenewalContext(
+    userId: string,
+    pref: UserPreferenceWithRegRate,
+  ): Promise<{
+    closingMonthYmd: string;
+    surplusUsd: number;
+    requiresSurplusPrompt: boolean;
+  }> {
+    const closingMonthYmd = pref
+      .incomeReferenceMonth!.toISOString()
+      .slice(0, 10);
+    const closingMonthDate = toReferenceMonthDate(closingMonthYmd);
+    const surplusUsd = await this.computeClosingMonthSurplusUsd(
+      userId,
+      pref,
+      closingMonthDate,
+    );
+    return {
+      closingMonthYmd,
+      surplusUsd,
+      requiresSurplusPrompt: surplusUsd > 0,
+    };
+  }
+
+  private async computeClosingMonthSurplusUsd(
+    userId: string,
+    pref: UserPreferenceWithRegRate,
+    closingMonthDate: Date,
+  ): Promise<number> {
+    const mapped = await this.mapPreferencesToResponse(pref);
+    if (!mapped) {
+      return 0;
+    }
+    const effectiveIncome = mapped.effectiveMonthlyIncomeUsd;
+    const agg = await this.prisma.expense.aggregate({
+      where: {
+        profile: { userId },
+        referenceMonth: closingMonthDate,
+        isPaid: true,
+      },
+      _sum: { amount: true },
+    });
+    const paidUsd = Number(agg._sum.amount?.toString() ?? 0);
+    const surplus = effectiveIncome - paidUsd;
+    if (surplus <= 0) {
+      return 0;
+    }
+    return Math.round(surplus * 100) / 100;
+  }
+
+  private withEffectiveIncome(
+    base: MePreferencesResponse,
+    carryoverUsd: number,
+  ): MePreferencesResponse {
+    return {
+      ...base,
+      carryoverUsd,
+      effectiveMonthlyIncomeUsd:
+        Math.round((base.monthlyIncome + carryoverUsd) * 100) / 100,
+    };
   }
 
   async replaceCategories(user: AuthUserPayload, dto: ReplaceCategoriesDto) {
@@ -481,7 +649,7 @@ export class MeService {
       throw new BadRequestException('Indica quién pagó');
     }
     const paidByDisplayName = await this.resolvePaidByDisplayName(
-      row.profileId,
+      user.userId,
       paidByMemberId,
       fallback ?? '',
     );
@@ -497,12 +665,15 @@ export class MeService {
       include: { category: true, profile: true },
     });
     // La app usa POST /me/expenses/mark-paid; este path cubre marcado vía PATCH directo.
+    this.logger.log(
+      `[Pago gastos] Un gasto marcado pagado (PATCH), avisando por correo a ${enmascararCorreo(user.email)}`,
+    );
     this.firePaidEmailSilently(user.email, paidByDisplayName, [
       {
         expenseTitle: updated.title,
         categoryName: updated.category.name,
         amountUsd: Number(updated.amount),
-        profileName: updated.profile.name,
+        profileName: paidByDisplayName, // consistente con el flujo bulk
       },
     ]);
     return mapExpenseToResponse(updated);
@@ -510,6 +681,9 @@ export class MeService {
 
   async markExpensesPaid(user: AuthUserPayload, dto: MarkExpensesPaidDto) {
     const uniqueIds = [...new Set(dto.ids)];
+    this.logger.log(
+      `[Pago gastos] Pedido bulk: ${uniqueIds.length} gasto(s), user=${user.userId}`,
+    );
     const rows = await this.prisma.expense.findMany({
       where: { id: { in: uniqueIds }, profile: { userId: user.userId } },
       include: { category: true, profile: true },
@@ -528,14 +702,10 @@ export class MeService {
     const paidByMemberId = dto.paidByMemberId?.trim();
     let paidByDisplayName = dto.paidByDisplayName.trim();
     if (paidByMemberId) {
-      const firstProfileId = rows[0].profileId;
-      if (!rows.every((r) => r.profileId === firstProfileId)) {
-        throw new BadRequestException(
-          'Si indicás integrante, todos los gastos deben ser del mismo perfil',
-        );
-      }
+      // El integrante pertenece al perfil del PAGADOR, no al perfil del gasto.
+      // Validamos contra userId para cubrir gastos de distintos perfiles en un solo bulk.
       paidByDisplayName = await this.resolvePaidByDisplayName(
-        firstProfileId,
+        user.userId,
         paidByMemberId,
         paidByDisplayName,
       );
@@ -560,6 +730,9 @@ export class MeService {
       (a, b) => (orderMap.get(a.id) ?? 0) - (orderMap.get(b.id) ?? 0),
     );
 
+    this.logger.log(
+      `[Pago gastos] BD actualizada; mandando resumen por correo a ${enmascararCorreo(user.email)} (${uniqueIds.length} ítem(s))`,
+    );
     this.firePaidEmailSilently(
       user.email,
       paidByDisplayName,
@@ -567,7 +740,9 @@ export class MeService {
         expenseTitle: e.title,
         categoryName: e.category.name,
         amountUsd: Number(e.amount),
-        profileName: e.profile.name,
+        // El perfil del correo debe ser quien pagó, no el perfil propietario
+        // del gasto (e.profile.name), que puede ser un grupo distinto y confunde.
+        profileName: paidByDisplayName,
       })),
     );
     return updated.map((e) => mapExpenseToResponse(e));
@@ -599,6 +774,7 @@ export class MeService {
       return null;
     }
     const monthlyStored = Number(pref.monthlyIncome.toString());
+    const carryoverUsd = Number(pref.carryoverUsd?.toString() ?? 0);
     const base: MePreferencesResponse = {
       defaultCurrency: pref.defaultCurrency,
       monthlyIncome: monthlyStored,
@@ -614,29 +790,37 @@ export class MeService {
       usdEquivalentDelta: null,
       bsIncomeNarrative: null,
       bcvQuoteIsStale: false,
+      carryoverUsd,
+      effectiveMonthlyIncomeUsd: monthlyStored + carryoverUsd,
     };
     if (pref.defaultCurrency !== 'BS') {
-      return base;
+      return this.withEffectiveIncome(base, carryoverUsd);
     }
     const nominalBs =
       pref.incomeFixedBs == null ? null : Number(pref.incomeFixedBs.toString());
     if (nominalBs == null) {
-      return {
-        ...base,
-        defaultCurrency: 'BS',
-        monthlyIncome: monthlyStored,
-      };
+      return this.withEffectiveIncome(
+        {
+          ...base,
+          defaultCurrency: 'BS',
+          monthlyIncome: monthlyStored,
+        },
+        carryoverUsd,
+      );
     }
     const reg = pref.incomeRegisteredBcvRate;
     const vesReg = reg ? Number(reg.vesPerUsd.toString()) : null;
     const dateReg = reg ? reg.rateDate.toISOString().slice(0, 10) : null;
     if (vesReg == null || vesReg <= 0 || dateReg == null) {
-      return {
-        ...base,
-        defaultCurrency: 'BS',
-        monthlyIncome: monthlyStored,
-        incomeFixedBs: nominalBs,
-      };
+      return this.withEffectiveIncome(
+        {
+          ...base,
+          defaultCurrency: 'BS',
+          monthlyIncome: monthlyStored,
+          incomeFixedBs: nominalBs,
+        },
+        carryoverUsd,
+      );
     }
     const usdAlRegistrar = nominalBs / vesReg;
     let latest: {
@@ -647,44 +831,50 @@ export class MeService {
     try {
       latest = await this.bcv.getLatestVesPerUsdPreferToday();
     } catch {
-      return {
-        ...base,
-        defaultCurrency: 'BS',
-        monthlyIncome: monthlyStored,
-        incomeFixedBs: nominalBs,
-        monthlyIncomeUsdAtRegistration: usdAlRegistrar,
-        bcvVesPerUsdAtRegistration: vesReg,
-        bcvRateDateAtRegistration: dateReg,
-        bcvQuoteIsStale: true,
-      };
+      return this.withEffectiveIncome(
+        {
+          ...base,
+          defaultCurrency: 'BS',
+          monthlyIncome: monthlyStored,
+          incomeFixedBs: nominalBs,
+          monthlyIncomeUsdAtRegistration: usdAlRegistrar,
+          bcvVesPerUsdAtRegistration: vesReg,
+          bcvRateDateAtRegistration: dateReg,
+          bcvQuoteIsStale: true,
+        },
+        carryoverUsd,
+      );
     }
     const vesAhora = Number(latest.vesPerUsd.toString());
     const dateNow = latest.rateDate.toISOString().slice(0, 10);
     const usdAhora = nominalBs / vesAhora;
     const delta = usdAhora - usdAlRegistrar;
-    return {
-      ...base,
-      defaultCurrency: 'BS',
-      monthlyIncome: usdAhora,
-      incomeFixedBs: nominalBs,
-      monthlyIncomeUsdAtRegistration: usdAlRegistrar,
-      bcvVesPerUsdNow: vesAhora,
-      bcvRateDateNow: dateNow,
-      bcvVesPerUsdAtRegistration: vesReg,
-      bcvRateDateAtRegistration: dateReg,
-      usdEquivalentDelta: delta,
-      bsIncomeNarrative: buildBsIncomeNarrativeLine({
-        nominalBs,
-        usdNow: usdAhora,
-        usdAtReg: usdAlRegistrar,
-        vesNow: vesAhora,
-        vesReg,
-        dateRegYmd: dateReg,
-        dateNowYmd: dateNow,
-        stale: latest.usedFallback,
-      }),
-      bcvQuoteIsStale: latest.usedFallback,
-    };
+    return this.withEffectiveIncome(
+      {
+        ...base,
+        defaultCurrency: 'BS',
+        monthlyIncome: usdAhora,
+        incomeFixedBs: nominalBs,
+        monthlyIncomeUsdAtRegistration: usdAlRegistrar,
+        bcvVesPerUsdNow: vesAhora,
+        bcvRateDateNow: dateNow,
+        bcvVesPerUsdAtRegistration: vesReg,
+        bcvRateDateAtRegistration: dateReg,
+        usdEquivalentDelta: delta,
+        bsIncomeNarrative: buildBsIncomeNarrativeLine({
+          nominalBs,
+          usdNow: usdAhora,
+          usdAtReg: usdAlRegistrar,
+          vesNow: vesAhora,
+          vesReg,
+          dateRegYmd: dateReg,
+          dateNowYmd: dateNow,
+          stale: latest.usedFallback,
+        }),
+        bcvQuoteIsStale: latest.usedFallback,
+      },
+      carryoverUsd,
+    );
   }
 
   /** Lookup unificado de categoría por id o nombre; evita duplicar la misma query en dos métodos. */
@@ -709,20 +899,23 @@ export class MeService {
     return cat.id;
   }
 
-  /** Resuelve el nombre de quien pagó; si hay memberId lo valida contra el perfil. */
+  /**
+   * Resuelve el nombre de quien pagó.
+   * Si hay memberId lo busca en cualquier perfil del usuario (no del gasto)
+   * y devuelve "Nombre (Perfil)" para que el correo sea explícito.
+   */
   private async resolvePaidByDisplayName(
-    profileId: string,
+    userId: string,
     memberId: string | undefined,
     fallbackName: string,
   ): Promise<string> {
     if (!memberId) return fallbackName;
     const member = await this.prisma.profileMember.findFirst({
-      where: { id: memberId, profileId },
-      select: { displayName: true },
+      where: { id: memberId, profile: { userId } },
+      include: { profile: { select: { name: true } } },
     });
-    if (!member)
-      throw new BadRequestException('Integrante inválido para este perfil');
-    return member.displayName;
+    if (!member) throw new BadRequestException('Integrante inválido');
+    return `${member.displayName} (${member.profile.name})`;
   }
 
   /** Fire-and-forget: el correo de resumen nunca debe romper el flujo principal. */
@@ -736,11 +929,101 @@ export class MeService {
       profileName: string;
     }>,
   ): void {
+    const destino = enmascararCorreo(to);
+    this.logger.log(
+      `[Pago gastos] Encolando correo de resumen (${items.length} gasto(s)) → ${destino}`,
+    );
     this.resendEmail
       .sendExpensesPaidSummaryEmail({ to, paidByDisplayName, items })
       .catch((err: unknown) => {
-        this.logger.warn(`Error sending paid email: ${String(err)}`);
+        this.logger.warn(
+          `[Pago gastos] El correo de pagos se fue en la olla (${destino}): ${String(err)}`,
+        );
       });
+  }
+
+  private snapshotDtoToJson(
+    snapshot: InvoiceOcrSnapshotDto,
+  ): Prisma.InputJsonValue {
+    const rt = snapshot.rawText ?? '';
+    const maxChars = 8192;
+    const clipped = rt.length <= maxChars ? rt : rt.slice(0, maxChars);
+    const j: Prisma.JsonObject = {
+      rawText: clipped,
+      confidence: snapshot.confidence,
+      currency: snapshot.currency,
+    };
+    if (snapshot.amount !== undefined) j.amount = snapshot.amount;
+    if (snapshot.date !== undefined) j.date = snapshot.date;
+    if (snapshot.merchant !== undefined) j.merchant = snapshot.merchant;
+    if (snapshot.description !== undefined) {
+      j.description = snapshot.description;
+    }
+    return j;
+  }
+
+  private correctedDtoToJson(
+    corrected: SubmitOcrFeedbackDto['corrected'],
+  ): Prisma.InputJsonValue {
+    const j: Prisma.JsonObject = {
+      title: corrected.title,
+      amountUsd: corrected.amountUsd,
+    };
+    if (corrected.description !== undefined) {
+      j.description = corrected.description;
+    }
+    if (corrected.paymentDate !== undefined) {
+      j.paymentDate = corrected.paymentDate;
+    }
+    if (corrected.currencyCapture !== undefined) {
+      j.currencyCapture = corrected.currencyCapture;
+    }
+    if (corrected.categoryName !== undefined) {
+      j.categoryName = corrected.categoryName;
+    }
+    if (corrected.bankLabel !== undefined) {
+      j.bankLabel = corrected.bankLabel;
+    }
+    return j;
+  }
+
+  /**
+   * Almacena predicción vs corrección humana sin bloquear el flujo gasto/OCR (v1.3 FEAT-OCR-FB).
+   */
+  async submitOcrFeedback(
+    user: AuthUserPayload,
+    dto: SubmitOcrFeedbackDto,
+  ): Promise<{ id: string }> {
+    if (dto.expenseId) {
+      const ok = await this.prisma.expense.findFirst({
+        where: {
+          id: dto.expenseId,
+          profile: { userId: user.userId },
+        },
+        select: { id: true },
+      });
+      if (!ok) {
+        throw new BadRequestException(
+          'Gasto inválido o no pertenece a tu cuenta',
+        );
+      }
+    }
+    const insertPayload: OcrCorrectionSampleInsertData = {
+      userId: user.userId,
+      expenseId: dto.expenseId ?? null,
+      source: dto.source,
+      submissionVariant: dto.submissionVariant ?? null,
+      documentKindGuess: dto.documentKindGuess ?? null,
+      parseSnapshot: this.snapshotDtoToJson(dto.parseSnapshot),
+      corrected: this.correctedDtoToJson(dto.corrected),
+    };
+    // El runtime es PrismaService; el analyzer a veces no enlaza codegen → subset explícito
+    const prismaOcrSubset = this.prisma as unknown as PrismaOcrCorrectionSubset;
+    const row = await prismaOcrSubset.ocrCorrectionSample.create({
+      data: insertPayload,
+      select: { id: true },
+    });
+    return { id: row.id };
   }
 
   private async resolveProfileId(

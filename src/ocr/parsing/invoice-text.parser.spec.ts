@@ -4,6 +4,7 @@ import {
   extractMerchantFromText,
   extractProductItemsFromText,
   parseInvoiceTextBlob,
+  transcriptHasBankOperationAmountLine,
 } from './invoice-text.parser';
 import { parseLocalizedMoneyToken, parseMoneyFragment } from './invoice-money.util';
 
@@ -238,13 +239,78 @@ TOTAL    Bs 1.438,34
     });
   });
 
+  describe('comprobantes de pago (monto operación BDV/Pagomóvil)', () => {
+    /** Bloque cercano al layout real: el monto canónico no es líneas de instrumentos ni el encabezado. */
+    const pagomovilBdvSnippet = `Abel Jose Serra Zambrano 12/03/2026 4:55:11PM
+Resultado de PagomóvilBDV
+Tu PagomóvilBDV ha sido realizado con éxito.
+El número de operación es 0001319236655
+Fecha operación:   10-03-2026 - 12:38:15 p.m.
+Instrumento destino:   0412***4283
+Monto operación (Bs.):   3.000,00
+Banco de Venezuela, S.A.`;
+
+    it('parseInvoiceTextBlob toma Monto operación (Bs.) con formato 3.000,00', () => {
+      expect(parseInvoiceTextBlob(pagomovilBdvSnippet).amount).toBeCloseTo(
+        3000,
+        2,
+      );
+    });
+
+    it('extractAmountFromText prioriza la etiqueta monto operación', () => {
+      const parsed = extractAmountFromText(pagomovilBdvSnippet);
+      expect(parsed.amount).toBeCloseTo(3000, 2);
+      expect(parsed.currency).toBe('BS');
+    });
+
+    it('admite OCR sin tilde (operacion)', () => {
+      expect(parseInvoiceTextBlob('Monto operacion (Bs.) 125,50').amount).toBe(
+        125.5,
+      );
+    });
+
+    it('resuelve moneda cuando la etiqueta indica USD', () => {
+      const blob = 'Monto de la operación (USD):   99,09';
+      const parsed = extractAmountFromText(blob);
+      expect(parsed.amount).toBeCloseTo(99.09, 2);
+      expect(parsed.currency).toBe('USD');
+    });
+  });
+
+  describe('Mercantil Tpago y Monto (Bs.)', () => {
+    const mercantilTpagoSnippet = `¡Listo! Tu Tpago fue exitoso
+Monto (Bs.):
+2.580,00
+Nro. de referencia:
+1419809
+Fecha y hora del envío:
+06/03/2026 a las 1:20:47 PM`;
+
+    it('parseInvoiceTextBlob toma línea Mercantil Monto (Bs.)', () => {
+      const pf = parseInvoiceTextBlob(mercantilTpagoSnippet);
+      expect(pf.amount).toBeCloseTo(2580, 2);
+    });
+
+    it('transcriptHasBankOperationAmountLine detecta Monto (Bs.) sin "operación"', () => {
+      expect(transcriptHasBankOperationAmountLine(mercantilTpagoSnippet)).toBe(
+        true,
+      );
+    });
+
+    it('extractAmountFromText prioriza etiqueta sobre ruidos con otros números', () => {
+      const messy = `1419809
+${mercantilTpagoSnippet}`;
+      expect(extractAmountFromText(messy).amount).toBeCloseTo(2580, 2);
+    });
+  });
+
   describe('montos venezolanos (punto=miles, coma=decimal)', () => {
     it('parsea 24.792 como veinticuatro mil (miles)', () => {
       expect(parseLocalizedMoneyToken('24.792')).toBe(24792);
     });
 
-    it('parsea 60.552,00 como 60552.00 (como decimal)', () => {
-      expect(parseLocalizedMoneyToken('60.552,00')).toBeCloseTo(60552.0, 2);
+    it('parsea 60.552,00 como 60552 (como decimal VE)', () => {
+      expect(parseLocalizedMoneyToken('60.552,00')).toBeCloseTo(60552, 2);
     });
 
     it('parsea 1.234.567 como un millón+ (miles)', () => {
@@ -258,8 +324,8 @@ TOTAL    Bs 1.438,34
     });
 
     it('parseMoneyFragment detecta 24,79 como decimal', () => {
-      const { amount, currency } = parseMoneyFragment('24,79');
-      expect(amount).toBeCloseTo(24.79, 2);
+      const parsed = parseMoneyFragment('24,79');
+      expect(parsed.amount).toBeCloseTo(24.79, 2);
     });
   });
 });

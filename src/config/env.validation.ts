@@ -64,4 +64,6 @@ export const envValidationSchema = Joi.object({
     .optional(),
   OLLAMA_OCR_WARMUP_TIMEOUT_MS: Joi.number().integer().min(60_000).optional(),
   OLLAMA_KEEP_ALIVE: Joi.string().allow('').optional(),
+  /** Redis opcional: caché caliente BCV y otros datos efímeros. Sin URL → memoria del proceso. */
+  REDIS_URL: Joi.string().uri().allow('').optional(),
 });

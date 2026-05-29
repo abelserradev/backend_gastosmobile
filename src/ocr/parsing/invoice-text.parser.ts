@@ -386,6 +386,20 @@ const STRUCTURED_FIELD_RULES: Array<{ rx: RegExp; key: string }> = [
     rx: /^TOTAL(?:\s+A\s+PAGAR|\s+PAGADO)?\s*[:.]?\s*(.+)$/gim,
     key: 'total',
   },
+  /** Comprobantes bancarios (Pagomóvil, etc.): el monto canónico va en esta etiqueta con (Bs.) o (USD). */
+  {
+    rx: /^monto\s+(?:de\s+la\s+)?(?:operaci[oó]n|operacion)(?:\s*\([^)]{0,48}\))?\s*[:.]?\s*(.+)$/gim,
+    key: 'monto_operacion',
+  },
+  /** Banco Mercantil Tpago y similares: "Monto (Bs.):" / "Monto (USD):" línea bajo etiqueta azul en app. */
+  {
+    rx: /^monto\s*\(\s*bs\.?\s*\)\s*[:.]?\s*(.+)$/gim,
+    key: 'monto_paren_bs',
+  },
+  {
+    rx: /^monto\s*\(\s*usd\.?\s*\)\s*[:.]?\s*(.+)$/gim,
+    key: 'monto_paren_usd',
+  },
   { rx: /^DATE\s*[:.]?\s*(.+)$/gim, key: 'date' },
   { rx: /^MERCHANT\s*[:.]?\s*(.+)$/gim, key: 'merchant' },
   { rx: /^(?:FECHA)\s*[:.]?\s*(.+)$/gim, key: 'date_es' },
@@ -486,6 +500,9 @@ function applyStructuredRuleHit(
       mergeDateFromStructured(chunk, state);
       return;
     case 'total':
+    case 'monto_operacion':
+    case 'monto_paren_bs':
+    case 'monto_paren_usd':
       mergeTotalFromStructured(chunk, state);
       return;
     case 'items_en':
@@ -551,6 +568,9 @@ export function isDegenerateTranscript(text: string): boolean {
 
 /** Varias rutas cortas evitan una sola regex con alteración muy costosa para Sonar. */
 const LABELED_TOTAL_PATTERNS: RegExp[] = [
+  /\bmonto\s+(?:de\s+la\s+)?(?:operaci[oó]n|operacion)(?:\s*\([^)]{0,48}\))?\s*[:.]?\s*([^\n\r]{1,120})/gi,
+  /\bmonto\s*\(\s*bs\.?\s*\)\s*[:.]?\s*([^\n\r]{1,120})/gi,
+  /\bmonto\s*\(\s*usd\.?\s*\)\s*[:.]?\s*([^\n\r]{1,120})/gi,
   /\btotal\s+a\s+pagar\s*[:.]?\s*([^\n\r]{1,120})/gi,
   /\btotal\s+pagado\s*[:.]?\s*([^\n\r]{1,120})/gi,
   /\btotal\s+factura\s*[:.]?\s*([^\n\r]{1,120})/gi,
@@ -613,6 +633,25 @@ export function extractAmountFromText(text: string): {
   }
   const merged = (strayCur || currencySeen || fallbackCur).trim();
   return { amount: strayAmt, currency: merged || 'USD' };
+}
+
+/**
+ * Comprobantes banc VE (captura pantalla): etiquetas donde suele estar el monto canónico
+ * ("Monto operación", Pagomóvil BDV / Mercantil Tpago "Monto (Bs.)", etc.).
+ * El merge híbrido puede preferir VLM si Tess carece de estas marcas pero el modelo sí las ve.
+ */
+export function transcriptHasBankOperationAmountLine(text = ''): boolean {
+  if (
+    /\bmonto\s+(?:de\s+la\s+)?(?:operaci[oó]n|operacion)(?:\s*\([^)]{0,48}\))?/i.test(
+      text,
+    )
+  ) {
+    return true;
+  }
+  if (/\bmonto\s*\(\s*(?:bs\.?|usd\.?)\s*\)/i.test(text)) {
+    return true;
+  }
+  return false;
 }
 
 function descriptionFromKeyedLabelLines(blob: string): string | undefined {

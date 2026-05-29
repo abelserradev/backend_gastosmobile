@@ -4,6 +4,8 @@ import {
   Controller,
   Delete,
   Get,
+  HttpCode,
+  HttpStatus,
   Param,
   ParseUUIDPipe,
   Patch,
@@ -25,7 +27,9 @@ import { DeleteExpensesDto } from './dto/delete-expenses.dto';
 import { MarkExpensesPaidDto } from './dto/mark-expenses-paid.dto';
 import { PatchExpenseDto } from './dto/patch-expense.dto';
 import { ReplaceCategoriesDto } from './dto/replace-categories.dto';
+import { SubmitOcrFeedbackDto } from './dto/submit-ocr-feedback.dto';
 import { UpdatePreferencesDto } from './dto/update-preferences.dto';
+import { MonthRolloverDto } from './dto/month-rollover.dto';
 import { MeService } from './me.service';
 
 @Controller('me')
@@ -43,6 +47,14 @@ export class MeController {
     @Body() dto: UpdatePreferencesDto,
   ) {
     return this.me.updatePreferences(user, dto);
+  }
+
+  @Post('month-rollover')
+  rolloverMonth(
+    @CurrentUser() user: AuthUserPayload,
+    @Body() dto: MonthRolloverDto,
+  ) {
+    return this.me.rolloverMonth(user, dto);
   }
 
   @Put('categories')
@@ -64,6 +76,15 @@ export class MeController {
     @Param('ym') ym: string,
   ) {
     return this.me.listExpenseHistoryForMonth(user, ym);
+  }
+
+  @Post('ocr-feedback')
+  @HttpCode(HttpStatus.CREATED)
+  submitOcrFeedback(
+    @CurrentUser() user: AuthUserPayload,
+    @Body() dto: SubmitOcrFeedbackDto,
+  ): Promise<{ id: string }> {
+    return this.me.submitOcrFeedback(user, dto);
   }
 
   @Get('profiles')
@@ -129,7 +150,7 @@ export class MeController {
   @Post('expenses/with-receipt')
   @UseInterceptors(
     FileInterceptor('file', {
-      limits: { fileSize: 1.2 * 1024 * 1024 }, // 1.2MB — el front valida ≤1MB
+      limits: { fileSize: 5 * 1024 * 1024 }, // 5MB — el front valida ≤5MB
       fileFilter: (_req, file, cb) => {
         const allowed = ['image/jpeg', 'image/png', 'image/webp'];
         if (allowed.includes(file.mimetype)) return cb(null, true);

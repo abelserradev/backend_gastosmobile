@@ -1,5 +1,6 @@
 # Producción: multi-stage. bcrypt compila en Alpine (musl) con toolchain en builder.
-FROM node:22.12.0-alpine AS builder
+# pnpm 11.3+ exige Node >=22.13 (ver packageManager en package.json).
+FROM node:22.14.0-alpine AS builder
 
 WORKDIR /app
 
@@ -8,17 +9,19 @@ RUN apk add --no-cache python3 make g++
 ARG DATABASE_URL=postgresql://ci:ci@127.0.0.1:5432/ci
 ENV DATABASE_URL=${DATABASE_URL}
 
-COPY package.json package-lock.json ./
+RUN corepack enable
+
+COPY package.json pnpm-lock.yaml pnpm-workspace.yaml ./
 COPY prisma ./prisma/
 COPY prisma.config.ts ./prisma.config.ts
-# Coolify suele pasar NODE_ENV=production al build; sin --include=dev no hay Nest/TS para compilar.
-RUN npm ci --include=dev
+# Coolify suele pasar NODE_ENV=production al build; sin devDeps no hay Nest/TS para compilar.
+RUN pnpm install --frozen-lockfile
 
 COPY . .
-RUN npm run build
-RUN npm prune --omit=dev
+RUN pnpm run build
+RUN pnpm prune --prod
 
-FROM node:22.12.0-alpine AS runner
+FROM node:22.14.0-alpine AS runner
 
 WORKDIR /app
 
@@ -35,4 +38,5 @@ USER node
 EXPOSE 3088
 
 # prisma está en dependencies; migrate deploy antes de arrancar Nest.
+# En runtime no hay pnpm (solo en builder); npx usa el binario de node_modules.
 CMD ["sh", "-c", "npx prisma migrate deploy && node dist/main.js"]

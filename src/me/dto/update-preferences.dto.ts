@@ -1,5 +1,5 @@
 import { Type } from 'class-transformer';
-import { IsIn, IsNumber, IsOptional, Min } from 'class-validator';
+import { IsBoolean, IsIn, IsNumber, IsOptional, Min } from 'class-validator';
 
 /**
  * Reglas efectivas (servicio):
@@ -21,4 +21,10 @@ export class UpdatePreferencesDto {
   @IsNumber()
   @Min(0)
   monthlyIncomeBs?: number;
+
+  /** Renovación mensual con sobrante: true suma el saldo al mes entrante. */
+  @IsOptional()
+  @Type(() => Boolean)
+  @IsBoolean()
+  applySurplus?: boolean;
 }
