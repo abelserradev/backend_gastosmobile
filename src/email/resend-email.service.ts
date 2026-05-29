@@ -197,6 +197,12 @@ export class ResendEmailService {
     if (error) {
       this.logger.warn(`Resend paid summary: ${error.message}`);
     }
+<<<<<<< Updated upstream
+=======
+    this.logger.log(
+      `[Correo gastos pagados] Salió fino: ${n} ítem(s), total $${totalUsd.toFixed(2)} USD → ${destino}`,
+    );
+>>>>>>> Stashed changes
   }
 
   /**
