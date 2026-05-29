@@ -34,6 +34,7 @@ import {
   type MePreferencesResponse,
   toReferenceMonthDate,
 } from './me.mappers';
+import { enmascararCorreo } from '../common/utils/mask-correo-for-log.util';
 import { ResendEmailService } from '../email/resend-email.service';
 
 type UserPreferenceWithRegRate = Prisma.UserPreferenceGetPayload<{
@@ -664,6 +665,9 @@ export class MeService {
       include: { category: true, profile: true },
     });
     // La app usa POST /me/expenses/mark-paid; este path cubre marcado vía PATCH directo.
+    this.logger.log(
+      `[Pago gastos] Un gasto marcado pagado (PATCH), avisando por correo a ${enmascararCorreo(user.email)}`,
+    );
     this.firePaidEmailSilently(user.email, paidByDisplayName, [
       {
         expenseTitle: updated.title,
@@ -677,6 +681,9 @@ export class MeService {
 
   async markExpensesPaid(user: AuthUserPayload, dto: MarkExpensesPaidDto) {
     const uniqueIds = [...new Set(dto.ids)];
+    this.logger.log(
+      `[Pago gastos] Pedido bulk: ${uniqueIds.length} gasto(s), user=${user.userId}`,
+    );
     const rows = await this.prisma.expense.findMany({
       where: { id: { in: uniqueIds }, profile: { userId: user.userId } },
       include: { category: true, profile: true },
@@ -723,6 +730,9 @@ export class MeService {
       (a, b) => (orderMap.get(a.id) ?? 0) - (orderMap.get(b.id) ?? 0),
     );
 
+    this.logger.log(
+      `[Pago gastos] BD actualizada; mandando resumen por correo a ${enmascararCorreo(user.email)} (${uniqueIds.length} ítem(s))`,
+    );
     this.firePaidEmailSilently(
       user.email,
       paidByDisplayName,
@@ -919,10 +929,16 @@ export class MeService {
       profileName: string;
     }>,
   ): void {
+    const destino = enmascararCorreo(to);
+    this.logger.log(
+      `[Pago gastos] Encolando correo de resumen (${items.length} gasto(s)) → ${destino}`,
+    );
     this.resendEmail
       .sendExpensesPaidSummaryEmail({ to, paidByDisplayName, items })
       .catch((err: unknown) => {
-        this.logger.warn(`Error sending paid email: ${String(err)}`);
+        this.logger.warn(
+          `[Pago gastos] El correo de pagos se fue en la olla (${destino}): ${String(err)}`,
+        );
       });
   }
 
