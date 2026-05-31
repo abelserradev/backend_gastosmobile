@@ -12,6 +12,7 @@ import { BcvModule } from './bcv/bcv.module';
 import { MeModule } from './me/me.module';
 import { OcrModule } from './ocr/ocr.module';
 import { PrismaModule } from './prisma/prisma.module';
+import { InventoryModule } from './inventory/inventory.module';
 
 @Module({
   imports: [
@@ -36,6 +37,7 @@ import { PrismaModule } from './prisma/prisma.module';
     PrismaModule,
     AuthModule,
     MeModule,
+    InventoryModule,
     BcvModule,
     OcrModule,
   ],
