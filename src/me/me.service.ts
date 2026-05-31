@@ -8,8 +8,11 @@ import {
 import { BcvRateService } from '../bcv/bcv-rate.service';
 import {
   formatYmdInCaracas,
+  getBudgetPeriodForCutoffDay,
+  isCutoffDay,
   parseYmdToUtcNoon,
   startOfMonthYmdInCaracas,
+  type BudgetPeriod,
 } from '../common/utils/caracas-date';
 import type { AuthUserPayload } from '../common/types/auth-user.payload';
 import { type Prisma } from '@prisma/client';
@@ -70,26 +73,98 @@ export class MeService {
     private readonly resendEmail: ResendEmailService,
   ) {}
 
+  /**
+   * Determina si el periodo de ingreso necesita renovación.
+   * FEAT-001: Soporta ciclos calendario o corte configurable.
+   *
+   * Lógica:
+   * - Calendar month: compara con inicio del mes calendario (comportamiento legacy).
+   * - Monthly cutoff: el periodo actual cierra en `budgetCutoffDay` del mes.
+   */
   private incomeMonthNeedsRefresh(
-    pref: Pick<UserPreferenceWithRegRate, 'incomeReferenceMonth'> | null,
+    pref: Pick<UserPreferenceWithRegRate, 'incomeReferenceMonth' | 'budgetCycleMode' | 'budgetCutoffDay'> | null,
   ): boolean {
     if (!pref?.incomeReferenceMonth) {
       return true;
     }
-    const esperado = startOfMonthYmdInCaracas();
-    const guardado = pref.incomeReferenceMonth.toISOString().slice(0, 10);
-    return guardado !== esperado;
+
+    const todayYmd = formatYmdInCaracas();
+    const mode = pref.budgetCycleMode ?? 'calendar_month';
+    const cutoffDay = pref.budgetCutoffDay ?? 1;
+
+    if (mode === 'calendar_month') {
+      // Comportamiento legacy: el periodo sigue el mes calendario
+      const esperado = startOfMonthYmdInCaracas();
+      const guardado = pref.incomeReferenceMonth.toISOString().slice(0, 10);
+      return guardado !== esperado;
+    }
+
+    // FEAT-001: Lógica de corte mensual
+    // El periodo activo se calcula con getBudgetPeriodForCutoffDay
+    // Si el periodo actual (calculado) tiene un periodStart diferente al guardado,
+    // significa que el corte pasó y el periodo cambió
+    const period = getBudgetPeriodForCutoffDay(todayYmd, cutoffDay);
+    const periodStartGuardado = pref.incomeReferenceMonth.toISOString().slice(0, 10);
+
+    return period.periodStart !== periodStartGuardado;
+  }
+
+  /**
+   * Determina si hoy es día de corte (para mostrar renovación en UI).
+   * FEAT-001: Usa el día de corte configurado o default 1.
+   */
+  private isCutoffDayForPreferences(
+    pref: Pick<UserPreferenceWithRegRate, 'budgetCycleMode' | 'budgetCutoffDay'> | null,
+  ): boolean {
+    if (!pref) return false;
+
+    const todayYmd = formatYmdInCaracas();
+    const mode = pref.budgetCycleMode ?? 'calendar_month';
+
+    if (mode === 'calendar_month') {
+      // En modo calendario, el "corte" es el último día del mes calendario
+      // Detectamos si mañana es el primero del mes siguiente
+      const today = parseYmdToUtcNoon(todayYmd);
+      const tomorrow = new Date(today);
+      tomorrow.setUTCDate(tomorrow.getUTCDate() + 1);
+      return tomorrow.getUTCDate() === 1;
+    }
+
+    const cutoffDay = pref.budgetCutoffDay ?? 1;
+    return isCutoffDay(todayYmd, cutoffDay);
   }
 
   async getState(user: AuthUserPayload) {
     const userId = user.userId;
-    const activeYmd = startOfMonthYmdInCaracas();
-    const activeMonthDate = toReferenceMonthDate(activeYmd);
-    const [pref, categories, profiles, expenses] = await Promise.all([
-      this.prisma.userPreference.findUnique({
-        where: { userId },
-        include: { incomeRegisteredBcvRate: true },
-      }),
+
+    // FEAT-001: Obtener preferencias para determinar modo de cálculo de periodo
+    const pref = await this.prisma.userPreference.findUnique({
+      where: { userId },
+      include: { incomeRegisteredBcvRate: true },
+    });
+
+    // Determinar fechas del periodo activo según modo de ciclo
+    const todayYmd = formatYmdInCaracas();
+    const mode = pref?.budgetCycleMode ?? 'calendar_month';
+    const cutoffDay = pref?.budgetCutoffDay ?? 1;
+
+    let activePeriod: BudgetPeriod;
+    let activeReferenceMonth: string;
+
+    if (mode === 'calendar_month') {
+      // Comportamiento legacy: usa inicio del mes calendario
+      activeReferenceMonth = startOfMonthYmdInCaracas();
+      activePeriod = getBudgetPeriodForCutoffDay(todayYmd, 1);
+    } else {
+      // FEAT-001: Periodo basado en día de corte configurable
+      activePeriod = getBudgetPeriodForCutoffDay(todayYmd, cutoffDay);
+      activeReferenceMonth = activePeriod.periodStart;
+    }
+
+    const activeMonthDate = toReferenceMonthDate(activeReferenceMonth);
+
+    // Cargar resto de datos
+    const [categories, profiles, expenses] = await Promise.all([
       this.prisma.category.findMany({
         where: { userId },
         orderBy: { name: 'asc' },
@@ -107,13 +182,17 @@ export class MeService {
         orderBy: { createdAt: 'desc' },
       }),
     ]);
+
     const needsMonthlyIncomeSetup = !pref || this.incomeMonthNeedsRefresh(pref);
+
+    // FEAT-001: Incluir info de periodo activo en renewal si aplica
     const monthRenewal =
       pref && this.incomeMonthNeedsRefresh(pref)
-        ? await this.buildMonthRenewalContext(userId, pref)
+        ? await this.buildMonthRenewalContext(userId, pref, activePeriod)
         : null;
+
     return {
-      preferences: await this.mapPreferencesToResponse(pref),
+      preferences: await this.mapPreferencesToResponse(pref, activePeriod),
       categories: categories.map((c) => ({ id: c.id, name: c.name })),
       profiles: profiles.map((p) => ({
         id: p.id,
@@ -121,13 +200,23 @@ export class MeService {
         type: p.type,
       })),
       expenses: expenses.map((e) => mapExpenseToResponse(e)),
-      activeReferenceMonth: activeYmd,
+      activeReferenceMonth,
+      activePeriod: {
+        periodStart: activePeriod.periodStart,
+        cutoffDate: activePeriod.cutoffDate,
+        nextPeriodStart: activePeriod.nextPeriodStart,
+        label: activePeriod.label,
+        isCutoffToday: activePeriod.isCutoffToday,
+      },
       needsMonthlyIncomeSetup,
       monthRenewal,
     };
   }
 
-  /** Cierra el mes anterior sin sobrante: avanza referencia y limpia arrastre. */
+  /**
+   * Cierra el periodo anterior y avanza al nuevo (renovación mensual).
+   * FEAT-001: Soporta ciclos calendario y corte configurable.
+   */
   async rolloverMonth(user: AuthUserPayload, dto: MonthRolloverDto) {
     const pref = await this.prisma.userPreference.findUnique({
       where: { userId: user.userId },
@@ -136,7 +225,18 @@ export class MeService {
     if (!pref || !this.incomeMonthNeedsRefresh(pref)) {
       throw new BadRequestException('No hay cambio de mes pendiente');
     }
-    const renewal = await this.buildMonthRenewalContext(user.userId, pref);
+
+    // FEAT-001: Calcular periodo activo para el contexto de renovación
+    const todayYmd = formatYmdInCaracas();
+    const mode = pref.budgetCycleMode ?? 'calendar_month';
+    const cutoffDay = pref.budgetCutoffDay ?? 1;
+
+    const activePeriod =
+      mode === 'calendar_month'
+        ? getBudgetPeriodForCutoffDay(todayYmd, 1)
+        : getBudgetPeriodForCutoffDay(todayYmd, cutoffDay);
+
+    const renewal = await this.buildMonthRenewalContext(user.userId, pref, activePeriod);
     if (renewal.requiresSurplusPrompt && dto.applySurplus === undefined) {
       throw new BadRequestException(
         'Indica si deseas sumar el saldo sobrante al mes entrante',
@@ -146,35 +246,74 @@ export class MeService {
       renewal.requiresSurplusPrompt && dto.applySurplus === true
         ? renewal.surplusUsd
         : 0;
-    await this.advanceIncomeReferenceMonth(user.userId, carryoverUsd);
+
+    // FEAT-001: Pasar preferencias para determinar el nuevo periodo correctamente
+    await this.advanceIncomeReferenceMonth(user.userId, carryoverUsd, pref);
+
     const fresh = await this.prisma.userPreference.findUnique({
       where: { userId: user.userId },
       include: { incomeRegisteredBcvRate: true },
     });
-    const mapped = await this.mapPreferencesToResponse(fresh);
+
+    // Recalcular periodo activo con las nuevas preferencias
+    const newPeriod =
+      mode === 'calendar_month'
+        ? getBudgetPeriodForCutoffDay(todayYmd, 1)
+        : getBudgetPeriodForCutoffDay(todayYmd, cutoffDay);
+
+    const mapped = await this.mapPreferencesToResponse(fresh, newPeriod);
     if (!mapped) {
       throw new BadRequestException('No se pudieron leer las preferencias');
     }
     return mapped;
   }
 
+  /**
+   * Actualiza las preferencias del usuario, incluyendo configuración de ciclo presupuestario.
+   * FEAT-001: Soporta cambio de modo de ciclo y día de corte.
+   */
   async updatePreferences(user: AuthUserPayload, dto: UpdatePreferencesDto) {
     const uid = user.userId;
     const prefBefore = await this.prisma.userPreference.findUnique({
       where: { userId: uid },
       include: { incomeRegisteredBcvRate: true },
     });
+
+    // FEAT-001: Determinar modo y corte (usar valores actuales si no se envían)
+    const currentMode = prefBefore?.budgetCycleMode ?? 'calendar_month';
+    const currentCutoff = prefBefore?.budgetCutoffDay ?? 1;
+    const newMode = dto.budgetCycle?.mode ?? currentMode;
+    const newCutoff = dto.budgetCycle?.cutoffDay ?? currentCutoff;
+
     const monthStale = this.incomeMonthNeedsRefresh(prefBefore);
+
+    // FEAT-001: Calcular periodo activo para contexto de renovación
+    const todayYmd = formatYmdInCaracas();
+    const activePeriodBefore =
+      currentMode === 'calendar_month'
+        ? getBudgetPeriodForCutoffDay(todayYmd, 1)
+        : getBudgetPeriodForCutoffDay(todayYmd, currentCutoff);
+
     const renewal =
       prefBefore && monthStale
-        ? await this.buildMonthRenewalContext(uid, prefBefore)
+        ? await this.buildMonthRenewalContext(uid, prefBefore, activePeriodBefore)
         : null;
     if (renewal?.requiresSurplusPrompt && dto.applySurplus === undefined) {
       throw new BadRequestException(
         'Indica si deseas sumar el saldo sobrante al mes entrante',
       );
     }
-    const incomeRef = toReferenceMonthDate(startOfMonthYmdInCaracas());
+
+    // FEAT-001: Calcular incomeRef según modo de ciclo
+    let incomeRefYmd: string;
+    if (newMode === 'calendar_month') {
+      incomeRefYmd = startOfMonthYmdInCaracas();
+    } else {
+      const period = getBudgetPeriodForCutoffDay(todayYmd, newCutoff);
+      incomeRefYmd = period.periodStart;
+    }
+    const incomeRef = toReferenceMonthDate(incomeRefYmd);
+
     let carryoverUsd: number;
     if (renewal?.requiresSurplusPrompt && dto.applySurplus === true) {
       carryoverUsd = renewal.surplusUsd;
@@ -184,37 +323,59 @@ export class MeService {
       carryoverUsd = Number(prefBefore?.carryoverUsd?.toString() ?? 0);
     }
 
+    // Preparar datos del ciclo presupuestario si se enviaron
+    const budgetCycle = dto.budgetCycle
+      ? { mode: dto.budgetCycle.mode, cutoffDay: dto.budgetCycle.cutoffDay }
+      : undefined;
+
     if (dto.defaultCurrency === 'USD') {
       if (dto.monthlyIncome == null) {
         throw new BadRequestException('Indica el ingreso en USD');
       }
-      await this.saveUserPreference(uid, incomeRef, carryoverUsd, {
-        defaultCurrency: 'USD',
-        monthlyIncome: dto.monthlyIncome,
-        incomeFixedBs: null,
-        incomeRegisteredBcvRateId: null,
-      });
+      await this.saveUserPreference(
+        uid,
+        incomeRef,
+        carryoverUsd,
+        {
+          defaultCurrency: 'USD',
+          monthlyIncome: dto.monthlyIncome,
+          incomeFixedBs: null,
+          incomeRegisteredBcvRateId: null,
+        },
+        budgetCycle,
+      );
     } else {
-      await this.updateBsPreferences(uid, incomeRef, carryoverUsd, dto);
+      await this.updateBsPreferences(uid, incomeRef, carryoverUsd, dto, budgetCycle);
     }
 
     const fresh = await this.prisma.userPreference.findUnique({
       where: { userId: uid },
       include: { incomeRegisteredBcvRate: true },
     });
-    const mapped = await this.mapPreferencesToResponse(fresh);
+
+    // Recalcular periodo activo con posibles nuevas preferencias
+    const activePeriodAfter =
+      newMode === 'calendar_month'
+        ? getBudgetPeriodForCutoffDay(todayYmd, 1)
+        : getBudgetPeriodForCutoffDay(todayYmd, newCutoff);
+
+    const mapped = await this.mapPreferencesToResponse(fresh, activePeriodAfter);
     if (!mapped) {
       throw new BadRequestException('No se pudieron leer las preferencias');
     }
     return mapped;
   }
 
-  /** Maneja el flujo BS: nominal en Bs (nuevo) o equivalente USD heredado (cliente antiguo). */
+  /**
+   * Maneja el flujo BS: nominal en Bs (nuevo) o equivalente USD heredado (cliente antiguo).
+   * FEAT-001: Incluye configuración del ciclo presupuestario.
+   */
   private async updateBsPreferences(
     uid: string,
     incomeRef: Date,
     carryoverUsd: number,
     dto: UpdatePreferencesDto,
+    budgetCycle?: { mode: 'calendar_month' | 'monthly_cutoff'; cutoffDay: number },
   ) {
     const tieneBsNominal =
       dto.monthlyIncomeBs != null && dto.monthlyIncomeBs > 0;
@@ -231,23 +392,35 @@ export class MeService {
         );
       }
       const usdCaptura = dto.monthlyIncomeBs! / Number(vesPerUsd.toString());
-      await this.saveUserPreference(uid, incomeRef, carryoverUsd, {
-        defaultCurrency: 'BS',
-        monthlyIncome: usdCaptura,
-        incomeFixedBs: dto.monthlyIncomeBs!,
-        incomeRegisteredBcvRateId: rateRow.id,
-      });
+      await this.saveUserPreference(
+        uid,
+        incomeRef,
+        carryoverUsd,
+        {
+          defaultCurrency: 'BS',
+          monthlyIncome: usdCaptura,
+          incomeFixedBs: dto.monthlyIncomeBs!,
+          incomeRegisteredBcvRateId: rateRow.id,
+        },
+        budgetCycle,
+      );
       return;
     }
 
     if (dto.monthlyIncome != null) {
       // Cliente antiguo: solo guardaba USD equivalente; sin monto fijo en Bs.
-      await this.saveUserPreference(uid, incomeRef, carryoverUsd, {
-        defaultCurrency: 'BS',
-        monthlyIncome: dto.monthlyIncome,
-        incomeFixedBs: null,
-        incomeRegisteredBcvRateId: null,
-      });
+      await this.saveUserPreference(
+        uid,
+        incomeRef,
+        carryoverUsd,
+        {
+          defaultCurrency: 'BS',
+          monthlyIncome: dto.monthlyIncome,
+          incomeFixedBs: null,
+          incomeRegisteredBcvRateId: null,
+        },
+        budgetCycle,
+      );
       return;
     }
 
@@ -256,7 +429,10 @@ export class MeService {
     );
   }
 
-  /** Upsert unificado para preferencias del usuario; evita repetir create/update idénticos. */
+  /**
+   * Upsert unificado para preferencias del usuario.
+   * FEAT-001: Incluye campos de configuración del ciclo presupuestario.
+   */
   private async saveUserPreference(
     uid: string,
     incomeRef: Date,
@@ -267,45 +443,97 @@ export class MeService {
       incomeFixedBs: number | null;
       incomeRegisteredBcvRateId: string | null;
     },
+    budgetCycle?: { mode: 'calendar_month' | 'monthly_cutoff'; cutoffDay: number },
   ) {
+    // Preparar datos de ciclo presupuestario si se proporcionan
+    const cycleData = budgetCycle
+      ? {
+          budgetCycleMode: budgetCycle.mode,
+          budgetCutoffDay: budgetCycle.cutoffDay,
+        }
+      : {};
+
     await this.prisma.userPreference.upsert({
       where: { userId: uid },
       create: {
         userId: uid,
         incomeReferenceMonth: incomeRef,
         carryoverUsd,
+        budgetCycleMode: budgetCycle?.mode ?? 'calendar_month',
+        budgetCutoffDay: budgetCycle?.cutoffDay ?? 1,
         ...data,
       },
       update: {
         incomeReferenceMonth: incomeRef,
         carryoverUsd,
         ...data,
+        ...cycleData,
       },
     });
   }
 
+  /**
+   * Avanza el mes/periodo de referencia de ingreso al nuevo periodo.
+   * FEAT-001: Soporta tanto mes calendario como corte configurable.
+   */
   private async advanceIncomeReferenceMonth(
     userId: string,
     carryoverUsd: number,
+    pref?: Pick<UserPreferenceWithRegRate, 'budgetCycleMode' | 'budgetCutoffDay'> | null,
   ): Promise<void> {
-    const incomeRef = toReferenceMonthDate(startOfMonthYmdInCaracas());
+    const todayYmd = formatYmdInCaracas();
+    const mode = pref?.budgetCycleMode ?? 'calendar_month';
+    const cutoffDay = pref?.budgetCutoffDay ?? 1;
+
+    let incomeRefYmd: string;
+
+    if (mode === 'calendar_month') {
+      // Legacy: primer día del mes calendario actual
+      incomeRefYmd = startOfMonthYmdInCaracas();
+    } else {
+      // FEAT-001: Inicio del periodo actual (día después del corte)
+      const period = getBudgetPeriodForCutoffDay(todayYmd, cutoffDay);
+      incomeRefYmd = period.periodStart;
+    }
+
+    const incomeRef = toReferenceMonthDate(incomeRefYmd);
     await this.prisma.userPreference.update({
       where: { userId },
       data: { incomeReferenceMonth: incomeRef, carryoverUsd },
     });
   }
 
+  /**
+   * Construye el contexto de renovación mensual (cierre de periodo + sobrante).
+   * FEAT-001: Usa el periodo activo calculado para determinar el cierre.
+   *
+   * @param activePeriod - Periodo activo calculado (con cutoffDate como fin del periodo)
+   */
   private async buildMonthRenewalContext(
     userId: string,
     pref: UserPreferenceWithRegRate,
+    activePeriod?: BudgetPeriod,
   ): Promise<{
     closingMonthYmd: string;
     surplusUsd: number;
     requiresSurplusPrompt: boolean;
   }> {
-    const closingMonthYmd = pref
-      .incomeReferenceMonth!.toISOString()
-      .slice(0, 10);
+    // FEAT-001: El periodo que cierra es el anterior al activo
+    // Si hay activePeriod, el cierre fue en cutoffDate del periodo anterior
+    let closingMonthYmd: string;
+
+    if (activePeriod) {
+      // El periodo activo va desde periodStart hasta cutoffDate
+      // El periodo que cierra terminó el día antes del periodStart actual
+      const periodStart = parseYmdToUtcNoon(activePeriod.periodStart);
+      const closingDate = new Date(periodStart);
+      closingDate.setUTCDate(closingDate.getUTCDate() - 1);
+      closingMonthYmd = formatYmdInCaracas(closingDate);
+    } else {
+      // Fallback legacy
+      closingMonthYmd = pref.incomeReferenceMonth!.toISOString().slice(0, 10);
+    }
+
     const closingMonthDate = toReferenceMonthDate(closingMonthYmd);
     const surplusUsd = await this.computeClosingMonthSurplusUsd(
       userId,
@@ -767,14 +995,26 @@ export class MeService {
     return { deleted: allowed.size };
   }
 
+  /**
+   * Mapea preferencias de Prisma a respuesta de API.
+   * FEAT-001: Incluye información del ciclo presupuestario.
+   */
   private async mapPreferencesToResponse(
     pref: UserPreferenceWithRegRate | null,
+    activePeriod?: BudgetPeriod,
   ): Promise<MePreferencesResponse | null> {
     if (!pref) {
       return null;
     }
     const monthlyStored = Number(pref.monthlyIncome.toString());
     const carryoverUsd = Number(pref.carryoverUsd?.toString() ?? 0);
+
+    // FEAT-001: Incluir configuración del ciclo presupuestario
+    const budgetCycle = {
+      mode: (pref.budgetCycleMode ?? 'calendar_month') as 'calendar_month' | 'monthly_cutoff',
+      cutoffDay: pref.budgetCutoffDay ?? 1,
+    };
+
     const base: MePreferencesResponse = {
       defaultCurrency: pref.defaultCurrency,
       monthlyIncome: monthlyStored,
@@ -792,6 +1032,7 @@ export class MeService {
       bcvQuoteIsStale: false,
       carryoverUsd,
       effectiveMonthlyIncomeUsd: monthlyStored + carryoverUsd,
+      budgetCycle,
     };
     if (pref.defaultCurrency !== 'BS') {
       return this.withEffectiveIncome(base, carryoverUsd);
