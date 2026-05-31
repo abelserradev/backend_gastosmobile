@@ -64,6 +64,26 @@ export function mapExpenseToResponse(e: {
   };
 }
 
+/** Configuración del ciclo presupuestario (FEAT-001). */
+export interface BudgetCycleResponse {
+  mode: 'calendar_month' | 'monthly_cutoff';
+  cutoffDay: number;
+}
+
+/** Periodo presupuestario activo calculado (FEAT-001). */
+export interface ActivePeriodResponse {
+  /** YYYY-MM-DD del inicio del periodo (día después del corte anterior). */
+  periodStart: string;
+  /** YYYY-MM-DD de la fecha de corte (fin del periodo). */
+  cutoffDate: string;
+  /** YYYY-MM-DD del inicio del siguiente periodo (día después del corte). */
+  nextPeriodStart: string;
+  /** Etiqueta legible para UI (ej: "16 May - 15 Jun"). */
+  label: string;
+  /** Si hoy es día de corte (mostrar renovación). */
+  isCutoffToday: boolean;
+}
+
 /** Respuesta enriquecida de preferencias (ingreso en Bs. con recálculo de USD). */
 export interface MePreferencesResponse {
   defaultCurrency: 'USD' | 'BS';
@@ -83,6 +103,8 @@ export interface MePreferencesResponse {
   carryoverUsd: number;
   /** Presupuesto efectivo del mes (ingreso base + arrastre). */
   effectiveMonthlyIncomeUsd: number;
+  /** Configuración del ciclo presupuestario (FEAT-001). */
+  budgetCycle: BudgetCycleResponse;
 }
 
 /** Texto para la UI / asistentes: mismo nominal en Bs., distinto poder en USD por la tasa. */

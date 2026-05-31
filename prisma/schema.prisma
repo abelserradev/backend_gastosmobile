@@ -81,6 +81,10 @@ model UserPreference {
   incomeReferenceMonth DateTime? @db.Date
   /// Extra en USD arrastrado del mes anterior (no altera el ingreso base habitual).
   carryoverUsd         Decimal   @default(0) @db.Decimal(14, 2)
+  /// Modo de ciclo presupuestario: 'calendar_month' o 'monthly_cutoff' (FEAT-001).
+  budgetCycleMode      String    @default("calendar_month")
+  /// Día del mes que CIERRA el periodo (corte). Default 1 = comportamiento calendario.
+  budgetCutoffDay      Int       @default(1)
   updatedAt       DateTime     @updatedAt
 }
 
