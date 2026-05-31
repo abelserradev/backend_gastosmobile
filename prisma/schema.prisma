@@ -252,12 +252,14 @@ model StockMovement {
 
   // Fase B - Multi-sucursal
   branchId          String?      // sucursal donde ocurre
-  branch            Branch?      @relation(fields: [branchId], references: [id], onDelete: SetNull)
+  branch            Branch?      @relation("movements", fields: [branchId], references: [id], onDelete: SetNull)
   targetBranchId    String?      // para transferencias: destino
-  targetBranch      Branch?      @relation("transfer_target", fields: [targetBranchId], references: [id], onDelete: SetNull)
-  relatedMovementId String?      // vincula transfer_out con transfer_in
+  targetBranch      Branch?      @relation("target_movements", fields: [targetBranchId], references: [id], onDelete: SetNull)
+  
+  // Self-relation para vincular transfer_out con transfer_in (1:N para flexibilidad futura)
+  relatedMovementId String?      @unique  // vincula al movimiento relacionado (transferencia par)
   relatedMovement   StockMovement? @relation("transfer_pair", fields: [relatedMovementId], references: [id])
-  pairedMovement    StockMovement? @relation("transfer_pair")
+  pairedMovements   StockMovement[] @relation("transfer_pair")
 
   createdAt         DateTime     @default(now())
 
@@ -275,8 +277,9 @@ model Branch {
   managerName String?  // nombre del gerente/responsable
   createdAt   DateTime @default(now())
 
-  movements   StockMovement[]
-  stockBalances StockBalance[]
+  movements        StockMovement[] @relation("movements")
+  targetMovements  StockMovement[] @relation("target_movements")
+  stockBalances    StockBalance[]
 
   @@index([profileId])
 }

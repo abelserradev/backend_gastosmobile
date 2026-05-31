@@ -34,7 +34,8 @@ export class ProfileOwnerGuard implements CanActivate {
       throw new ForbiddenException('Usuario no autenticado');
     }
 
-    const profileId = request.params['profileId'];
+    const rawProfileId = request.params['profileId'];
+    const profileId = Array.isArray(rawProfileId) ? rawProfileId[0] : rawProfileId;
 
     if (!profileId) {
       // Si no hay profileId en params, no aplicamos este guard

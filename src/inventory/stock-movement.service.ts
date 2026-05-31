@@ -343,12 +343,18 @@ export class StockMovementService {
 
   /**
    * Valida que después del movimiento el stock no quede negativo.
+   * Solo valida para salidas (proposedQty < 0), las entradas no pueden causar negativo.
    */
   private async validateNoNegativeStock(
     itemId: string,
     proposedQty: number,
     branchId?: string,
   ): Promise<void> {
+    // Early return: entradas (cantidad positiva) nunca causan stock negativo
+    if (proposedQty >= 0) {
+      return;
+    }
+
     let currentStock: number;
 
     if (branchId) {
