@@ -16,6 +16,7 @@ enum CurrencyCode {
 enum ProfileType {
   familiar
   grupal
+  comercio
 }
 
 /// Registro vía /api/auth exige email + hash; filas antiguas pueden tener null hasta limpiar datos.
@@ -101,7 +102,7 @@ model Category {
   @@index([userId])
 }
 
-/// Perfil tipo Netflix (familiar / grupal) bajo un usuario.
+/// Perfil tipo Netflix (familiar / grupal / comercio) bajo un usuario.
 model Profile {
   id        String      @id @default(uuid())
   userId    String
@@ -111,6 +112,10 @@ model Profile {
   createdAt DateTime    @default(now())
   expenses  Expense[]
   members   ProfileMember[]
+
+  // FEAT-002: Inventario para perfiles tipo comercio
+  inventoryItems InventoryItem[]
+  branches       Branch[]
 
   @@index([userId])
 }
@@ -198,4 +203,97 @@ model OcrCorrectionSample {
 
   @@index([userId, createdAt])
   @@index([expenseId])
+}
+
+/// Tipos de movimiento de inventario (FEAT-002)
+enum MovementType {
+  PURCHASE      // Entrada por compra
+  SALE          // Salida por venta
+  ADJUSTMENT    // Corrección de stock
+  INITIAL       // Stock inicial al crear producto
+  RETURN        // Devolución
+  TRANSFER_OUT  // Salida por transferencia (Fase B)
+  TRANSFER_IN   // Entrada por transferencia (Fase B)
+}
+
+/// Producto/SKU en inventario de un perfil comercio (FEAT-002)
+model InventoryItem {
+  id           String   @id @default(uuid())
+  profileId    String
+  profile      Profile  @relation(fields: [profileId], references: [id], onDelete: Cascade)
+  name         String
+  sku          String?
+  unit         String   @default("pieza")
+  minStock     Int      @default(0)
+
+  // Denormalizado para queries rápidas (calculado desde movimientos)
+  currentStock Int      @default(0)
+
+  movements    StockMovement[]
+  branches     StockBalance[]
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  @@index([profileId])
+  @@unique([profileId, sku])
+}
+
+/// Movimiento de stock (entrada/salida/ajuste) - inmutable (FEAT-002)
+model StockMovement {
+  id                String       @id @default(uuid())
+  itemId            String
+  item              InventoryItem @relation(fields: [itemId], references: [id], onDelete: Cascade)
+  type              MovementType
+  quantity          Int          // positivo entrada, negativo salida
+  reason            String?
+
+  // Relación opcional con gasto (cuando la compra genera entrada)
+  expenseId         String?
+
+  // Fase B - Multi-sucursal
+  branchId          String?      // sucursal donde ocurre
+  branch            Branch?      @relation("movements", fields: [branchId], references: [id], onDelete: SetNull)
+  targetBranchId    String?      // para transferencias: destino
+  targetBranch      Branch?      @relation("target_movements", fields: [targetBranchId], references: [id], onDelete: SetNull)
+  
+  // Self-relation para vincular transfer_out con transfer_in (1:N para flexibilidad futura)
+  relatedMovementId String?      @unique  // vincula al movimiento relacionado (transferencia par)
+  relatedMovement   StockMovement? @relation("transfer_pair", fields: [relatedMovementId], references: [id])
+  pairedMovements   StockMovement[] @relation("transfer_pair")
+
+  createdAt         DateTime     @default(now())
+
+  @@index([itemId, createdAt])
+  @@index([branchId])
+}
+
+/// Sucursal de un perfil comercio (Fase B - FEAT-002)
+model Branch {
+  id          String   @id @default(uuid())
+  profileId   String
+  profile     Profile  @relation(fields: [profileId], references: [id], onDelete: Cascade)
+  name        String
+  address     String?
+  managerName String?  // nombre del gerente/responsable
+  createdAt   DateTime @default(now())
+
+  movements        StockMovement[] @relation("movements")
+  targetMovements  StockMovement[] @relation("target_movements")
+  stockBalances    StockBalance[]
+
+  @@index([profileId])
+}
+
+/// Stock por sucursal (Fase B - FEAT-002) - denormalizado para performance
+model StockBalance {
+  id        String   @id @default(uuid())
+  itemId    String
+  item      InventoryItem @relation(fields: [itemId], references: [id], onDelete: Cascade)
+  branchId  String
+  branch    Branch   @relation(fields: [branchId], references: [id], onDelete: Cascade)
+  quantity  Int      @default(0)
+  updatedAt DateTime @updatedAt
+
+  @@unique([itemId, branchId])
+  @@index([branchId])
 }
