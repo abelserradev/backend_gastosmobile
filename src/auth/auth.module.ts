@@ -3,7 +3,6 @@ import { ConfigModule, ConfigService } from '@nestjs/config';
 import { JwtModule, type JwtModuleOptions } from '@nestjs/jwt';
 import { PassportModule } from '@nestjs/passport';
 import type { SignOptions } from 'jsonwebtoken';
-import { ApiKeyGuard } from '../common/guards/api-key.guard';
 import { EmailModule } from '../email/email.module';
 import { AuthCookieService } from './auth-cookie.service';
 import { AuthController } from './auth.controller';
@@ -32,7 +31,6 @@ import { JwtStrategy } from './jwt.strategy';
   ],
   controllers: [AuthController],
   providers: [
-    ApiKeyGuard,
     AuthCookieService,
     AuthService,
     FirebaseAdminService,
@@ -40,7 +38,6 @@ import { JwtStrategy } from './jwt.strategy';
     JwtAuthGuard,
   ],
   exports: [
-    ApiKeyGuard,
     AuthService,
     AuthCookieService,
     JwtModule,

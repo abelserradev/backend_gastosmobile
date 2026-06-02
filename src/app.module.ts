@@ -4,7 +4,7 @@ import { APP_GUARD } from '@nestjs/core';
 import { ThrottlerGuard, ThrottlerModule } from '@nestjs/throttler';
 import { envValidationSchema } from './config/env.validation';
 import { CacheModule } from './common/cache/cache.module';
-import { ApiKeyGuard } from './common/guards/api-key.guard';
+import { GuardsModule } from './common/guards/guards.module';
 import { AuthModule } from './auth/auth.module';
 import { JwtAuthGuard } from './auth/jwt-auth.guard';
 import { BcvModule } from './bcv/bcv.module';
@@ -33,6 +33,7 @@ import { InventoryModule } from './inventory/inventory.module';
       ],
     }),
     CacheModule,
+    GuardsModule,
     PrismaModule,
     AuthModule,
     MeModule,
@@ -41,7 +42,6 @@ import { InventoryModule } from './inventory/inventory.module';
     OcrModule,
   ],
   providers: [
-    ApiKeyGuard,
     { provide: APP_GUARD, useClass: ThrottlerGuard },
     { provide: APP_GUARD, useClass: JwtAuthGuard },
   ],
