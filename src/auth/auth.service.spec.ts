@@ -2,7 +2,10 @@ import { ForbiddenException, UnauthorizedException } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
 import * as bcrypt from 'bcrypt';
 import { AuthService } from './auth.service';
-import { AUTH_ERROR_ACCOUNT_LOCKED, MAX_FAILED_LOGIN_ATTEMPTS } from './auth.constants';
+import {
+  AUTH_ERROR_ACCOUNT_LOCKED,
+  MAX_FAILED_LOGIN_ATTEMPTS,
+} from './auth.constants';
 import { AuthCookieService } from './auth-cookie.service';
 import { FirebaseAdminService } from './firebase-admin.service';
 import { ResendEmailService } from '../email/resend-email.service';
@@ -29,7 +32,9 @@ describe('AuthService login lockout', () => {
       { sign: jest.fn() } as unknown as JwtService,
       { setAccessJwt: jest.fn() } as unknown as AuthCookieService,
       {} as FirebaseAdminService,
-      { isConfigured: jest.fn().mockReturnValue(false) } as unknown as ResendEmailService,
+      {
+        isConfigured: jest.fn().mockReturnValue(false),
+      } as unknown as ResendEmailService,
     );
   });
 

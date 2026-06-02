@@ -37,6 +37,9 @@ model User {
   accountUnlockCodes   AccountUnlockCode[]
   /** Muestras de corrección post-OCR (v1.3, FEAT-OCR-FB). */
   ocrCorrectionSamples OcrCorrectionSample[]
+
+  incomeSource         IncomeSource[]
+  incomeEntries        IncomeEntry[]
 }
 
 /// Código OTP hasheado para desbloquear cuenta tras intentos fallidos de login.
@@ -100,6 +103,42 @@ model Category {
 
   @@unique([userId, name])
   @@index([userId])
+}
+
+/// Origen/fuente de ingreso por usuario (paralelo a Category).
+model IncomeSource {
+  id        String        @id @default(uuid())
+  userId    String
+  user      User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+  name      String
+  createdAt DateTime      @default(now())
+  incomes   IncomeEntry[]
+
+  @@unique([userId, name])
+  @@index([userId])
+}
+
+model IncomeEntry {
+  id             String       @id @default(uuid())
+  userId         String
+  user           User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+  sourceId       String
+  source         IncomeSource @relation(fields: [sourceId], references: [id], onDelete: Restrict)
+  title          String
+  description    String       @default("")
+  /// Monto en USD (misma base que gastos).
+  amount         Decimal      @db.Decimal(14, 2)
+  referenceMonth DateTime     @db.Date
+  /// Día en que entró el dinero (Caracas); fija tasa BCV si captura en Bs.
+  receivedDate   DateTime?    @db.Date
+  bcvRateApplied Decimal?     @db.Decimal(14, 6)
+  bcvRateDate    DateTime?    @db.Date
+  createdAt      DateTime     @default(now())
+  updatedAt      DateTime     @updatedAt
+
+
+  @@index([userId, referenceMonth])
+  @@index([sourceId])
 }
 
 /// Perfil tipo Netflix (familiar / grupal / comercio) bajo un usuario.

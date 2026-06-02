@@ -1,4 +1,3 @@
-
 export function toReferenceMonthDate(isoDay: string): Date {
   return new Date(`${isoDay}T12:00:00.000Z`);
 }
@@ -140,4 +139,44 @@ export function buildBsIncomeNarrativeLine(p: {
       ' Se muestra la última tasa guardada en caché porque no hubo cotización en vivo.';
   }
   return texto;
+}
+
+export function mapIncomeToResponse(e: {
+  id: string;
+  title: string;
+  description: string;
+  amount: { toString(): string };
+  referenceMonth: Date;
+  receivedDate: Date | null;
+  bcvRateApplied: { toString(): string } | null;
+  bcvRateDate: Date | null;
+  source: { name: string };
+}): {
+  id: string;
+  title: string;
+  description: string;
+  amount: number;
+  source: string;
+  referenceMonth: string;
+  receivedDate: string | null;
+  bcvRateApplied: number | null;
+  bcvRateDate: string | null;
+} {
+  return {
+    id: e.id,
+    title: e.title,
+    description: e.description,
+    amount: Number(e.amount.toString()),
+    source: e.source.name,
+    referenceMonth: e.referenceMonth.toISOString().slice(0, 10),
+    receivedDate: e.receivedDate
+      ? e.receivedDate.toISOString().slice(0, 10)
+      : null,
+    bcvRateApplied: e.bcvRateApplied
+      ? Number(e.bcvRateApplied.toString())
+      : null,
+    bcvRateDate: e.bcvRateDate
+      ? e.bcvRateDate.toISOString().slice(0, 10)
+      : null,
+  };
 }

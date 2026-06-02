@@ -93,7 +93,11 @@ export class StockMovementService {
     const signedQuantity = this.calculateSignedQuantity(dto.type, dto.quantity);
 
     // Validar no negativo antes de crear
-    await this.validateNoNegativeStock(dto.itemId, signedQuantity, dto.branchId);
+    await this.validateNoNegativeStock(
+      dto.itemId,
+      signedQuantity,
+      dto.branchId,
+    );
 
     // Crear movimiento y actualizar stock en transacción
     const result = await this.prisma.$transaction(async (tx) => {
@@ -123,7 +127,12 @@ export class StockMovementService {
 
       // Fase B: Si hay branchId, actualizar StockBalance
       if (dto.branchId) {
-        await this.upsertStockBalance(tx, dto.itemId, dto.branchId, signedQuantity);
+        await this.upsertStockBalance(
+          tx,
+          dto.itemId,
+          dto.branchId,
+          signedQuantity,
+        );
       }
 
       return movement;
@@ -437,9 +446,7 @@ export class StockMovementService {
     });
 
     if (!item) {
-      throw new NotFoundException(
-        'Producto no encontrado en este perfil',
-      );
+      throw new NotFoundException('Producto no encontrado en este perfil');
     }
   }
 }
