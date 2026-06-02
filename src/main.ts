@@ -8,7 +8,15 @@ import { AllExceptionsFilter } from './common/filters/all-exceptions.filter';
 
 async function bootstrap(): Promise<void> {
   const app = await NestFactory.create(AppModule);
-  app.use(helmet({ crossOriginResourcePolicy: { policy: 'cross-origin' } }));
+  const isProd = process.env.NODE_ENV === 'production';
+  app.use(
+    helmet({
+      crossOriginResourcePolicy: { policy: 'cross-origin' },
+      ...(isProd
+        ? { hsts: { maxAge: 31_536_000, includeSubDomains: true } }
+        : {}),
+    }),
+  );
   app.use(cookieParser());
   app.useGlobalFilters(new AllExceptionsFilter());
   app.setGlobalPrefix('api');
