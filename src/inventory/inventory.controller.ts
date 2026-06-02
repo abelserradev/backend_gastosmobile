@@ -12,8 +12,6 @@ import {
   Query,
 } from '@nestjs/common';
 import { CurrentUser } from '../common/decorators/current-user.decorator';
-import { JwtAuthGuard } from '../auth/jwt-auth.guard';
-import { UseGuards } from '@nestjs/common';
 import { InventoryItemService } from './inventory-item.service';
 import { StockMovementService } from './stock-movement.service';
 import { InventoryService } from './inventory.service';
@@ -48,14 +46,11 @@ import type {
  * - POST   /movements/adjust         → Ajuste de stock
  * - GET    /summary                  → Resumen del inventario
  *
- * Seguridad:
- * - JwtAuthGuard: requiere token válido.
- * - ProfileOwnerGuard: verifica que el perfil pertenezca al usuario autenticado.
+ * Seguridad: JwtAuthGuard global (APP_GUARD) + validación de perfil en servicio.
  *
  * TODO: Implementar ProfileOwnerGuard compartido (actualmente validación en servicio).
  */
 @Controller('me/profiles/:profileId/inventory')
-@UseGuards(JwtAuthGuard)
 export class InventoryController {
   constructor(
     private readonly inventoryService: InventoryService,
