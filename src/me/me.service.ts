@@ -17,6 +17,17 @@ import {
 import type { AuthUserPayload } from '../common/types/auth-user.payload';
 import { type Prisma } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
+import {
+  incomeDb,
+  type IncomeEntryWithSourceRow,
+  type IncomeSourceRow,
+} from '../prisma/prisma-income.accessor';
+import {
+  preferenceReadDb,
+  preferenceWriteDb,
+  type PreferenceCutoffFields,
+} from '../prisma/prisma-user-preference.accessor';
+import { expenseReceiptDb } from '../prisma/prisma-expense-receipt.accessor';
 import { CreateExpenseDto } from './dto/create-expense.dto';
 import { CreateExpenseWithReceiptDto } from './dto/create-expense-with-receipt.dto';
 import { CreateProfileDto } from './dto/create-profile.dto';
@@ -39,10 +50,50 @@ import {
 } from './me.mappers';
 import { enmascararCorreo } from '../common/utils/mask-correo-for-log.util';
 import { ResendEmailService } from '../email/resend-email.service';
+import { resolveActiveBudgetContext } from '../common/utils/active-budget-context.util';
+import { CreateIncomeDto } from './dto/create-income.dto';
+import { DeleteIncomesDto } from './dto/delete-income.dto';
+import { mapIncomeToResponse } from './me.mappers';
+import { DEFAULT_INCOME_SOURCES_NAMES } from './income-source.default';
 
-type UserPreferenceWithRegRate = Prisma.UserPreferenceGetPayload<{
-  include: { incomeRegisteredBcvRate: true };
+/** Tasa BCV ligada al registro de ingreso en Bs. */
+type IncomeRegisteredBcvRateRow = Readonly<{
+  id: string;
+  rateDate: Date;
+  vesPerUsd: Prisma.Decimal;
+  fetchedAt: Date;
 }>;
+
+/**
+ * Preferencia con tasa de registro incluida.
+ * Tipo estable: el analyzer a veces no enlaza campos nuevos del codegen de Prisma.
+ */
+type UserPreferenceWithRegRate = Readonly<{
+  id: string;
+  userId: string;
+  updatedAt: Date;
+  defaultCurrency: 'BS' | 'USD';
+  monthlyIncome: Prisma.Decimal;
+  incomeFixedBs: Prisma.Decimal | null;
+  incomeRegisteredBcvRateId: string | null;
+  incomeRegisteredBcvRate: IncomeRegisteredBcvRateRow | null;
+  incomeReferenceMonth: Date | null;
+  carryoverUsd: Prisma.Decimal;
+  budgetCycleMode: string;
+  budgetCutoffDay: number;
+}>;
+
+type PreferenceRenewalFields = Readonly<{
+  incomeReferenceMonth: Date | null;
+  budgetCycleMode: string | null;
+  budgetCutoffDay: number | null;
+}>;
+
+function asUserPreferenceWithRegRate(
+  row: unknown,
+): UserPreferenceWithRegRate | null {
+  return (row ?? null) as UserPreferenceWithRegRate | null;
+}
 
 /** Alineado con `OcrCorrectionSample`; evita cascadas `no-unsafe-*` cuando el proyecto TS del IDE no levanta el delegate Prisma fresco. */
 type OcrCorrectionSampleInsertData = Readonly<{
@@ -73,6 +124,23 @@ export class MeService {
     private readonly resendEmail: ResendEmailService,
   ) {}
 
+  /** Delegates de ingreso cuando el analyzer no enlaza el codegen de PrismaService. */
+  private get incomePrisma() {
+    return incomeDb(this.prisma);
+  }
+
+  private get preferencePrisma() {
+    return preferenceWriteDb(this.prisma);
+  }
+
+  private get preferenceReadPrisma() {
+    return preferenceReadDb(this.prisma);
+  }
+
+  private get expenseReceiptPrisma() {
+    return expenseReceiptDb(this.prisma);
+  }
+
   /**
    * Determina si el periodo de ingreso necesita renovación.
    * FEAT-001: Soporta ciclos calendario o corte configurable.
@@ -82,7 +150,7 @@ export class MeService {
    * - Monthly cutoff: el periodo actual cierra en `budgetCutoffDay` del mes.
    */
   private incomeMonthNeedsRefresh(
-    pref: Pick<UserPreferenceWithRegRate, 'incomeReferenceMonth' | 'budgetCycleMode' | 'budgetCutoffDay'> | null,
+    pref: PreferenceRenewalFields | null,
   ): boolean {
     if (!pref?.incomeReferenceMonth) {
       return true;
@@ -104,7 +172,9 @@ export class MeService {
     // Si el periodo actual (calculado) tiene un periodStart diferente al guardado,
     // significa que el corte pasó y el periodo cambió
     const period = getBudgetPeriodForCutoffDay(todayYmd, cutoffDay);
-    const periodStartGuardado = pref.incomeReferenceMonth.toISOString().slice(0, 10);
+    const periodStartGuardado = pref.incomeReferenceMonth
+      .toISOString()
+      .slice(0, 10);
 
     return period.periodStart !== periodStartGuardado;
   }
@@ -114,7 +184,7 @@ export class MeService {
    * FEAT-001: Usa el día de corte configurado o default 1.
    */
   private isCutoffDayForPreferences(
-    pref: Pick<UserPreferenceWithRegRate, 'budgetCycleMode' | 'budgetCutoffDay'> | null,
+    pref: PreferenceCutoffFields | null,
   ): boolean {
     if (!pref) return false;
 
@@ -138,50 +208,46 @@ export class MeService {
     const userId = user.userId;
 
     // FEAT-001: Obtener preferencias para determinar modo de cálculo de periodo
-    const pref = await this.prisma.userPreference.findUnique({
-      where: { userId },
-      include: { incomeRegisteredBcvRate: true },
-    });
-
-    // Determinar fechas del periodo activo según modo de ciclo
-    const todayYmd = formatYmdInCaracas();
-    const mode = pref?.budgetCycleMode ?? 'calendar_month';
-    const cutoffDay = pref?.budgetCutoffDay ?? 1;
-
-    let activePeriod: BudgetPeriod;
-    let activeReferenceMonth: string;
-
-    if (mode === 'calendar_month') {
-      // Comportamiento legacy: usa inicio del mes calendario
-      activeReferenceMonth = startOfMonthYmdInCaracas();
-      activePeriod = getBudgetPeriodForCutoffDay(todayYmd, 1);
-    } else {
-      // FEAT-001: Periodo basado en día de corte configurable
-      activePeriod = getBudgetPeriodForCutoffDay(todayYmd, cutoffDay);
-      activeReferenceMonth = activePeriod.periodStart;
-    }
-
-    const activeMonthDate = toReferenceMonthDate(activeReferenceMonth);
-
-    // Cargar resto de datos
-    const [categories, profiles, expenses] = await Promise.all([
-      this.prisma.category.findMany({
+    const pref = asUserPreferenceWithRegRate(
+      await this.prisma.userPreference.findUnique({
         where: { userId },
-        orderBy: { name: 'asc' },
+        include: { incomeRegisteredBcvRate: true },
       }),
-      this.prisma.profile.findMany({
-        where: { userId },
-        orderBy: { createdAt: 'asc' },
-      }),
-      this.prisma.expense.findMany({
-        where: {
-          profile: { userId },
-          referenceMonth: activeMonthDate,
-        },
-        include: { category: true, profile: true },
-        orderBy: { createdAt: 'desc' },
-      }),
-    ]);
+    );
+
+    const budget = resolveActiveBudgetContext(pref);
+    const { activeReferenceMonth, activeMonthDate, activePeriod } = budget;
+
+    await this.ensureDefaultIncomeSources(userId);
+
+    const [categories, profiles, expenses, incomeSources, incomes] =
+      await Promise.all([
+        this.prisma.category.findMany({
+          where: { userId },
+          orderBy: { name: 'asc' },
+        }),
+        this.prisma.profile.findMany({
+          where: { userId },
+          orderBy: { createdAt: 'asc' },
+        }),
+        this.prisma.expense.findMany({
+          where: {
+            profile: { userId },
+            referenceMonth: activeMonthDate,
+          },
+          include: { category: true, profile: true },
+          orderBy: { createdAt: 'desc' },
+        }),
+        this.incomePrisma.incomeSource.findMany({
+          where: { userId },
+          orderBy: { name: 'asc' },
+        }) as Promise<IncomeSourceRow[]>,
+        this.incomePrisma.incomeEntry.findMany({
+          where: { userId, referenceMonth: activeMonthDate },
+          include: { source: true },
+          orderBy: { createdAt: 'desc' },
+        }) as Promise<IncomeEntryWithSourceRow[]>,
+      ]);
 
     const needsMonthlyIncomeSetup = !pref || this.incomeMonthNeedsRefresh(pref);
 
@@ -200,6 +266,8 @@ export class MeService {
         type: p.type,
       })),
       expenses: expenses.map((e) => mapExpenseToResponse(e)),
+      incomeSources: incomeSources.map((s) => ({ id: s.id, name: s.name })),
+      incomes: incomes.map((i) => mapIncomeToResponse(i)),
       activeReferenceMonth,
       activePeriod: {
         periodStart: activePeriod.periodStart,
@@ -218,10 +286,12 @@ export class MeService {
    * FEAT-001: Soporta ciclos calendario y corte configurable.
    */
   async rolloverMonth(user: AuthUserPayload, dto: MonthRolloverDto) {
-    const pref = await this.prisma.userPreference.findUnique({
-      where: { userId: user.userId },
-      include: { incomeRegisteredBcvRate: true },
-    });
+    const pref = asUserPreferenceWithRegRate(
+      await this.prisma.userPreference.findUnique({
+        where: { userId: user.userId },
+        include: { incomeRegisteredBcvRate: true },
+      }),
+    );
     if (!pref || !this.incomeMonthNeedsRefresh(pref)) {
       throw new BadRequestException('No hay cambio de mes pendiente');
     }
@@ -236,7 +306,11 @@ export class MeService {
         ? getBudgetPeriodForCutoffDay(todayYmd, 1)
         : getBudgetPeriodForCutoffDay(todayYmd, cutoffDay);
 
-    const renewal = await this.buildMonthRenewalContext(user.userId, pref, activePeriod);
+    const renewal = await this.buildMonthRenewalContext(
+      user.userId,
+      pref,
+      activePeriod,
+    );
     if (renewal.requiresSurplusPrompt && dto.applySurplus === undefined) {
       throw new BadRequestException(
         'Indica si deseas sumar el saldo sobrante al mes entrante',
@@ -250,10 +324,12 @@ export class MeService {
     // FEAT-001: Pasar preferencias para determinar el nuevo periodo correctamente
     await this.advanceIncomeReferenceMonth(user.userId, carryoverUsd, pref);
 
-    const fresh = await this.prisma.userPreference.findUnique({
-      where: { userId: user.userId },
-      include: { incomeRegisteredBcvRate: true },
-    });
+    const fresh = asUserPreferenceWithRegRate(
+      await this.prisma.userPreference.findUnique({
+        where: { userId: user.userId },
+        include: { incomeRegisteredBcvRate: true },
+      }),
+    );
 
     // Recalcular periodo activo con las nuevas preferencias
     const newPeriod =
@@ -269,65 +345,142 @@ export class MeService {
   }
 
   /**
-   * Actualiza las preferencias del usuario, incluyendo configuración de ciclo presupuestario.
+   * Actualiza las preferencias del usuario, incluyando configuración de ciclo presupuestario.
    * FEAT-001: Soporta cambio de modo de ciclo y día de corte.
    */
   async updatePreferences(user: AuthUserPayload, dto: UpdatePreferencesDto) {
     const uid = user.userId;
-    const prefBefore = await this.prisma.userPreference.findUnique({
-      where: { userId: uid },
-      include: { incomeRegisteredBcvRate: true },
-    });
+    const prefBefore = await this.loadUserPreference(uid);
 
-    // FEAT-001: Determinar modo y corte (usar valores actuales si no se envían)
     const currentMode = prefBefore?.budgetCycleMode ?? 'calendar_month';
     const currentCutoff = prefBefore?.budgetCutoffDay ?? 1;
     const newMode = dto.budgetCycle?.mode ?? currentMode;
     const newCutoff = dto.budgetCycle?.cutoffDay ?? currentCutoff;
-
     const monthStale = this.incomeMonthNeedsRefresh(prefBefore);
-
-    // FEAT-001: Calcular periodo activo para contexto de renovación
     const todayYmd = formatYmdInCaracas();
-    const activePeriodBefore =
-      currentMode === 'calendar_month'
-        ? getBudgetPeriodForCutoffDay(todayYmd, 1)
-        : getBudgetPeriodForCutoffDay(todayYmd, currentCutoff);
 
+    const activePeriodBefore = this.budgetPeriodForMode(
+      currentMode,
+      currentCutoff,
+      todayYmd,
+    );
     const renewal =
       prefBefore && monthStale
-        ? await this.buildMonthRenewalContext(uid, prefBefore, activePeriodBefore)
+        ? await this.buildMonthRenewalContext(
+            uid,
+            prefBefore,
+            activePeriodBefore,
+          )
         : null;
-    if (renewal?.requiresSurplusPrompt && dto.applySurplus === undefined) {
-      throw new BadRequestException(
-        'Indica si deseas sumar el saldo sobrante al mes entrante',
-      );
-    }
 
-    // FEAT-001: Calcular incomeRef según modo de ciclo
-    let incomeRefYmd: string;
-    if (newMode === 'calendar_month') {
-      incomeRefYmd = startOfMonthYmdInCaracas();
-    } else {
-      const period = getBudgetPeriodForCutoffDay(todayYmd, newCutoff);
-      incomeRefYmd = period.periodStart;
-    }
-    const incomeRef = toReferenceMonthDate(incomeRefYmd);
+    this.assertApplySurplusProvidedWhenRequired(renewal, dto.applySurplus);
 
-    let carryoverUsd: number;
-    if (renewal?.requiresSurplusPrompt && dto.applySurplus === true) {
-      carryoverUsd = renewal.surplusUsd;
-    } else if (monthStale) {
-      carryoverUsd = 0;
-    } else {
-      carryoverUsd = Number(prefBefore?.carryoverUsd?.toString() ?? 0);
-    }
-
-    // Preparar datos del ciclo presupuestario si se enviaron
+    const incomeRef = toReferenceMonthDate(
+      this.incomeRefYmdForMode(newMode, newCutoff, todayYmd),
+    );
+    const carryoverUsd = this.resolveCarryoverUsdOnPreferenceUpdate(
+      renewal,
+      monthStale,
+      prefBefore,
+      dto.applySurplus,
+    );
     const budgetCycle = dto.budgetCycle
       ? { mode: dto.budgetCycle.mode, cutoffDay: dto.budgetCycle.cutoffDay }
       : undefined;
 
+    await this.persistPreferenceByCurrency(
+      uid,
+      dto,
+      incomeRef,
+      carryoverUsd,
+      budgetCycle,
+    );
+
+    const fresh = await this.loadUserPreference(uid);
+    const activePeriodAfter = this.budgetPeriodForMode(
+      newMode,
+      newCutoff,
+      todayYmd,
+    );
+    const mapped = await this.mapPreferencesToResponse(
+      fresh,
+      activePeriodAfter,
+    );
+    if (!mapped) {
+      throw new BadRequestException('No se pudieron leer las preferencias');
+    }
+    return mapped;
+  }
+
+  private async loadUserPreference(
+    userId: string,
+  ): Promise<UserPreferenceWithRegRate | null> {
+    return asUserPreferenceWithRegRate(
+      await this.prisma.userPreference.findUnique({
+        where: { userId },
+        include: { incomeRegisteredBcvRate: true },
+      }),
+    );
+  }
+
+  private budgetPeriodForMode(
+    mode: string,
+    cutoffDay: number,
+    todayYmd: string,
+  ): BudgetPeriod {
+    if (mode === 'calendar_month') {
+      return getBudgetPeriodForCutoffDay(todayYmd, 1);
+    }
+    return getBudgetPeriodForCutoffDay(todayYmd, cutoffDay);
+  }
+
+  private incomeRefYmdForMode(
+    mode: string,
+    cutoffDay: number,
+    todayYmd: string,
+  ): string {
+    if (mode === 'calendar_month') {
+      return startOfMonthYmdInCaracas();
+    }
+    return getBudgetPeriodForCutoffDay(todayYmd, cutoffDay).periodStart;
+  }
+
+  private assertApplySurplusProvidedWhenRequired(
+    renewal: { requiresSurplusPrompt: boolean } | null,
+    applySurplus: boolean | undefined,
+  ): void {
+    if (renewal?.requiresSurplusPrompt && applySurplus === undefined) {
+      throw new BadRequestException(
+        'Indica si deseas sumar el saldo sobrante al mes entrante',
+      );
+    }
+  }
+
+  private resolveCarryoverUsdOnPreferenceUpdate(
+    renewal: { requiresSurplusPrompt: boolean; surplusUsd: number } | null,
+    monthStale: boolean,
+    prefBefore: UserPreferenceWithRegRate | null,
+    applySurplus: boolean | undefined,
+  ): number {
+    if (renewal?.requiresSurplusPrompt && applySurplus === true) {
+      return renewal.surplusUsd;
+    }
+    if (monthStale) {
+      return 0;
+    }
+    return Number(prefBefore?.carryoverUsd?.toString() ?? 0);
+  }
+
+  private async persistPreferenceByCurrency(
+    uid: string,
+    dto: UpdatePreferencesDto,
+    incomeRef: Date,
+    carryoverUsd: number,
+    budgetCycle?: {
+      mode: 'calendar_month' | 'monthly_cutoff';
+      cutoffDay: number;
+    },
+  ): Promise<void> {
     if (dto.defaultCurrency === 'USD') {
       if (dto.monthlyIncome == null) {
         throw new BadRequestException('Indica el ingreso en USD');
@@ -344,26 +497,15 @@ export class MeService {
         },
         budgetCycle,
       );
-    } else {
-      await this.updateBsPreferences(uid, incomeRef, carryoverUsd, dto, budgetCycle);
+      return;
     }
-
-    const fresh = await this.prisma.userPreference.findUnique({
-      where: { userId: uid },
-      include: { incomeRegisteredBcvRate: true },
-    });
-
-    // Recalcular periodo activo con posibles nuevas preferencias
-    const activePeriodAfter =
-      newMode === 'calendar_month'
-        ? getBudgetPeriodForCutoffDay(todayYmd, 1)
-        : getBudgetPeriodForCutoffDay(todayYmd, newCutoff);
-
-    const mapped = await this.mapPreferencesToResponse(fresh, activePeriodAfter);
-    if (!mapped) {
-      throw new BadRequestException('No se pudieron leer las preferencias');
-    }
-    return mapped;
+    await this.updateBsPreferences(
+      uid,
+      incomeRef,
+      carryoverUsd,
+      dto,
+      budgetCycle,
+    );
   }
 
   /**
@@ -375,7 +517,10 @@ export class MeService {
     incomeRef: Date,
     carryoverUsd: number,
     dto: UpdatePreferencesDto,
-    budgetCycle?: { mode: 'calendar_month' | 'monthly_cutoff'; cutoffDay: number },
+    budgetCycle?: {
+      mode: 'calendar_month' | 'monthly_cutoff';
+      cutoffDay: number;
+    },
   ) {
     const tieneBsNominal =
       dto.monthlyIncomeBs != null && dto.monthlyIncomeBs > 0;
@@ -443,7 +588,10 @@ export class MeService {
       incomeFixedBs: number | null;
       incomeRegisteredBcvRateId: string | null;
     },
-    budgetCycle?: { mode: 'calendar_month' | 'monthly_cutoff'; cutoffDay: number },
+    budgetCycle?: {
+      mode: 'calendar_month' | 'monthly_cutoff';
+      cutoffDay: number;
+    },
   ) {
     // Preparar datos de ciclo presupuestario si se proporcionan
     const cycleData = budgetCycle
@@ -453,7 +601,7 @@ export class MeService {
         }
       : {};
 
-    await this.prisma.userPreference.upsert({
+    await this.preferencePrisma.upsert({
       where: { userId: uid },
       create: {
         userId: uid,
@@ -479,7 +627,7 @@ export class MeService {
   private async advanceIncomeReferenceMonth(
     userId: string,
     carryoverUsd: number,
-    pref?: Pick<UserPreferenceWithRegRate, 'budgetCycleMode' | 'budgetCutoffDay'> | null,
+    pref?: PreferenceCutoffFields | null,
   ): Promise<void> {
     const todayYmd = formatYmdInCaracas();
     const mode = pref?.budgetCycleMode ?? 'calendar_month';
@@ -497,7 +645,7 @@ export class MeService {
     }
 
     const incomeRef = toReferenceMonthDate(incomeRefYmd);
-    await this.prisma.userPreference.update({
+    await this.preferencePrisma.update({
       where: { userId },
       data: { incomeReferenceMonth: incomeRef, carryoverUsd },
     });
@@ -557,16 +705,23 @@ export class MeService {
       return 0;
     }
     const effectiveIncome = mapped.effectiveMonthlyIncomeUsd;
-    const agg = await this.prisma.expense.aggregate({
-      where: {
-        profile: { userId },
-        referenceMonth: closingMonthDate,
-        isPaid: true,
-      },
-      _sum: { amount: true },
-    });
-    const paidUsd = Number(agg._sum.amount?.toString() ?? 0);
-    const surplus = effectiveIncome - paidUsd;
+    const [paidAgg, incomeAgg] = await Promise.all([
+      this.prisma.expense.aggregate({
+        where: {
+          profile: { userId },
+          referenceMonth: closingMonthDate,
+          isPaid: true,
+        },
+        _sum: { amount: true },
+      }),
+      this.incomePrisma.incomeEntry.aggregate({
+        where: { userId, referenceMonth: closingMonthDate },
+        _sum: { amount: true },
+      }),
+    ]);
+    const paidUsd = Number(paidAgg._sum.amount?.toString() ?? 0);
+    const loggedIncomeUsd = Number(incomeAgg._sum.amount?.toString() ?? 0);
+    const surplus = effectiveIncome + loggedIncomeUsd - paidUsd;
     if (surplus <= 0) {
       return 0;
     }
@@ -708,7 +863,9 @@ export class MeService {
   }
 
   async listExpenses(user: AuthUserPayload) {
-    const activeMonthDate = toReferenceMonthDate(startOfMonthYmdInCaracas());
+    const { activeMonthDate } = await this.getActiveBudgetContextForUser(
+      user.userId,
+    );
     const rows = await this.prisma.expense.findMany({
       where: {
         profile: { userId: user.userId },
@@ -756,7 +913,8 @@ export class MeService {
       name: dto.categoryName,
     });
     const profileId = await this.resolveProfileId(userId, dto.profileId);
-    const refStr = dto.referenceMonth ?? startOfMonthYmdInCaracas();
+    const budget = await this.getActiveBudgetContextForUser(userId);
+    const refStr = dto.referenceMonth ?? budget.activeReferenceMonth;
     const rateYmd = dto.paymentDate ?? formatYmdInCaracas();
     const { vesPerUsd, rateDate } =
       await this.bcv.getVesPerUsdForCalendarDay(rateYmd);
@@ -797,7 +955,8 @@ export class MeService {
     const { vesPerUsd, rateDate } =
       await this.bcv.getVesPerUsdForCalendarDay(rateYmd);
     const paymentDate = parseYmdToUtcNoon(rateYmd);
-    const refStr = startOfMonthYmdInCaracas();
+    const budget = await this.getActiveBudgetContextForUser(userId);
+    const refStr = budget.activeReferenceMonth;
 
     const vesPerUsdNum = Number(vesPerUsd.toString());
     const amountUsd =
@@ -806,7 +965,7 @@ export class MeService {
     // Título autogenerado si no viene del frontend: "Factura · YYYY-MM-DD" o "Pago · ..."
     const title = dto.title?.trim() || `Comprobante · ${rateYmd}`;
 
-    const row = await this.prisma.expense.create({
+    const row = await this.expenseReceiptPrisma.create({
       data: {
         profileId,
         categoryId,
@@ -833,7 +992,7 @@ export class MeService {
     user: AuthUserPayload,
     expenseId: string,
   ): Promise<{ buffer: Buffer; mime: string }> {
-    const row = await this.prisma.expense.findFirst({
+    const row = await this.expenseReceiptPrisma.findFirst({
       where: { id: expenseId, profile: { userId: user.userId } },
       select: { receiptImage: true, receiptMime: true },
     });
@@ -1011,7 +1170,9 @@ export class MeService {
 
     // FEAT-001: Incluir configuración del ciclo presupuestario
     const budgetCycle = {
-      mode: (pref.budgetCycleMode ?? 'calendar_month') as 'calendar_month' | 'monthly_cutoff',
+      mode: (pref.budgetCycleMode ?? 'calendar_month') as
+        | 'calendar_month'
+        | 'monthly_cutoff',
       cutoffDay: pref.budgetCutoffDay ?? 1,
     };
 
@@ -1290,5 +1451,102 @@ export class MeService {
       );
     }
     return first.id;
+  }
+
+  private async ensureDefaultIncomeSources(userId: string): Promise<void> {
+    const count = await this.incomePrisma.incomeSource.count({
+      where: { userId },
+    });
+    if (count > 0) return;
+
+    await this.incomePrisma.incomeSource.createMany({
+      data: DEFAULT_INCOME_SOURCES_NAMES.map((name) => ({ userId, name })),
+      skipDuplicates: true,
+    });
+  }
+
+  private async findIncomeSourceOrThrow(
+    userId: string,
+    opts: { id?: string; name?: string },
+  ): Promise<string> {
+    await this.ensureDefaultIncomeSources(userId);
+    if (opts.id) {
+      const row = await this.incomePrisma.incomeSource.findFirst({
+        where: { id: opts.id, userId },
+      });
+      if (!row) throw new BadRequestException('Fuente de ingreso inválida');
+      return row.id;
+    }
+    const name = opts.name?.trim();
+    if (!name) {
+      throw new BadRequestException('Indica fuente por id o nombre');
+    }
+    const row = await this.incomePrisma.incomeSource.findFirst({
+      where: { userId, name },
+    });
+    if (!row) {
+      throw new BadRequestException(`No existe la fuente "${name}"`);
+    }
+    return row.id;
+  }
+
+  private async getActiveBudgetContextForUser(userId: string) {
+    const pref = await this.preferenceReadPrisma.findUnique({
+      where: { userId },
+      select: { budgetCycleMode: true, budgetCutoffDay: true },
+    });
+    return resolveActiveBudgetContext(pref);
+  }
+  async listIncomeSources(user: AuthUserPayload) {
+    await this.ensureDefaultIncomeSources(user.userId);
+    const rows = (await this.incomePrisma.incomeSource.findMany({
+      where: { userId: user.userId },
+      orderBy: { name: 'asc' },
+    })) as IncomeSourceRow[];
+    return rows.map((s) => ({ id: s.id, name: s.name }));
+  }
+  async listIncomes(user: AuthUserPayload) {
+    const { activeMonthDate } = await this.getActiveBudgetContextForUser(
+      user.userId,
+    );
+    const rows = (await this.incomePrisma.incomeEntry.findMany({
+      where: { userId: user.userId, referenceMonth: activeMonthDate },
+      include: { source: true },
+      orderBy: { createdAt: 'desc' },
+    })) as IncomeEntryWithSourceRow[];
+    return rows.map((r) => mapIncomeToResponse(r));
+  }
+  async createIncome(user: AuthUserPayload, dto: CreateIncomeDto) {
+    const userId = user.userId;
+    const sourceId = await this.findIncomeSourceOrThrow(userId, {
+      id: dto.sourceId,
+      name: dto.sourceName,
+    });
+    const budget = await this.getActiveBudgetContextForUser(userId);
+    const refStr = dto.referenceMonth ?? budget.activeReferenceMonth;
+    const rateYmd = dto.receivedDate ?? formatYmdInCaracas();
+    const { vesPerUsd, rateDate } =
+      await this.bcv.getVesPerUsdForCalendarDay(rateYmd);
+    const row = (await this.incomePrisma.incomeEntry.create({
+      data: {
+        userId,
+        sourceId,
+        title: dto.title.trim(),
+        description: dto.description?.trim() ?? '',
+        amount: dto.amount,
+        referenceMonth: toReferenceMonthDate(refStr),
+        receivedDate: parseYmdToUtcNoon(rateYmd),
+        bcvRateApplied: vesPerUsd,
+        bcvRateDate: rateDate,
+      },
+      include: { source: true },
+    })) as IncomeEntryWithSourceRow;
+    return mapIncomeToResponse(row);
+  }
+  async deleteIncomes(user: AuthUserPayload, dto: DeleteIncomesDto) {
+    const result = await this.incomePrisma.incomeEntry.deleteMany({
+      where: { id: { in: dto.ids }, userId: user.userId },
+    });
+    return { deleted: result.count };
   }
 }

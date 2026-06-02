@@ -62,7 +62,7 @@ export interface BudgetPeriod {
 function getEffectiveCutoffDate(
   year: number,
   month: number, // 0-11
-  cutoffDay: number
+  cutoffDay: number,
 ): Date {
   // Crear fecha intentando el día de corte
   const candidate = new Date(Date.UTC(year, month, cutoffDay, 12, 0, 0));
@@ -92,7 +92,7 @@ function getEffectiveCutoffDate(
  */
 export function getBudgetPeriodForCutoffDay(
   todayYmd: string,
-  cutoffDay: number
+  cutoffDay: number,
 ): BudgetPeriod {
   // Parsear fecha de hoy en UTC noon para evitar problemas de TZ
   const today = parseYmdToUtcNoon(todayYmd);
@@ -104,7 +104,7 @@ export function getBudgetPeriodForCutoffDay(
   const currentMonthCutoff = getEffectiveCutoffDate(
     todayYear,
     todayMonth,
-    cutoffDay
+    cutoffDay,
   );
   const currentCutoffDate = currentMonthCutoff.getUTCDate();
 
@@ -127,7 +127,9 @@ export function getBudgetPeriodForCutoffDay(
 
     // Corte del mes actual ya pasó (o es hoy)
     // El periodo actual empezó el día después del corte del mes actual
-    const startOfCurrentPeriod = new Date(Date.UTC(todayYear, todayMonth, currentCutoffDate + 1, 12, 0, 0));
+    const startOfCurrentPeriod = new Date(
+      Date.UTC(todayYear, todayMonth, currentCutoffDate + 1, 12, 0, 0),
+    );
 
     // Si el día después del corte ya es el mes siguiente (ej: corte=31 en mes de 30 días)
     // ajustamos al 1 del mes siguiente
@@ -140,13 +142,21 @@ export function getBudgetPeriodForCutoffDay(
     // El corte del periodo actual es el corte del mes SIGUIENTE
     const nextMonth = todayMonth === 11 ? 0 : todayMonth + 1;
     const nextYear = todayMonth === 11 ? todayYear + 1 : todayYear;
-    const nextMonthCutoff = getEffectiveCutoffDate(nextYear, nextMonth, cutoffDay);
+    const nextMonthCutoff = getEffectiveCutoffDate(
+      nextYear,
+      nextMonth,
+      cutoffDay,
+    );
     cutoffDate = nextMonthCutoff;
 
     // El siguiente periodo empieza el día después de ese corte
-    const startOfNextPeriod = new Date(Date.UTC(nextYear, nextMonth, nextMonthCutoff.getUTCDate() + 1, 12, 0, 0));
+    const startOfNextPeriod = new Date(
+      Date.UTC(nextYear, nextMonth, nextMonthCutoff.getUTCDate() + 1, 12, 0, 0),
+    );
     if (startOfNextPeriod.getUTCMonth() !== nextMonth) {
-      nextPeriodStart = new Date(Date.UTC(nextYear, nextMonth + 1, 1, 12, 0, 0));
+      nextPeriodStart = new Date(
+        Date.UTC(nextYear, nextMonth + 1, 1, 12, 0, 0),
+      );
     } else {
       nextPeriodStart = startOfNextPeriod;
     }
@@ -158,10 +168,16 @@ export function getBudgetPeriodForCutoffDay(
     // Corte del mes anterior
     const prevMonth = todayMonth === 0 ? 11 : todayMonth - 1;
     const prevYear = todayMonth === 0 ? todayYear - 1 : todayYear;
-    const prevMonthCutoff = getEffectiveCutoffDate(prevYear, prevMonth, cutoffDay);
+    const prevMonthCutoff = getEffectiveCutoffDate(
+      prevYear,
+      prevMonth,
+      cutoffDay,
+    );
 
     // Periodo empezó el día después del corte del mes anterior
-    const startOfCurrentPeriod = new Date(Date.UTC(prevYear, prevMonth, prevMonthCutoff.getUTCDate() + 1, 12, 0, 0));
+    const startOfCurrentPeriod = new Date(
+      Date.UTC(prevYear, prevMonth, prevMonthCutoff.getUTCDate() + 1, 12, 0, 0),
+    );
     if (startOfCurrentPeriod.getUTCMonth() !== prevMonth) {
       periodStart = new Date(Date.UTC(prevYear, prevMonth + 1, 1, 12, 0, 0));
     } else {
@@ -172,16 +188,33 @@ export function getBudgetPeriodForCutoffDay(
     cutoffDate = currentMonthCutoff;
 
     // El siguiente periodo empieza el día después del corte actual
-    const startOfNextPeriod = new Date(Date.UTC(todayYear, todayMonth, currentCutoffDate + 1, 12, 0, 0));
+    const startOfNextPeriod = new Date(
+      Date.UTC(todayYear, todayMonth, currentCutoffDate + 1, 12, 0, 0),
+    );
     if (startOfNextPeriod.getUTCMonth() !== todayMonth) {
-      nextPeriodStart = new Date(Date.UTC(todayYear, todayMonth + 1, 1, 12, 0, 0));
+      nextPeriodStart = new Date(
+        Date.UTC(todayYear, todayMonth + 1, 1, 12, 0, 0),
+      );
     } else {
       nextPeriodStart = startOfNextPeriod;
     }
   }
 
   // Generar label legible (ej: "16 May - 15 Jun")
-  const monthNames = ['Ene', 'Feb', 'Mar', 'Abr', 'May', 'Jun', 'Jul', 'Ago', 'Sep', 'Oct', 'Nov', 'Dic'];
+  const monthNames = [
+    'Ene',
+    'Feb',
+    'Mar',
+    'Abr',
+    'May',
+    'Jun',
+    'Jul',
+    'Ago',
+    'Sep',
+    'Oct',
+    'Nov',
+    'Dic',
+  ];
   const startLabel = `${periodStart.getUTCDate()} ${monthNames[periodStart.getUTCMonth()]}`;
   const cutoffLabel = `${cutoffDate.getUTCDate()} ${monthNames[cutoffDate.getUTCMonth()]}`;
   const label = `${startLabel} - ${cutoffLabel}`;
@@ -207,7 +240,7 @@ export function isCutoffDay(todayYmd: string, cutoffDay: number): boolean {
   const effectiveCutoff = getEffectiveCutoffDate(
     today.getUTCFullYear(),
     today.getUTCMonth(),
-    cutoffDay
+    cutoffDay,
   );
   return todayYmd === formatYmdInCaracas(effectiveCutoff);
 }

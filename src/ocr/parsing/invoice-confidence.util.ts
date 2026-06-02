@@ -21,7 +21,8 @@ export function invoiceTranscriptBonusOk(rawText: string): boolean {
   ];
   const numericSpreadOk = /\d[\d\s./,-]{10,}/m.test(stripped);
   const lexicalHit = cues.some((chunk) => lc.includes(chunk));
-  const headerish = stripped.includes('\n') || (stripped.match(/:/g) ?? []).length >= 2;
+  const headerish =
+    stripped.includes('\n') || (stripped.match(/:/g) ?? []).length >= 2;
   const lengthOk = stripped.length >= 110;
   return lengthOk && numericSpreadOk && lexicalHit && headerish;
 }
