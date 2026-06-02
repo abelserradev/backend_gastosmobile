@@ -277,19 +277,17 @@ export class InventoryItemService {
   /**
    * Mapea entidad Prisma a respuesta de API.
    */
-  private mapToResponse(
-    item: {
-      id: string;
-      profileId: string;
-      name: string;
-      sku: string | null;
-      unit: string;
-      minStock: number;
-      currentStock: number;
-      createdAt: Date;
-      updatedAt: Date;
-    },
-  ): InventoryItemResponse {
+  private mapToResponse(item: {
+    id: string;
+    profileId: string;
+    name: string;
+    sku: string | null;
+    unit: string;
+    minStock: number;
+    currentStock: number;
+    createdAt: Date;
+    updatedAt: Date;
+  }): InventoryItemResponse {
     return {
       id: item.id,
       profileId: item.profileId,

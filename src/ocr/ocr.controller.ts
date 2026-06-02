@@ -29,7 +29,8 @@ export class OcrController {
       },
       fileFilter: (_req, file, callback) => {
         const mt = (file.mimetype ?? '').toLowerCase();
-        const ext = (file.originalname ?? '').split('.').pop()?.toLowerCase() ?? '';
+        const ext =
+          (file.originalname ?? '').split('.').pop()?.toLowerCase() ?? '';
         const imageExts = new Set([
           'jpg',
           'jpeg',

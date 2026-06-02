@@ -6,7 +6,10 @@ import {
   parseInvoiceTextBlob,
   transcriptHasBankOperationAmountLine,
 } from './invoice-text.parser';
-import { parseLocalizedMoneyToken, parseMoneyFragment } from './invoice-money.util';
+import {
+  parseLocalizedMoneyToken,
+  parseMoneyFragment,
+} from './invoice-money.util';
 
 describe('invoice-text.parser', () => {
   it('extrae total en formato venezolano Bs 60.552,00', () => {
@@ -137,7 +140,9 @@ I.V.A. (16%):    8.352,00
 TOTAL GENERAL:    Bs. 60.552,00`;
 
     it('factura con tabla: detecta productos aunque el precio esté en línea separada', () => {
-      const items = extractProductItemsFromText(ticketElectronicaTesseractSplit);
+      const items = extractProductItemsFromText(
+        ticketElectronicaTesseractSplit,
+      );
       expect(items).toBeTruthy();
       expect(items).toMatch(/lavadora/i);
       expect(items).toMatch(/nevera|whirlpool/i);

@@ -23,10 +23,7 @@ import {
   AdjustStockDto,
   CreateStockMovementDto,
 } from './dto/create-movement.dto';
-import {
-  ListInventoryItemsQuery,
-  LowStockQuery,
-} from './dto/list-items.query';
+import { ListInventoryItemsQuery, LowStockQuery } from './dto/list-items.query';
 import type { AuthUserPayload } from '../common/types/auth-user.payload';
 import type {
   InventoryItemResponse,

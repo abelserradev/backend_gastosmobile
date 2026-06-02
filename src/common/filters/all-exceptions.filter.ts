@@ -27,14 +27,13 @@ export class AllExceptionsFilter implements ExceptionFilter {
       return;
     }
 
-    const err = exception instanceof Error ? exception : new Error(String(exception));
+    const err =
+      exception instanceof Error ? exception : new Error(String(exception));
     this.logger.error(`${req.method} ${req.url} — ${err.message}`, err.stack);
 
     res.status(HttpStatus.INTERNAL_SERVER_ERROR).json({
       statusCode: HttpStatus.INTERNAL_SERVER_ERROR,
-      message: isProd
-        ? 'Error interno del servidor'
-        : err.message,
+      message: isProd ? 'Error interno del servidor' : err.message,
     });
   }
 }
