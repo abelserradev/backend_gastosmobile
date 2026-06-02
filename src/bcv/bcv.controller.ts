@@ -1,5 +1,6 @@
 import { Controller, Get, Query } from '@nestjs/common';
-import { Public } from '../common/decorators/public.decorator';
+import { CurrentUser } from '../common/decorators/current-user.decorator';
+import type { AuthUserPayload } from '../common/types/auth-user.payload';
 import { formatYmdInCaracas } from '../common/utils/caracas-date';
 import { BcvRateService } from './bcv-rate.service';
 
@@ -7,9 +8,11 @@ import { BcvRateService } from './bcv-rate.service';
 export class BcvController {
   constructor(private readonly bcv: BcvRateService) {}
 
-  @Public()
   @Get('oficial-por-dia')
-  async oficialPorDia(@Query('date') date?: string) {
+  async oficialPorDia(
+    @CurrentUser() _user: AuthUserPayload,
+    @Query('date') date?: string,
+  ) {
     const ymd =
       date && /^\d{4}-\d{2}-\d{2}$/.test(date) ? date : formatYmdInCaracas();
     const { vesPerUsd, rateDate, usedFallback } =

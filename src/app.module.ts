@@ -4,10 +4,9 @@ import { APP_GUARD } from '@nestjs/core';
 import { ThrottlerGuard, ThrottlerModule } from '@nestjs/throttler';
 import { envValidationSchema } from './config/env.validation';
 import { CacheModule } from './common/cache/cache.module';
+import { ApiKeyGuard } from './common/guards/api-key.guard';
 import { AuthModule } from './auth/auth.module';
 import { JwtAuthGuard } from './auth/jwt-auth.guard';
-import { AppController } from './app.controller';
-import { AppService } from './app.service';
 import { BcvModule } from './bcv/bcv.module';
 import { MeModule } from './me/me.module';
 import { OcrModule } from './ocr/ocr.module';
@@ -41,9 +40,8 @@ import { InventoryModule } from './inventory/inventory.module';
     BcvModule,
     OcrModule,
   ],
-  controllers: [AppController],
   providers: [
-    AppService,
+    ApiKeyGuard,
     { provide: APP_GUARD, useClass: ThrottlerGuard },
     { provide: APP_GUARD, useClass: JwtAuthGuard },
   ],

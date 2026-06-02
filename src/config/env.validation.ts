@@ -26,7 +26,10 @@ export const envValidationSchema = Joi.object({
         'any.required': 'SECRET_API_KEY es obligatorio en producción',
         'string.min': 'SECRET_API_KEY debe tener al menos 32 caracteres',
       }),
-      otherwise: Joi.string().trim().allow('').optional(),
+      otherwise: Joi.string().trim().min(16).required().messages({
+        'any.required': 'SECRET_API_KEY es obligatorio (compartida con el front vía X-API-KEY)',
+        'string.min': 'SECRET_API_KEY debe tener al menos 16 caracteres',
+      }),
     }),
   JWT_EXPIRES_IN: Joi.string().default('7d'),
   FRONTEND_URL: Joi.string()

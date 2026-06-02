@@ -104,7 +104,7 @@ export class AuthController {
     return { ok: true };
   }
 
-  /** Smoke check de ruta pública (útil en despliegues). */
+  /** Smoke check; requiere X-API-KEY (Coolify/probes sin JWT). */
   @Public()
   @SkipThrottle()
   @Get('health')
