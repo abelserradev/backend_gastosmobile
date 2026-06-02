@@ -4,7 +4,10 @@
 export function resolveCorsOrigin(raw: string | undefined): boolean | string[] {
   const trimmed = raw?.trim();
   if (trimmed) {
-    return trimmed.split(',').map((o) => o.trim()).filter(Boolean);
+    return trimmed
+      .split(',')
+      .map((o) => o.trim())
+      .filter(Boolean);
   }
   if (process.env.NODE_ENV === 'production') {
     return false;

@@ -1,6 +1,13 @@
-import { BadRequestException, ForbiddenException, NotFoundException } from '@nestjs/common';
+import {
+  BadRequestException,
+  ForbiddenException,
+  NotFoundException,
+} from '@nestjs/common';
 import { StockMovementService } from './stock-movement.service';
-import { CreateStockMovementDto, MovementType } from './dto/create-movement.dto';
+import {
+  CreateStockMovementDto,
+  MovementType,
+} from './dto/create-movement.dto';
 import { AdjustStockDto } from './dto/create-movement.dto';
 
 describe('StockMovementService', () => {
@@ -58,7 +65,10 @@ describe('StockMovementService', () => {
   describe('listMovements', () => {
     it('debe retornar lista de movimientos de un producto', async () => {
       prisma.profile.findFirst.mockResolvedValue({ id: mockProfileId });
-      prisma.inventoryItem.findFirst.mockResolvedValue({ id: mockItemId, profileId: mockProfileId });
+      prisma.inventoryItem.findFirst.mockResolvedValue({
+        id: mockItemId,
+        profileId: mockProfileId,
+      });
       prisma.stockMovement.findMany.mockResolvedValue([
         {
           id: 'm1',
@@ -84,7 +94,11 @@ describe('StockMovementService', () => {
         },
       ]);
 
-      const result = await service.listMovements(mockProfileId, mockItemId, mockUserId);
+      const result = await service.listMovements(
+        mockProfileId,
+        mockItemId,
+        mockUserId,
+      );
 
       expect(result).toHaveLength(2);
       expect(result[0].quantity).toBe(100);
@@ -95,10 +109,18 @@ describe('StockMovementService', () => {
 
     it('debe filtrar por sucursal cuando se proporciona branchId', async () => {
       prisma.profile.findFirst.mockResolvedValue({ id: mockProfileId });
-      prisma.inventoryItem.findFirst.mockResolvedValue({ id: mockItemId, profileId: mockProfileId });
+      prisma.inventoryItem.findFirst.mockResolvedValue({
+        id: mockItemId,
+        profileId: mockProfileId,
+      });
       prisma.stockMovement.findMany.mockResolvedValue([]);
 
-      await service.listMovements(mockProfileId, mockItemId, mockUserId, 'branch-001');
+      await service.listMovements(
+        mockProfileId,
+        mockItemId,
+        mockUserId,
+        'branch-001',
+      );
 
       expect(prisma.stockMovement.findMany).toHaveBeenCalledWith(
         expect.objectContaining({
@@ -121,7 +143,11 @@ describe('StockMovementService', () => {
 
     it('debe crear movimiento de salida y actualizar stock', async () => {
       prisma.profile.findFirst.mockResolvedValue({ id: mockProfileId });
-      prisma.inventoryItem.findFirst.mockResolvedValue({ id: mockItemId, profileId: mockProfileId, currentStock: 50 });
+      prisma.inventoryItem.findFirst.mockResolvedValue({
+        id: mockItemId,
+        profileId: mockProfileId,
+        currentStock: 50,
+      });
       prisma.inventoryItem.findUnique.mockResolvedValue({ currentStock: 50 });
       prisma.stockMovement.create.mockResolvedValue({
         id: mockMovementId,
@@ -138,7 +164,11 @@ describe('StockMovementService', () => {
       });
       prisma.inventoryItem.update.mockResolvedValue({});
 
-      const result = await service.createMovement(mockProfileId, mockUserId, mockDto);
+      const result = await service.createMovement(
+        mockProfileId,
+        mockUserId,
+        mockDto,
+      );
 
       expect(result.quantity).toBe(-10);
       expect(result.displayQuantity).toBe('-10');
@@ -160,7 +190,10 @@ describe('StockMovementService', () => {
       };
 
       prisma.profile.findFirst.mockResolvedValue({ id: mockProfileId });
-      prisma.inventoryItem.findFirst.mockResolvedValue({ id: mockItemId, profileId: mockProfileId });
+      prisma.inventoryItem.findFirst.mockResolvedValue({
+        id: mockItemId,
+        profileId: mockProfileId,
+      });
       prisma.stockMovement.create.mockResolvedValue({
         id: mockMovementId,
         itemId: mockItemId,
@@ -174,7 +207,11 @@ describe('StockMovementService', () => {
       });
       prisma.inventoryItem.update.mockResolvedValue({});
 
-      const result = await service.createMovement(mockProfileId, mockUserId, purchaseDto);
+      const result = await service.createMovement(
+        mockProfileId,
+        mockUserId,
+        purchaseDto,
+      );
 
       expect(result.quantity).toBe(50);
       expect(result.displayQuantity).toBe('+50');
@@ -182,7 +219,11 @@ describe('StockMovementService', () => {
 
     it('debe rechazar movimiento si resultaría en stock negativo', async () => {
       prisma.profile.findFirst.mockResolvedValue({ id: mockProfileId });
-      prisma.inventoryItem.findFirst.mockResolvedValue({ id: mockItemId, profileId: mockProfileId, currentStock: 5 });
+      prisma.inventoryItem.findFirst.mockResolvedValue({
+        id: mockItemId,
+        profileId: mockProfileId,
+        currentStock: 5,
+      });
       prisma.inventoryItem.findUnique.mockResolvedValue({ currentStock: 5 });
 
       const saleDto: CreateStockMovementDto = {
@@ -191,9 +232,9 @@ describe('StockMovementService', () => {
         quantity: 10,
       };
 
-      await expect(service.createMovement(mockProfileId, mockUserId, saleDto)).rejects.toBeInstanceOf(
-        BadRequestException,
-      );
+      await expect(
+        service.createMovement(mockProfileId, mockUserId, saleDto),
+      ).rejects.toBeInstanceOf(BadRequestException);
       expect(prisma.stockMovement.create).not.toHaveBeenCalled();
     });
 
@@ -201,7 +242,9 @@ describe('StockMovementService', () => {
       prisma.profile.findFirst.mockResolvedValue({ id: mockProfileId });
       prisma.inventoryItem.findFirst.mockResolvedValue(null);
 
-      await expect(service.createMovement(mockProfileId, mockUserId, mockDto)).rejects.toBeInstanceOf(NotFoundException);
+      await expect(
+        service.createMovement(mockProfileId, mockUserId, mockDto),
+      ).rejects.toBeInstanceOf(NotFoundException);
     });
   });
 
@@ -214,7 +257,10 @@ describe('StockMovementService', () => {
       };
 
       prisma.profile.findFirst.mockResolvedValue({ id: mockProfileId });
-      prisma.inventoryItem.findFirst.mockResolvedValue({ id: mockItemId, profileId: mockProfileId });
+      prisma.inventoryItem.findFirst.mockResolvedValue({
+        id: mockItemId,
+        profileId: mockProfileId,
+      });
       prisma.stockMovement.create.mockResolvedValue({
         id: mockMovementId,
         itemId: mockItemId,
@@ -226,7 +272,11 @@ describe('StockMovementService', () => {
       });
       prisma.inventoryItem.update.mockResolvedValue({});
 
-      const result = await service.adjustStock(mockProfileId, mockUserId, adjustDto);
+      const result = await service.adjustStock(
+        mockProfileId,
+        mockUserId,
+        adjustDto,
+      );
 
       expect(result.type).toBe(MovementType.ADJUSTMENT);
       expect(result.quantity).toBe(5);
@@ -240,7 +290,11 @@ describe('StockMovementService', () => {
       };
 
       prisma.profile.findFirst.mockResolvedValue({ id: mockProfileId });
-      prisma.inventoryItem.findFirst.mockResolvedValue({ id: mockItemId, profileId: mockProfileId, currentStock: 10 });
+      prisma.inventoryItem.findFirst.mockResolvedValue({
+        id: mockItemId,
+        profileId: mockProfileId,
+        currentStock: 10,
+      });
       prisma.inventoryItem.findUnique.mockResolvedValue({ currentStock: 10 });
       prisma.stockMovement.create.mockResolvedValue({
         id: mockMovementId,
@@ -253,7 +307,11 @@ describe('StockMovementService', () => {
       });
       prisma.inventoryItem.update.mockResolvedValue({});
 
-      const result = await service.adjustStock(mockProfileId, mockUserId, adjustDto);
+      const result = await service.adjustStock(
+        mockProfileId,
+        mockUserId,
+        adjustDto,
+      );
 
       expect(result.quantity).toBe(-3);
     });
@@ -266,12 +324,15 @@ describe('StockMovementService', () => {
       };
 
       prisma.profile.findFirst.mockResolvedValue({ id: mockProfileId });
-      prisma.inventoryItem.findFirst.mockResolvedValue({ id: mockItemId, profileId: mockProfileId });
+      prisma.inventoryItem.findFirst.mockResolvedValue({
+        id: mockItemId,
+        profileId: mockProfileId,
+      });
       prisma.inventoryItem.findUnique.mockResolvedValue({ currentStock: 10 });
 
-      await expect(service.adjustStock(mockProfileId, mockUserId, adjustDto)).rejects.toBeInstanceOf(
-        BadRequestException,
-      );
+      await expect(
+        service.adjustStock(mockProfileId, mockUserId, adjustDto),
+      ).rejects.toBeInstanceOf(BadRequestException);
     });
   });
 
@@ -282,11 +343,22 @@ describe('StockMovementService', () => {
       const transferQty = 10;
 
       prisma.profile.findFirst.mockResolvedValue({ id: mockProfileId });
-      prisma.inventoryItem.findFirst.mockResolvedValue({ id: mockItemId, profileId: mockProfileId });
+      prisma.inventoryItem.findFirst.mockResolvedValue({
+        id: mockItemId,
+        profileId: mockProfileId,
+      });
       prisma.stockBalance.findUnique.mockResolvedValue({ quantity: 30 });
       prisma.stockMovement.create
-        .mockResolvedValueOnce({ id: 'mov-out', type: MovementType.TRANSFER_OUT, quantity: -10 })
-        .mockResolvedValueOnce({ id: 'mov-in', type: MovementType.TRANSFER_IN, quantity: 10 });
+        .mockResolvedValueOnce({
+          id: 'mov-out',
+          type: MovementType.TRANSFER_OUT,
+          quantity: -10,
+        })
+        .mockResolvedValueOnce({
+          id: 'mov-in',
+          type: MovementType.TRANSFER_IN,
+          quantity: 10,
+        });
 
       // Resultado del findMany final
       prisma.stockMovement.findMany.mockResolvedValue([
@@ -331,20 +403,40 @@ describe('StockMovementService', () => {
 
     it('debe rechazar transferencia si sucursales son iguales', async () => {
       prisma.profile.findFirst.mockResolvedValue({ id: mockProfileId });
-      prisma.inventoryItem.findFirst.mockResolvedValue({ id: mockItemId, profileId: mockProfileId });
+      prisma.inventoryItem.findFirst.mockResolvedValue({
+        id: mockItemId,
+        profileId: mockProfileId,
+      });
 
       await expect(
-        service.transferBetweenBranches(mockProfileId, mockUserId, mockItemId, 'same-branch', 'same-branch', 5),
+        service.transferBetweenBranches(
+          mockProfileId,
+          mockUserId,
+          mockItemId,
+          'same-branch',
+          'same-branch',
+          5,
+        ),
       ).rejects.toBeInstanceOf(BadRequestException);
     });
 
     it('debe rechazar transferencia si origen no tiene stock suficiente', async () => {
       prisma.profile.findFirst.mockResolvedValue({ id: mockProfileId });
-      prisma.inventoryItem.findFirst.mockResolvedValue({ id: mockItemId, profileId: mockProfileId });
+      prisma.inventoryItem.findFirst.mockResolvedValue({
+        id: mockItemId,
+        profileId: mockProfileId,
+      });
       prisma.stockBalance.findUnique.mockResolvedValue({ quantity: 5 });
 
       await expect(
-        service.transferBetweenBranches(mockProfileId, mockUserId, mockItemId, 'branch-a', 'branch-b', 10),
+        service.transferBetweenBranches(
+          mockProfileId,
+          mockUserId,
+          mockItemId,
+          'branch-a',
+          'branch-b',
+          10,
+        ),
       ).rejects.toBeInstanceOf(BadRequestException);
     });
   });
@@ -353,9 +445,9 @@ describe('StockMovementService', () => {
     it('debe rechazar operación si el perfil no pertenece al usuario', async () => {
       prisma.profile.findFirst.mockResolvedValue(null);
 
-      await expect(service.listMovements(mockProfileId, mockItemId, mockUserId)).rejects.toBeInstanceOf(
-        ForbiddenException,
-      );
+      await expect(
+        service.listMovements(mockProfileId, mockItemId, mockUserId),
+      ).rejects.toBeInstanceOf(ForbiddenException);
     });
   });
 });

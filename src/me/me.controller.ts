@@ -30,6 +30,8 @@ import { ReplaceCategoriesDto } from './dto/replace-categories.dto';
 import { SubmitOcrFeedbackDto } from './dto/submit-ocr-feedback.dto';
 import { UpdatePreferencesDto } from './dto/update-preferences.dto';
 import { MonthRolloverDto } from './dto/month-rollover.dto';
+import { CreateIncomeDto } from './dto/create-income.dto';
+import { DeleteIncomesDto } from './dto/delete-income.dto';
 import { MeService } from './me.service';
 
 @Controller('me')
@@ -207,5 +209,31 @@ export class MeController {
     @Body() dto: PatchExpenseDto,
   ) {
     return this.me.patchExpense(user, id, dto);
+  }
+
+  @Get('income-sources')
+  listIncomeSources(@CurrentUser() user: AuthUserPayload) {
+    return this.me.listIncomeSources(user);
+  }
+
+  @Get('incomes')
+  listIncomes(@CurrentUser() user: AuthUserPayload) {
+    return this.me.listIncomes(user);
+  }
+
+  @Post('incomes')
+  createIncome(
+    @CurrentUser() user: AuthUserPayload,
+    @Body() dto: CreateIncomeDto,
+  ) {
+    return this.me.createIncome(user, dto);
+  }
+
+  @Post('incomes/delete-many')
+  deleteIncomes(
+    @CurrentUser() user: AuthUserPayload,
+    @Body() dto: DeleteIncomesDto,
+  ) {
+    return this.me.deleteIncomes(user, dto);
   }
 }

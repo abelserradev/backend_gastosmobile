@@ -35,7 +35,11 @@ export class BcvRateService {
   /** Evita tormenta de requests concurrentes al mismo día cuando Redis/PG aún no tienen fila. */
   private readonly pendingDayFetches = new Map<
     string,
-    Promise<{ vesPerUsd: Prisma.Decimal; rateDate: Date; usedFallback: boolean }>
+    Promise<{
+      vesPerUsd: Prisma.Decimal;
+      rateDate: Date;
+      usedFallback: boolean;
+    }>
   >();
 
   constructor(
@@ -127,7 +131,11 @@ export class BcvRateService {
     ymd: string,
     rateDate: Date,
     todayCaracas: string,
-  ): Promise<{ vesPerUsd: Prisma.Decimal; rateDate: Date; usedFallback: boolean }> {
+  ): Promise<{
+    vesPerUsd: Prisma.Decimal;
+    rateDate: Date;
+    usedFallback: boolean;
+  }> {
     if (ymd === todayCaracas) {
       try {
         const live = await this.fetchOfficialLive();
