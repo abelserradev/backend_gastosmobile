@@ -12,6 +12,8 @@ export interface InventoryItemResponse {
   minStock: number;
   currentStock: number;
   isLowStock: boolean; // calculado: currentStock <= minStock
+  /** FEAT-004: precio de catálogo venta (opcional). */
+  salePrice: number | null;
   createdAt: string;
   updatedAt: string;
 }
@@ -31,6 +33,10 @@ export interface StockMovementResponse {
   branchName: string | null;
   targetBranchId: string | null;
   targetBranchName: string | null;
+  /** FEAT-004: precio unitario del movimiento (null si no aplica). */
+  unitPrice: number | null;
+  /** FEAT-004: |quantity| × unitPrice cuando hay precio. */
+  lineValue: number | null;
   createdAt: string;
 }
 
@@ -52,4 +58,16 @@ export interface InventorySummaryResponse {
   lowStockCount: number;
   totalStockValue: number; // Fase C: valor estimado del inventario
   lastMovementAt: string | null;
+}
+
+/**
+ * Sucursal de un perfil comercio (FEAT-002 Fase B).
+ */
+export interface BranchResponse {
+  id: string;
+  profileId: string;
+  name: string;
+  address: string | null;
+  managerName: string | null;
+  createdAt: string;
 }

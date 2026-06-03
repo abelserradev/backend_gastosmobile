@@ -12,10 +12,10 @@ import { AdjustStockDto } from './dto/create-movement.dto';
 
 describe('StockMovementService', () => {
   let service: StockMovementService;
+  let profileAccess: {
+    assertInventoryAccess: jest.Mock;
+  };
   let prisma: {
-    profile: {
-      findFirst: jest.Mock;
-    };
     inventoryItem: {
       findFirst: jest.Mock;
       findUnique: jest.Mock;
@@ -39,10 +39,13 @@ describe('StockMovementService', () => {
   const mockMovementId = 'mov-001';
 
   beforeEach(() => {
+    profileAccess = {
+      assertInventoryAccess: jest.fn().mockResolvedValue({
+        access: 'owner',
+        profile: { id: mockProfileId, type: 'comercio' },
+      }),
+    };
     prisma = {
-      profile: {
-        findFirst: jest.fn(),
-      },
       inventoryItem: {
         findFirst: jest.fn(),
         findUnique: jest.fn(),
@@ -59,12 +62,14 @@ describe('StockMovementService', () => {
       },
       $transaction: jest.fn((callback) => callback(prisma)),
     };
-    service = new StockMovementService(prisma as never);
+    service = new StockMovementService(
+      prisma as never,
+      profileAccess as never,
+    );
   });
 
   describe('listMovements', () => {
     it('debe retornar lista de movimientos de un producto', async () => {
-      prisma.profile.findFirst.mockResolvedValue({ id: mockProfileId });
       prisma.inventoryItem.findFirst.mockResolvedValue({
         id: mockItemId,
         profileId: mockProfileId,
@@ -108,7 +113,6 @@ describe('StockMovementService', () => {
     });
 
     it('debe filtrar por sucursal cuando se proporciona branchId', async () => {
-      prisma.profile.findFirst.mockResolvedValue({ id: mockProfileId });
       prisma.inventoryItem.findFirst.mockResolvedValue({
         id: mockItemId,
         profileId: mockProfileId,
@@ -142,7 +146,6 @@ describe('StockMovementService', () => {
     };
 
     it('debe crear movimiento de salida y actualizar stock', async () => {
-      prisma.profile.findFirst.mockResolvedValue({ id: mockProfileId });
       prisma.inventoryItem.findFirst.mockResolvedValue({
         id: mockItemId,
         profileId: mockProfileId,
@@ -189,7 +192,6 @@ describe('StockMovementService', () => {
         reason: 'Compra proveedor',
       };
 
-      prisma.profile.findFirst.mockResolvedValue({ id: mockProfileId });
       prisma.inventoryItem.findFirst.mockResolvedValue({
         id: mockItemId,
         profileId: mockProfileId,
@@ -218,7 +220,6 @@ describe('StockMovementService', () => {
     });
 
     it('debe rechazar movimiento si resultaría en stock negativo', async () => {
-      prisma.profile.findFirst.mockResolvedValue({ id: mockProfileId });
       prisma.inventoryItem.findFirst.mockResolvedValue({
         id: mockItemId,
         profileId: mockProfileId,
@@ -239,7 +240,6 @@ describe('StockMovementService', () => {
     });
 
     it('debe rechazar si el producto no pertenece al perfil', async () => {
-      prisma.profile.findFirst.mockResolvedValue({ id: mockProfileId });
       prisma.inventoryItem.findFirst.mockResolvedValue(null);
 
       await expect(
@@ -256,7 +256,6 @@ describe('StockMovementService', () => {
         reason: 'Ajuste por inventario físico',
       };
 
-      prisma.profile.findFirst.mockResolvedValue({ id: mockProfileId });
       prisma.inventoryItem.findFirst.mockResolvedValue({
         id: mockItemId,
         profileId: mockProfileId,
@@ -289,7 +288,6 @@ describe('StockMovementService', () => {
         reason: 'Productos dañados',
       };
 
-      prisma.profile.findFirst.mockResolvedValue({ id: mockProfileId });
       prisma.inventoryItem.findFirst.mockResolvedValue({
         id: mockItemId,
         profileId: mockProfileId,
@@ -323,7 +321,6 @@ describe('StockMovementService', () => {
         reason: 'Merma excesiva',
       };
 
-      prisma.profile.findFirst.mockResolvedValue({ id: mockProfileId });
       prisma.inventoryItem.findFirst.mockResolvedValue({
         id: mockItemId,
         profileId: mockProfileId,
@@ -342,7 +339,6 @@ describe('StockMovementService', () => {
       const targetBranchId = 'branch-norte';
       const transferQty = 10;
 
-      prisma.profile.findFirst.mockResolvedValue({ id: mockProfileId });
       prisma.inventoryItem.findFirst.mockResolvedValue({
         id: mockItemId,
         profileId: mockProfileId,
@@ -402,7 +398,6 @@ describe('StockMovementService', () => {
     });
 
     it('debe rechazar transferencia si sucursales son iguales', async () => {
-      prisma.profile.findFirst.mockResolvedValue({ id: mockProfileId });
       prisma.inventoryItem.findFirst.mockResolvedValue({
         id: mockItemId,
         profileId: mockProfileId,
@@ -421,7 +416,6 @@ describe('StockMovementService', () => {
     });
 
     it('debe rechazar transferencia si origen no tiene stock suficiente', async () => {
-      prisma.profile.findFirst.mockResolvedValue({ id: mockProfileId });
       prisma.inventoryItem.findFirst.mockResolvedValue({
         id: mockItemId,
         profileId: mockProfileId,
@@ -443,11 +437,194 @@ describe('StockMovementService', () => {
 
   describe('validación de ownership', () => {
     it('debe rechazar operación si el perfil no pertenece al usuario', async () => {
-      prisma.profile.findFirst.mockResolvedValue(null);
+      profileAccess.assertInventoryAccess.mockRejectedValue(
+        new ForbiddenException(),
+      );
 
       await expect(
         service.listMovements(mockProfileId, mockItemId, mockUserId),
       ).rejects.toBeInstanceOf(ForbiddenException);
+    });
+  });
+
+  /**
+   * FEAT-004 — unitPrice opcional en movimientos.
+   * Spec: Escenarios B, C, D (FEAT-inventory-pricing-optional.md).
+   */
+  describe('FEAT-004: unitPrice en movimientos', () => {
+    beforeEach(() => {
+      prisma.inventoryItem.findFirst.mockResolvedValue({
+        id: mockItemId,
+        profileId: mockProfileId,
+        currentStock: 50,
+      });
+      prisma.inventoryItem.findUnique.mockResolvedValue({ currentStock: 50 });
+      prisma.inventoryItem.update.mockResolvedValue({});
+    });
+
+    it('debe persistir unitPrice en venta valorada (Escenario B)', async () => {
+      const saleDto: CreateStockMovementDto = {
+        itemId: mockItemId,
+        type: MovementType.SALE,
+        quantity: 3,
+        unitPrice: 2.5,
+      };
+
+      prisma.stockMovement.create.mockResolvedValue({
+        id: mockMovementId,
+        itemId: mockItemId,
+        type: MovementType.SALE,
+        quantity: -3,
+        unitPrice: { toNumber: () => 2.5 },
+        reason: null,
+        branchId: null,
+        targetBranchId: null,
+        item: { name: 'Refresco 2L' },
+        branch: null,
+        targetBranch: null,
+        createdAt: new Date(),
+      });
+
+      const result = await service.createMovement(
+        mockProfileId,
+        mockUserId,
+        saleDto,
+      );
+
+      expect(prisma.stockMovement.create).toHaveBeenCalledWith(
+        expect.objectContaining({
+          data: expect.objectContaining({ unitPrice: 2.5 }),
+        }),
+      );
+      expect(result.unitPrice).toBe(2.5);
+      expect(result.lineValue).toBe(7.5);
+    });
+
+    it('debe permitir venta sin unitPrice (Escenario D)', async () => {
+      const saleDto: CreateStockMovementDto = {
+        itemId: mockItemId,
+        type: MovementType.SALE,
+        quantity: 5,
+      };
+
+      prisma.stockMovement.create.mockResolvedValue({
+        id: mockMovementId,
+        itemId: mockItemId,
+        type: MovementType.SALE,
+        quantity: -5,
+        unitPrice: null,
+        item: { name: 'Producto' },
+        branch: null,
+        targetBranch: null,
+        createdAt: new Date(),
+      });
+
+      const result = await service.createMovement(
+        mockProfileId,
+        mockUserId,
+        saleDto,
+      );
+
+      expect(prisma.stockMovement.create).toHaveBeenCalledWith(
+        expect.objectContaining({
+          data: expect.objectContaining({ unitPrice: null }),
+        }),
+      );
+      expect(result.unitPrice).toBeNull();
+    });
+
+    it('debe ignorar unitPrice en TRANSFER_OUT si el cliente lo envía', async () => {
+      const transferDto: CreateStockMovementDto = {
+        itemId: mockItemId,
+        type: MovementType.TRANSFER_OUT,
+        quantity: 10,
+        branchId: 'branch-a',
+        targetBranchId: 'branch-b',
+        unitPrice: 99,
+      };
+
+      prisma.stockBalance.findUnique.mockResolvedValue({ quantity: 30 });
+      prisma.stockMovement.create.mockResolvedValue({
+        id: mockMovementId,
+        itemId: mockItemId,
+        type: MovementType.TRANSFER_OUT,
+        quantity: -10,
+        unitPrice: null,
+        item: { name: 'Arroz' },
+        branch: null,
+        targetBranch: null,
+        createdAt: new Date(),
+      });
+
+      await service.createMovement(mockProfileId, mockUserId, transferDto);
+
+      expect(prisma.stockMovement.create).toHaveBeenCalledWith(
+        expect.objectContaining({
+          data: expect.objectContaining({ unitPrice: null }),
+        }),
+      );
+    });
+
+    it('debe rechazar unitPrice negativo', async () => {
+      const saleDto: CreateStockMovementDto = {
+        itemId: mockItemId,
+        type: MovementType.SALE,
+        quantity: 1,
+        unitPrice: -0.5,
+      };
+
+      await expect(
+        service.createMovement(mockProfileId, mockUserId, saleDto),
+      ).rejects.toBeInstanceOf(BadRequestException);
+      expect(prisma.stockMovement.create).not.toHaveBeenCalled();
+    });
+
+    it('transferBetweenBranches no debe persistir unitPrice (Escenario C)', async () => {
+      prisma.stockBalance.findUnique.mockResolvedValue({ quantity: 100 });
+      prisma.stockMovement.create
+        .mockResolvedValueOnce({ id: 'mov-out', type: MovementType.TRANSFER_OUT })
+        .mockResolvedValueOnce({ id: 'mov-in', type: MovementType.TRANSFER_IN });
+      prisma.stockMovement.findMany.mockResolvedValue([
+        {
+          id: 'mov-out',
+          itemId: mockItemId,
+          type: MovementType.TRANSFER_OUT,
+          quantity: -40,
+          unitPrice: null,
+          item: { name: 'Arroz 1kg' },
+          branch: { name: 'Central' },
+          targetBranch: { name: 'Norte' },
+          createdAt: new Date(),
+        },
+        {
+          id: 'mov-in',
+          itemId: mockItemId,
+          type: MovementType.TRANSFER_IN,
+          quantity: 40,
+          unitPrice: null,
+          item: { name: 'Arroz 1kg' },
+          branch: { name: 'Norte' },
+          targetBranch: { name: 'Central' },
+          createdAt: new Date(),
+        },
+      ]);
+
+      const result = await service.transferBetweenBranches(
+        mockProfileId,
+        mockUserId,
+        mockItemId,
+        'branch-central',
+        'branch-norte',
+        40,
+      );
+
+      const createCalls = prisma.stockMovement.create.mock.calls as Array<
+        [{ data: { unitPrice?: unknown } }]
+      >;
+      expect(createCalls.every((call) => call[0].data.unitPrice == null)).toBe(
+        true,
+      );
+      expect(result.every((m) => m.unitPrice == null)).toBe(true);
     });
   });
 });

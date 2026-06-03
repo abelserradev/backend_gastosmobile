@@ -5,18 +5,14 @@ import {
   Injectable,
 } from '@nestjs/common';
 import type { Request } from 'express';
-import { ProfileOwnershipService } from '../services/profile-ownership.service';
+import { ProfileAccessService } from '../services/profile-access.service';
 
 /**
- * Guard que verifica que el usuario autenticado sea dueño del perfil.
- *
- * Uso: @UseGuards(ProfileOwnerGuard) — JwtAuthGuard ya es global (APP_GUARD).
+ * Guard de inventario: dueño del perfil comercio o colaborador aceptado (FEAT-003).
  */
 @Injectable()
-export class ProfileOwnerGuard implements CanActivate {
-  constructor(
-    private readonly profileOwnership: ProfileOwnershipService,
-  ) {}
+export class ProfileAccessGuard implements CanActivate {
+  constructor(private readonly profileAccess: ProfileAccessService) {}
 
   async canActivate(context: ExecutionContext): Promise<boolean> {
     const request = context.switchToHttp().getRequest<Request>();
@@ -35,7 +31,7 @@ export class ProfileOwnerGuard implements CanActivate {
       return true;
     }
 
-    await this.profileOwnership.assertProfileOwner(profileId, user.userId);
+    await this.profileAccess.assertInventoryAccess(profileId, user.userId);
     return true;
   }
 }

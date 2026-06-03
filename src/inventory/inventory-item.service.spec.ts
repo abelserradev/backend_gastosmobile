@@ -9,11 +9,10 @@ import { UpdateInventoryItemDto } from './dto/update-item.dto';
 
 describe('InventoryItemService', () => {
   let service: InventoryItemService;
+  let profileAccess: {
+    assertInventoryAccess: jest.Mock;
+  };
   let prisma: {
-    profile: {
-      findFirst: jest.Mock;
-      findUnique: jest.Mock;
-    };
     inventoryItem: {
       findMany: jest.Mock;
       findFirst: jest.Mock;
@@ -35,11 +34,13 @@ describe('InventoryItemService', () => {
   const mockItemId = 'item-001';
 
   beforeEach(() => {
+    profileAccess = {
+      assertInventoryAccess: jest.fn().mockResolvedValue({
+        access: 'owner',
+        profile: { id: mockProfileId, type: 'comercio' },
+      }),
+    };
     prisma = {
-      profile: {
-        findFirst: jest.fn(),
-        findUnique: jest.fn(),
-      },
       inventoryItem: {
         findMany: jest.fn(),
         findFirst: jest.fn(),
@@ -55,12 +56,14 @@ describe('InventoryItemService', () => {
       },
       $transaction: jest.fn((callback) => callback(prisma)),
     };
-    service = new InventoryItemService(prisma as never);
+    service = new InventoryItemService(
+      prisma as never,
+      profileAccess as never,
+    );
   });
 
   describe('listItems', () => {
     it('debe retornar lista de productos del perfil', async () => {
-      prisma.profile.findFirst.mockResolvedValue({ id: mockProfileId });
       prisma.inventoryItem.findMany.mockResolvedValue([
         {
           id: 'i1',
@@ -83,7 +86,6 @@ describe('InventoryItemService', () => {
     });
 
     it('debe filtrar por búsqueda cuando se proporciona', async () => {
-      prisma.profile.findFirst.mockResolvedValue({ id: mockProfileId });
       prisma.inventoryItem.findMany.mockResolvedValue([]);
 
       await service.listItems(mockProfileId, mockUserId, 'coca');
@@ -102,7 +104,9 @@ describe('InventoryItemService', () => {
     });
 
     it('debe lanzar ForbiddenException si el perfil no pertenece al usuario', async () => {
-      prisma.profile.findFirst.mockResolvedValue(null);
+      profileAccess.assertInventoryAccess.mockRejectedValue(
+        new ForbiddenException(),
+      );
 
       await expect(
         service.listItems(mockProfileId, mockUserId),
@@ -112,7 +116,6 @@ describe('InventoryItemService', () => {
 
   describe('getItem', () => {
     it('debe retornar un producto específico', async () => {
-      prisma.profile.findFirst.mockResolvedValue({ id: mockProfileId });
       prisma.inventoryItem.findFirst.mockResolvedValue({
         id: mockItemId,
         name: 'Pepsi',
@@ -134,7 +137,6 @@ describe('InventoryItemService', () => {
     });
 
     it('debe lanzar NotFoundException si el producto no existe', async () => {
-      prisma.profile.findFirst.mockResolvedValue({ id: mockProfileId });
       prisma.inventoryItem.findFirst.mockResolvedValue(null);
 
       await expect(
@@ -153,14 +155,6 @@ describe('InventoryItemService', () => {
     };
 
     it('debe crear producto con movimiento inicial cuando tiene stock inicial', async () => {
-      prisma.profile.findFirst.mockResolvedValue({
-        id: mockProfileId,
-        type: 'comercio',
-      });
-      prisma.profile.findUnique.mockResolvedValue({
-        id: mockProfileId,
-        type: 'comercio',
-      });
       prisma.inventoryItem.findUnique.mockResolvedValue(null);
       prisma.inventoryItem.create.mockResolvedValue({
         id: mockItemId,
@@ -188,14 +182,6 @@ describe('InventoryItemService', () => {
         unit: 'botella',
         minStock: 0,
       };
-      prisma.profile.findFirst.mockResolvedValue({
-        id: mockProfileId,
-        type: 'comercio',
-      });
-      prisma.profile.findUnique.mockResolvedValue({
-        id: mockProfileId,
-        type: 'comercio',
-      });
       prisma.inventoryItem.findUnique.mockResolvedValue(null);
       prisma.inventoryItem.create.mockResolvedValue({
         id: mockItemId,
@@ -217,14 +203,9 @@ describe('InventoryItemService', () => {
     });
 
     it('debe rechazar si el perfil no es tipo comercio', async () => {
-      prisma.profile.findFirst.mockResolvedValue({
-        id: mockProfileId,
-        type: 'familiar',
-      });
-      prisma.profile.findUnique.mockResolvedValue({
-        id: mockProfileId,
-        type: 'familiar',
-      });
+      profileAccess.assertInventoryAccess.mockRejectedValue(
+        new BadRequestException(),
+      );
 
       await expect(
         service.createItem(mockProfileId, mockUserId, mockDto),
@@ -232,14 +213,6 @@ describe('InventoryItemService', () => {
     });
 
     it('debe rechazar SKU duplicado en el mismo perfil', async () => {
-      prisma.profile.findFirst.mockResolvedValue({
-        id: mockProfileId,
-        type: 'comercio',
-      });
-      prisma.profile.findUnique.mockResolvedValue({
-        id: mockProfileId,
-        type: 'comercio',
-      });
       prisma.inventoryItem.findUnique.mockResolvedValue({
         id: 'existing',
         sku: 'FNT-001',
@@ -255,7 +228,6 @@ describe('InventoryItemService', () => {
     const mockDto: UpdateInventoryItemDto = { name: 'Fanta Naranja 2L' };
 
     it('debe actualizar nombre del producto', async () => {
-      prisma.profile.findFirst.mockResolvedValue({ id: mockProfileId });
       prisma.inventoryItem.findFirst.mockResolvedValue({
         id: mockItemId,
         name: 'Fanta Naranja',
@@ -285,7 +257,6 @@ describe('InventoryItemService', () => {
     });
 
     it('debe rechazar cambio de SKU a uno ya existente', async () => {
-      prisma.profile.findFirst.mockResolvedValue({ id: mockProfileId });
       prisma.inventoryItem.findFirst.mockResolvedValue({
         id: mockItemId,
         name: 'Producto A',
@@ -307,7 +278,6 @@ describe('InventoryItemService', () => {
 
   describe('deleteItem', () => {
     it('debe eliminar producto sin stock ni movimientos', async () => {
-      prisma.profile.findFirst.mockResolvedValue({ id: mockProfileId });
       prisma.inventoryItem.findFirst.mockResolvedValue({
         id: mockItemId,
         currentStock: 0,
@@ -324,7 +294,6 @@ describe('InventoryItemService', () => {
     });
 
     it('debe rechazar eliminar producto con movimientos', async () => {
-      prisma.profile.findFirst.mockResolvedValue({ id: mockProfileId });
       prisma.inventoryItem.findFirst.mockResolvedValue({
         id: mockItemId,
         currentStock: 0,
@@ -339,7 +308,6 @@ describe('InventoryItemService', () => {
     });
 
     it('debe rechazar eliminar producto con stock > 0', async () => {
-      prisma.profile.findFirst.mockResolvedValue({ id: mockProfileId });
       prisma.inventoryItem.findFirst.mockResolvedValue({
         id: mockItemId,
         currentStock: 10,
@@ -355,7 +323,6 @@ describe('InventoryItemService', () => {
 
   describe('listLowStock', () => {
     it('debe listar productos con stock igual o menor al mínimo', async () => {
-      prisma.profile.findFirst.mockResolvedValue({ id: mockProfileId });
       prisma.inventoryItem.findMany.mockResolvedValue([
         {
           id: 'i1',
@@ -381,6 +348,125 @@ describe('InventoryItemService', () => {
 
       expect(result).toHaveLength(2);
       expect(result.every((i) => i.isLowStock)).toBe(true);
+    });
+  });
+
+  /**
+   * FEAT-004 — precio de catálogo opcional en producto.
+   * Spec: Escenarios A, E (FEAT-inventory-pricing-optional.md).
+   */
+  describe('FEAT-004: salePrice en producto', () => {
+    it('debe crear producto con salePrice opcional en catálogo', async () => {
+      const dtoConPrecio: CreateInventoryItemDto = {
+        name: 'Refresco 2L',
+        unit: 'pieza',
+        minStock: 0,
+        salePrice: 2.5,
+      };
+
+      prisma.inventoryItem.findUnique.mockResolvedValue(null);
+      prisma.inventoryItem.create.mockResolvedValue({
+        id: mockItemId,
+        ...dtoConPrecio,
+        sku: null,
+        profileId: mockProfileId,
+        currentStock: 0,
+        salePrice: { toNumber: () => 2.5 },
+        createdAt: new Date(),
+        updatedAt: new Date(),
+      });
+
+      const result = await service.createItem(
+        mockProfileId,
+        mockUserId,
+        dtoConPrecio,
+      );
+
+      expect(prisma.inventoryItem.create).toHaveBeenCalledWith(
+        expect.objectContaining({
+          data: expect.objectContaining({ salePrice: 2.5 }),
+        }),
+      );
+      expect(result.salePrice).toBe(2.5);
+    });
+
+    it('debe crear producto sin salePrice (null en respuesta)', async () => {
+      const dtoSinPrecio: CreateInventoryItemDto = {
+        name: 'Arroz 1kg',
+        unit: 'kg',
+        minStock: 5,
+      };
+
+      prisma.inventoryItem.findUnique.mockResolvedValue(null);
+      prisma.inventoryItem.create.mockResolvedValue({
+        id: mockItemId,
+        ...dtoSinPrecio,
+        sku: null,
+        profileId: mockProfileId,
+        currentStock: 0,
+        salePrice: null,
+        createdAt: new Date(),
+        updatedAt: new Date(),
+      });
+
+      const result = await service.createItem(
+        mockProfileId,
+        mockUserId,
+        dtoSinPrecio,
+      );
+
+      expect(result.salePrice).toBeNull();
+    });
+
+    it('debe actualizar salePrice sin modificar currentStock', async () => {
+      prisma.inventoryItem.findFirst.mockResolvedValue({
+        id: mockItemId,
+        name: 'Refresco 2L',
+        sku: null,
+        profileId: mockProfileId,
+        salePrice: null,
+      });
+      prisma.inventoryItem.update.mockResolvedValue({
+        id: mockItemId,
+        name: 'Refresco 2L',
+        sku: null,
+        unit: 'pieza',
+        minStock: 0,
+        currentStock: 20,
+        profileId: mockProfileId,
+        salePrice: { toNumber: () => 3 },
+        createdAt: new Date(),
+        updatedAt: new Date(),
+      });
+
+      const result = await service.updateItem(
+        mockProfileId,
+        mockItemId,
+        mockUserId,
+        { salePrice: 3 },
+      );
+
+      expect(prisma.inventoryItem.update).toHaveBeenCalledWith(
+        expect.objectContaining({
+          data: expect.objectContaining({ salePrice: 3 }),
+        }),
+      );
+      expect(result.salePrice).toBe(3);
+      expect(result.currentStock).toBe(20);
+    });
+
+    it('debe rechazar salePrice negativo al crear', async () => {
+      const dtoInvalido: CreateInventoryItemDto = {
+        name: 'Producto X',
+        unit: 'pieza',
+        minStock: 0,
+        salePrice: -1,
+      };
+
+      await expect(
+        service.createItem(mockProfileId, mockUserId, dtoInvalido),
+      ).rejects.toBeInstanceOf(BadRequestException);
+      expect(prisma.inventoryItem.create).not.toHaveBeenCalled();
     });
   });
 });

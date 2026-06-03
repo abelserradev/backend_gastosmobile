@@ -10,22 +10,30 @@ import {
   Patch,
   Post,
   Query,
+  UseGuards,
 } from '@nestjs/common';
 import { CurrentUser } from '../common/decorators/current-user.decorator';
+import { ProfileAccessGuard } from '../common/guards/profile-access.guard';
 import { InventoryItemService } from './inventory-item.service';
 import { StockMovementService } from './stock-movement.service';
 import { InventoryService } from './inventory.service';
+import { BranchService } from './branch.service';
 import { CreateInventoryItemDto } from './dto/create-item.dto';
 import { UpdateInventoryItemDto } from './dto/update-item.dto';
 import {
   AdjustStockDto,
   CreateStockMovementDto,
 } from './dto/create-movement.dto';
+import { CreateBranchDto } from './dto/create-branch.dto';
+import { UpdateBranchDto } from './dto/update-branch.dto';
+import { TransferStockDto } from './dto/transfer-stock.dto';
 import { ListInventoryItemsQuery, LowStockQuery } from './dto/list-items.query';
 import type { AuthUserPayload } from '../common/types/auth-user.payload';
 import type {
+  BranchResponse,
   InventoryItemResponse,
   InventorySummaryResponse,
+  StockBalanceResponse,
   StockMovementResponse,
 } from './entities/inventory-item.response';
 
@@ -34,28 +42,16 @@ import type {
  *
  * Rutas base: /me/profiles/:profileId/inventory
  *
- * Endpoints:
- * - GET    /items                    → Listar productos
- * - POST   /items                    → Crear producto
- * - GET    /items/low-stock          → Productos con stock bajo
- * - GET    /items/:itemId            → Ver producto
- * - PATCH  /items/:itemId            → Actualizar producto
- * - DELETE /items/:itemId            → Eliminar producto (restricciones aplican)
- * - GET    /items/:itemId/movements  → Historial de movimientos
- * - POST   /movements                → Registrar movimiento
- * - POST   /movements/adjust         → Ajuste de stock
- * - GET    /summary                  → Resumen del inventario
- *
- * Seguridad: JwtAuthGuard global (APP_GUARD) + validación de perfil en servicio.
- *
- * TODO: Implementar ProfileOwnerGuard compartido (actualmente validación en servicio).
+ * Seguridad: JwtAuthGuard global + ProfileOwnerGuard por ruta.
  */
 @Controller('me/profiles/:profileId/inventory')
+@UseGuards(ProfileAccessGuard)
 export class InventoryController {
   constructor(
     private readonly inventoryService: InventoryService,
     private readonly itemService: InventoryItemService,
     private readonly movementService: StockMovementService,
+    private readonly branchService: BranchService,
   ) {}
 
   // ========== RESUMEN ==========
@@ -162,5 +158,77 @@ export class InventoryController {
     @Body() dto: AdjustStockDto,
   ): Promise<StockMovementResponse> {
     return this.movementService.adjustStock(profileId, user.userId, dto);
+  }
+
+  @Post('movements/transfer')
+  @HttpCode(HttpStatus.CREATED)
+  transferStock(
+    @CurrentUser() user: AuthUserPayload,
+    @Param('profileId', ParseUUIDPipe) profileId: string,
+    @Body() dto: TransferStockDto,
+  ): Promise<StockMovementResponse[]> {
+    return this.movementService.transferBetweenBranches(
+      profileId,
+      user.userId,
+      dto.itemId,
+      dto.sourceBranchId,
+      dto.targetBranchId,
+      dto.quantity,
+      dto.reason,
+    );
+  }
+
+  // ========== SUCURSALES (Fase B) ==========
+
+  @Get('branches')
+  listBranches(
+    @CurrentUser() user: AuthUserPayload,
+    @Param('profileId', ParseUUIDPipe) profileId: string,
+  ): Promise<BranchResponse[]> {
+    return this.branchService.listBranches(profileId, user.userId);
+  }
+
+  @Post('branches')
+  @HttpCode(HttpStatus.CREATED)
+  createBranch(
+    @CurrentUser() user: AuthUserPayload,
+    @Param('profileId', ParseUUIDPipe) profileId: string,
+    @Body() dto: CreateBranchDto,
+  ): Promise<BranchResponse> {
+    return this.branchService.createBranch(profileId, user.userId, dto);
+  }
+
+  @Patch('branches/:branchId')
+  updateBranch(
+    @CurrentUser() user: AuthUserPayload,
+    @Param('profileId', ParseUUIDPipe) profileId: string,
+    @Param('branchId', ParseUUIDPipe) branchId: string,
+    @Body() dto: UpdateBranchDto,
+  ): Promise<BranchResponse> {
+    return this.branchService.updateBranch(
+      profileId,
+      branchId,
+      user.userId,
+      dto,
+    );
+  }
+
+  @Delete('branches/:branchId')
+  @HttpCode(HttpStatus.NO_CONTENT)
+  async deleteBranch(
+    @CurrentUser() user: AuthUserPayload,
+    @Param('profileId', ParseUUIDPipe) profileId: string,
+    @Param('branchId', ParseUUIDPipe) branchId: string,
+  ): Promise<void> {
+    await this.branchService.deleteBranch(profileId, branchId, user.userId);
+  }
+
+  @Get('items/:itemId/balances')
+  listItemBalances(
+    @CurrentUser() user: AuthUserPayload,
+    @Param('profileId', ParseUUIDPipe) profileId: string,
+    @Param('itemId', ParseUUIDPipe) itemId: string,
+  ): Promise<StockBalanceResponse[]> {
+    return this.itemService.listItemBalances(profileId, itemId, user.userId);
   }
 }

@@ -50,6 +50,7 @@ import {
 } from './me.mappers';
 import { enmascararCorreo } from '../common/utils/mask-correo-for-log.util';
 import { ResendEmailService } from '../email/resend-email.service';
+import { ProfileCollaboratorService } from '../profile-collaborators/profile-collaborator.service';
 import { resolveActiveBudgetContext } from '../common/utils/active-budget-context.util';
 import { CreateIncomeDto } from './dto/create-income.dto';
 import { DeleteIncomesDto } from './dto/delete-income.dto';
@@ -122,6 +123,7 @@ export class MeService {
     private readonly prisma: PrismaService,
     private readonly bcv: BcvRateService,
     private readonly resendEmail: ResendEmailService,
+    private readonly profileCollaborators: ProfileCollaboratorService,
   ) {}
 
   /** Delegates de ingreso cuando el analyzer no enlaza el codegen de PrismaService. */
@@ -778,15 +780,11 @@ export class MeService {
   }
 
   listProfiles(user: AuthUserPayload) {
-    return this.prisma.profile.findMany({
-      where: { userId: user.userId },
-      orderBy: { createdAt: 'asc' },
-      select: { id: true, name: true, type: true },
-    });
+    return this.profileCollaborators.listProfilesForUser(user.userId);
   }
 
   async createProfile(user: AuthUserPayload, dto: CreateProfileDto) {
-    return this.prisma.profile.create({
+    const created = await this.prisma.profile.create({
       data: {
         userId: user.userId,
         name: dto.name.trim(),
@@ -794,6 +792,7 @@ export class MeService {
       },
       select: { id: true, name: true, type: true },
     });
+    return { ...created, access: 'owner' as const };
   }
 
   async deleteProfile(user: AuthUserPayload, profileId: string) {

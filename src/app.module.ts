@@ -12,6 +12,7 @@ import { MeModule } from './me/me.module';
 import { OcrModule } from './ocr/ocr.module';
 import { PrismaModule } from './prisma/prisma.module';
 import { InventoryModule } from './inventory/inventory.module';
+import { ProfileCollaboratorsModule } from './profile-collaborators/profile-collaborators.module';
 
 @Module({
   imports: [
@@ -38,6 +39,7 @@ import { InventoryModule } from './inventory/inventory.module';
     AuthModule,
     MeModule,
     InventoryModule,
+    ProfileCollaboratorsModule,
     BcvModule,
     OcrModule,
   ],

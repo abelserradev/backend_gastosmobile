@@ -5,6 +5,10 @@ import type {
   StockBalanceResponse,
 } from './entities/inventory-item.response';
 import { MovementType } from './dto/create-movement.dto';
+import {
+  calculateMovementLineValue,
+  parseDecimalPrice,
+} from './inventory-pricing.util';
 
 /**
  * Mappers para transformar entidades Prisma a respuestas de API.
@@ -27,6 +31,7 @@ export function mapInventoryItemToResponse(
     minStock: item.minStock,
     currentStock: item.currentStock,
     isLowStock: item.currentStock <= item.minStock,
+    salePrice: parseDecimalPrice(item.salePrice),
     createdAt: item.createdAt.toISOString(),
     updatedAt: item.updatedAt.toISOString(),
   };
@@ -42,6 +47,7 @@ export function mapStockMovementToResponse(
     targetBranch?: { name: string } | null;
   },
 ): StockMovementResponse {
+  const unitPrice = parseDecimalPrice(movement.unitPrice);
   return {
     id: movement.id,
     itemId: movement.itemId,
@@ -55,6 +61,8 @@ export function mapStockMovementToResponse(
     branchName: movement.branch?.name ?? null,
     targetBranchId: movement.targetBranchId,
     targetBranchName: movement.targetBranch?.name ?? null,
+    unitPrice,
+    lineValue: calculateMovementLineValue(movement.quantity, unitPrice),
     createdAt: movement.createdAt.toISOString(),
   };
 }

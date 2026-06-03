@@ -1,5 +1,6 @@
 import {
   IsInt,
+  IsNumber,
   IsOptional,
   IsString,
   MaxLength,
@@ -40,4 +41,10 @@ export class CreateInventoryItemDto {
   @IsInt()
   @Min(0)
   initialStock?: number;
+
+  /** FEAT-004: precio de catálogo / referencia para ventas (opcional). */
+  @IsOptional()
+  @IsNumber({ maxDecimalPlaces: 2 })
+  @Min(0)
+  salePrice?: number;
 }

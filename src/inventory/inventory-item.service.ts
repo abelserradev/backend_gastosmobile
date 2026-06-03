@@ -1,14 +1,19 @@
 import {
   BadRequestException,
-  ForbiddenException,
   Injectable,
   NotFoundException,
 } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
+import { ProfileAccessService } from '../common/services/profile-access.service';
 import { CreateInventoryItemDto } from './dto/create-item.dto';
 import { UpdateInventoryItemDto } from './dto/update-item.dto';
-import { InventoryItemResponse } from './entities/inventory-item.response';
+import {
+  InventoryItemResponse,
+  StockBalanceResponse,
+} from './entities/inventory-item.response';
 import { MovementType } from './dto/create-movement.dto';
+import { mapInventoryItemToResponse } from './inventory.mappers';
+import { validateOptionalPrice } from './inventory-pricing.util';
 
 /**
  * Servicio para gestión de productos en inventario.
@@ -26,7 +31,10 @@ import { MovementType } from './dto/create-movement.dto';
  */
 @Injectable()
 export class InventoryItemService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly profileAccess: ProfileAccessService,
+  ) {}
 
   /**
    * Lista todos los productos de un perfil con stock actual.
@@ -36,7 +44,7 @@ export class InventoryItemService {
     userId: string,
     search?: string,
   ): Promise<InventoryItemResponse[]> {
-    await this.verifyProfileOwnership(profileId, userId);
+    await this.profileAccess.assertInventoryAccess(profileId, userId);
 
     const items = await this.prisma.inventoryItem.findMany({
       where: {
@@ -51,7 +59,7 @@ export class InventoryItemService {
       orderBy: { name: 'asc' },
     });
 
-    return items.map(this.mapToResponse);
+    return items.map(mapInventoryItemToResponse);
   }
 
   /**
@@ -62,7 +70,7 @@ export class InventoryItemService {
     itemId: string,
     userId: string,
   ): Promise<InventoryItemResponse> {
-    await this.verifyProfileOwnership(profileId, userId);
+    await this.profileAccess.assertInventoryAccess(profileId, userId);
 
     const item = await this.prisma.inventoryItem.findFirst({
       where: { id: itemId, profileId },
@@ -72,7 +80,7 @@ export class InventoryItemService {
       throw new NotFoundException('Producto no encontrado');
     }
 
-    return this.mapToResponse(item);
+    return mapInventoryItemToResponse(item);
   }
 
   /**
@@ -85,8 +93,7 @@ export class InventoryItemService {
     userId: string,
     dto: CreateInventoryItemDto,
   ): Promise<InventoryItemResponse> {
-    await this.verifyProfileOwnership(profileId, userId);
-    await this.verifyProfileIsBusiness(profileId);
+    await this.profileAccess.assertInventoryAccess(profileId, userId);
 
     // Validar SKU único por perfil si se proporciona
     if (dto.sku) {
@@ -100,6 +107,8 @@ export class InventoryItemService {
       }
     }
 
+    validateOptionalPrice(dto.salePrice);
+
     // Crear producto y movimiento inicial en transacción
     const result = await this.prisma.$transaction(async (tx) => {
       const item = await tx.inventoryItem.create({
@@ -110,6 +119,7 @@ export class InventoryItemService {
           unit: dto.unit,
           minStock: dto.minStock,
           currentStock: dto.initialStock ?? 0,
+          salePrice: dto.salePrice ?? null,
         },
       });
 
@@ -128,7 +138,7 @@ export class InventoryItemService {
       return item;
     });
 
-    return this.mapToResponse(result);
+    return mapInventoryItemToResponse(result);
   }
 
   /**
@@ -142,7 +152,7 @@ export class InventoryItemService {
     userId: string,
     dto: UpdateInventoryItemDto,
   ): Promise<InventoryItemResponse> {
-    await this.verifyProfileOwnership(profileId, userId);
+    await this.profileAccess.assertInventoryAccess(profileId, userId);
 
     const item = await this.prisma.inventoryItem.findFirst({
       where: { id: itemId, profileId },
@@ -164,12 +174,16 @@ export class InventoryItemService {
       }
     }
 
-    // No permitir modificar initialStock en update (eso va por movimientos)
+    if (dto.salePrice !== undefined) {
+      validateOptionalPrice(dto.salePrice);
+    }
+
     const updateData = {
       ...(dto.name !== undefined && { name: dto.name }),
       ...(dto.sku !== undefined && { sku: dto.sku }),
       ...(dto.unit !== undefined && { unit: dto.unit }),
       ...(dto.minStock !== undefined && { minStock: dto.minStock }),
+      ...(dto.salePrice !== undefined && { salePrice: dto.salePrice }),
     };
 
     const updated = await this.prisma.inventoryItem.update({
@@ -177,7 +191,7 @@ export class InventoryItemService {
       data: updateData,
     });
 
-    return this.mapToResponse(updated);
+    return mapInventoryItemToResponse(updated);
   }
 
   /**
@@ -191,7 +205,7 @@ export class InventoryItemService {
     itemId: string,
     userId: string,
   ): Promise<void> {
-    await this.verifyProfileOwnership(profileId, userId);
+    await this.profileAccess.assertInventoryAccess(profileId, userId);
 
     const item = await this.prisma.inventoryItem.findFirst({
       where: { id: itemId, profileId },
@@ -228,7 +242,7 @@ export class InventoryItemService {
     profileId: string,
     userId: string,
   ): Promise<InventoryItemResponse[]> {
-    await this.verifyProfileOwnership(profileId, userId);
+    await this.profileAccess.assertInventoryAccess(profileId, userId);
 
     const items = await this.prisma.inventoryItem.findMany({
       where: {
@@ -238,67 +252,44 @@ export class InventoryItemService {
       orderBy: { currentStock: 'asc' },
     });
 
-    return items.map(this.mapToResponse);
+    return items.map(mapInventoryItemToResponse);
   }
 
   /**
-   * Verifica que el perfil pertenezca al usuario.
+   * Stock por sucursal de un producto (Fase B).
    */
-  private async verifyProfileOwnership(
+  async listItemBalances(
     profileId: string,
+    itemId: string,
     userId: string,
+  ): Promise<StockBalanceResponse[]> {
+    await this.profileAccess.assertInventoryAccess(profileId, userId);
+    await this.assertItemBelongsToProfile(itemId, profileId);
+
+    const balances = await this.prisma.stockBalance.findMany({
+      where: { itemId },
+      include: { branch: { select: { name: true } } },
+      orderBy: { branch: { name: 'asc' } },
+    });
+
+    return balances.map((b) => ({
+      branchId: b.branchId,
+      branchName: b.branch.name,
+      quantity: b.quantity,
+      updatedAt: b.updatedAt.toISOString(),
+    }));
+  }
+
+  private async assertItemBelongsToProfile(
+    itemId: string,
+    profileId: string,
   ): Promise<void> {
-    const profile = await this.prisma.profile.findFirst({
-      where: { id: profileId, userId },
+    const item = await this.prisma.inventoryItem.findFirst({
+      where: { id: itemId, profileId },
     });
 
-    if (!profile) {
-      throw new ForbiddenException(
-        'No tienes permiso para acceder a este perfil',
-      );
+    if (!item) {
+      throw new NotFoundException('Producto no encontrado en este perfil');
     }
-  }
-
-  /**
-   * Verifica que el perfil sea tipo comercio (para operaciones de inventario).
-   */
-  private async verifyProfileIsBusiness(profileId: string): Promise<void> {
-    const profile = await this.prisma.profile.findUnique({
-      where: { id: profileId },
-    });
-
-    if (profile?.type !== 'comercio') {
-      throw new BadRequestException(
-        'El perfil no es de tipo comercio. Solo perfiles comercio tienen inventario.',
-      );
-    }
-  }
-
-  /**
-   * Mapea entidad Prisma a respuesta de API.
-   */
-  private mapToResponse(item: {
-    id: string;
-    profileId: string;
-    name: string;
-    sku: string | null;
-    unit: string;
-    minStock: number;
-    currentStock: number;
-    createdAt: Date;
-    updatedAt: Date;
-  }): InventoryItemResponse {
-    return {
-      id: item.id,
-      profileId: item.profileId,
-      name: item.name,
-      sku: item.sku,
-      unit: item.unit,
-      minStock: item.minStock,
-      currentStock: item.currentStock,
-      isLowStock: item.currentStock <= item.minStock,
-      createdAt: item.createdAt.toISOString(),
-      updatedAt: item.updatedAt.toISOString(),
-    };
   }
 }
