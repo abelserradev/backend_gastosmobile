@@ -19,6 +19,18 @@ enum ProfileType {
   comercio
 }
 
+enum CollaboratorStatus {
+  pending
+  accepted
+  rejected
+  revoked
+}
+
+enum CollaboratorRole {
+  editor
+  viewer
+}
+
 /// Registro vía /api/auth exige email + hash; filas antiguas pueden tener null hasta limpiar datos.
 model User {
   id                   String    @id @default(uuid())
@@ -40,6 +52,9 @@ model User {
 
   incomeSource         IncomeSource[]
   incomeEntries        IncomeEntry[]
+
+  profileCollaborations ProfileCollaborator[] @relation("profile_collaborations")
+  profileInvitationsSent ProfileCollaborator[] @relation("profile_invitations_sent")
 }
 
 /// Código OTP hasheado para desbloquear cuenta tras intentos fallidos de login.
@@ -155,8 +170,28 @@ model Profile {
   // FEAT-002: Inventario para perfiles tipo comercio
   inventoryItems InventoryItem[]
   branches       Branch[]
+  collaborators  ProfileCollaborator[]
 
   @@index([userId])
+}
+
+/// Colaborador con cuenta real invitado a operar inventario de un perfil comercio (FEAT-003).
+model ProfileCollaborator {
+  id          String             @id @default(uuid())
+  profileId   String
+  profile     Profile            @relation(fields: [profileId], references: [id], onDelete: Cascade)
+  userId      String
+  user        User               @relation("profile_collaborations", fields: [userId], references: [id], onDelete: Cascade)
+  invitedById String
+  invitedBy   User               @relation("profile_invitations_sent", fields: [invitedById], references: [id], onDelete: Cascade)
+  status      CollaboratorStatus @default(pending)
+  role        CollaboratorRole   @default(editor)
+  createdAt   DateTime           @default(now())
+  acceptedAt  DateTime?
+
+  @@unique([profileId, userId])
+  @@index([userId, status])
+  @@index([profileId, status])
 }
 
 /// Integrantes de un perfil (modelo tipo Netflix: 1 cuenta dueña, varios nombres para auditar pagos).
@@ -268,6 +303,9 @@ model InventoryItem {
   // Denormalizado para queries rápidas (calculado desde movimientos)
   currentStock Int      @default(0)
 
+  /// FEAT-004: precio de catálogo / referencia venta (opcional)
+  salePrice    Decimal? @db.Decimal(14, 2)
+
   movements    StockMovement[]
   branches     StockBalance[]
   createdAt    DateTime @default(now())
@@ -285,6 +323,9 @@ model StockMovement {
   type              MovementType
   quantity          Int          // positivo entrada, negativo salida
   reason            String?
+
+  /// FEAT-004: precio unitario del movimiento (opcional; null en transferencias)
+  unitPrice         Decimal?     @db.Decimal(14, 2)
 
   // Relación opcional con gasto (cuando la compra genera entrada)
   expenseId         String?

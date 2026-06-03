@@ -1,6 +1,7 @@
 import {
   IsEnum,
   IsInt,
+  IsNumber,
   IsOptional,
   IsString,
   IsUUID,
@@ -64,6 +65,12 @@ export class CreateStockMovementDto {
   )
   @IsUUID()
   transferMovementId?: string;
+
+  /** FEAT-004: precio unitario del movimiento (opcional; ignorado en transferencias). */
+  @IsOptional()
+  @IsNumber({ maxDecimalPlaces: 2 })
+  @Min(0)
+  unitPrice?: number;
 }
 
 /**

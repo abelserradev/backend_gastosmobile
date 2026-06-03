@@ -1,16 +1,18 @@
 import {
   BadRequestException,
-  ForbiddenException,
   Injectable,
   NotFoundException,
 } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
+import { ProfileAccessService } from '../common/services/profile-access.service';
 import {
   AdjustStockDto,
   CreateStockMovementDto,
   MovementType,
 } from './dto/create-movement.dto';
 import { StockMovementResponse } from './entities/inventory-item.response';
+import { mapStockMovementToResponse } from './inventory.mappers';
+import { resolvePersistedUnitPrice } from './inventory-pricing.util';
 
 /**
  * Servicio para gestión de movimientos de stock.
@@ -29,7 +31,10 @@ import { StockMovementResponse } from './entities/inventory-item.response';
  */
 @Injectable()
 export class StockMovementService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly profileAccess: ProfileAccessService,
+  ) {}
 
   /**
    * Lista movimientos de un producto específico.
@@ -40,7 +45,7 @@ export class StockMovementService {
     userId: string,
     branchId?: string,
   ): Promise<StockMovementResponse[]> {
-    await this.verifyProfileOwnership(profileId, userId);
+    await this.profileAccess.assertInventoryAccess(profileId, userId);
     await this.verifyItemBelongsToProfile(itemId, profileId);
 
     const movements = await this.prisma.stockMovement.findMany({
@@ -56,20 +61,7 @@ export class StockMovementService {
       orderBy: { createdAt: 'desc' },
     });
 
-    return movements.map((m) => ({
-      id: m.id,
-      itemId: m.itemId,
-      itemName: m.item.name,
-      type: m.type as MovementType,
-      quantity: m.quantity,
-      displayQuantity: m.quantity > 0 ? `+${m.quantity}` : `${m.quantity}`,
-      reason: m.reason,
-      branchId: m.branchId,
-      branchName: m.branch?.name ?? null,
-      targetBranchId: m.targetBranchId,
-      targetBranchName: m.targetBranch?.name ?? null,
-      createdAt: m.createdAt.toISOString(),
-    }));
+    return movements.map(mapStockMovementToResponse);
   }
 
   /**
@@ -86,7 +78,7 @@ export class StockMovementService {
     userId: string,
     dto: CreateStockMovementDto,
   ): Promise<StockMovementResponse> {
-    await this.verifyProfileOwnership(profileId, userId);
+    await this.profileAccess.assertInventoryAccess(profileId, userId);
     await this.verifyItemBelongsToProfile(dto.itemId, profileId);
 
     // Calcular cantidad con signo según tipo de movimiento
@@ -99,6 +91,8 @@ export class StockMovementService {
       dto.branchId,
     );
 
+    const unitPrice = resolvePersistedUnitPrice(dto.type, dto.unitPrice);
+
     // Crear movimiento y actualizar stock en transacción
     const result = await this.prisma.$transaction(async (tx) => {
       const movement = await tx.stockMovement.create({
@@ -109,6 +103,7 @@ export class StockMovementService {
           reason: dto.reason ?? null,
           branchId: dto.branchId ?? null,
           targetBranchId: dto.targetBranchId ?? null,
+          unitPrice,
         },
         include: {
           item: { select: { name: true } },
@@ -138,21 +133,7 @@ export class StockMovementService {
       return movement;
     });
 
-    return {
-      id: result.id,
-      itemId: result.itemId,
-      itemName: result.item.name,
-      type: result.type as MovementType,
-      quantity: result.quantity,
-      displayQuantity:
-        result.quantity > 0 ? `+${result.quantity}` : `${result.quantity}`,
-      reason: result.reason,
-      branchId: result.branchId,
-      branchName: result.branch?.name ?? null,
-      targetBranchId: result.targetBranchId,
-      targetBranchName: result.targetBranch?.name ?? null,
-      createdAt: result.createdAt.toISOString(),
-    };
+    return mapStockMovementToResponse(result);
   }
 
   /**
@@ -164,7 +145,7 @@ export class StockMovementService {
     userId: string,
     dto: AdjustStockDto,
   ): Promise<StockMovementResponse> {
-    await this.verifyProfileOwnership(profileId, userId);
+    await this.profileAccess.assertInventoryAccess(profileId, userId);
     await this.verifyItemBelongsToProfile(dto.itemId, profileId);
 
     // Validar que no quede negativo si es bajada
@@ -199,21 +180,7 @@ export class StockMovementService {
       return movement;
     });
 
-    return {
-      id: result.id,
-      itemId: result.itemId,
-      itemName: result.item.name,
-      type: MovementType.ADJUSTMENT,
-      quantity: result.quantity,
-      displayQuantity:
-        result.quantity > 0 ? `+${result.quantity}` : `${result.quantity}`,
-      reason: result.reason,
-      branchId: null,
-      branchName: null,
-      targetBranchId: null,
-      targetBranchName: null,
-      createdAt: result.createdAt.toISOString(),
-    };
+    return mapStockMovementToResponse(result);
   }
 
   /**
@@ -232,7 +199,7 @@ export class StockMovementService {
     quantity: number,
     reason?: string,
   ): Promise<StockMovementResponse[]> {
-    await this.verifyProfileOwnership(profileId, userId);
+    await this.profileAccess.assertInventoryAccess(profileId, userId);
     await this.verifyItemBelongsToProfile(itemId, profileId);
 
     if (sourceBranchId === targetBranchId) {
@@ -302,20 +269,7 @@ export class StockMovementService {
       },
     });
 
-    return movements.map((m) => ({
-      id: m.id,
-      itemId: m.itemId,
-      itemName: m.item.name,
-      type: m.type as MovementType,
-      quantity: m.quantity,
-      displayQuantity: m.quantity > 0 ? `+${m.quantity}` : `${m.quantity}`,
-      reason: m.reason,
-      branchId: m.branchId,
-      branchName: m.branch?.name ?? null,
-      targetBranchId: m.targetBranchId,
-      targetBranchName: m.targetBranch?.name ?? null,
-      createdAt: m.createdAt.toISOString(),
-    }));
+    return movements.map(mapStockMovementToResponse);
   }
 
   /**
@@ -416,27 +370,6 @@ export class StockMovementService {
     });
   }
 
-  /**
-   * Verifica que el perfil pertenezca al usuario.
-   */
-  private async verifyProfileOwnership(
-    profileId: string,
-    userId: string,
-  ): Promise<void> {
-    const profile = await this.prisma.profile.findFirst({
-      where: { id: profileId, userId },
-    });
-
-    if (!profile) {
-      throw new ForbiddenException(
-        'No tienes permiso para acceder a este perfil',
-      );
-    }
-  }
-
-  /**
-   * Verifica que el item pertenezca al perfil.
-   */
   private async verifyItemBelongsToProfile(
     itemId: string,
     profileId: string,
