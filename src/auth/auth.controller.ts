@@ -13,7 +13,6 @@ import { ResetPasswordDto } from './dto/reset-password.dto';
 import { SetupPasswordDto } from './dto/setup-password.dto';
 import { UnlockAccountRequestDto } from './dto/unlock-account-request.dto';
 import { UnlockAccountVerifyDto } from './dto/unlock-account-verify.dto';
-
 @Controller('auth')
 export class AuthController {
   constructor(private readonly auth: AuthService) {}
