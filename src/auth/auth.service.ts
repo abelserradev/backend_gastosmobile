@@ -22,6 +22,7 @@ import {
 } from './auth.constants';
 import { LoginDto } from './dto/login.dto';
 import { FirebaseAdminService } from './firebase-admin.service';
+import { AppDistributionService } from './app-distribution.service';
 import { RegisterDto } from './dto/register.dto';
 import { ForgotPasswordDto } from './dto/forgot-password.dto';
 import { ResetPasswordDto } from './dto/reset-password.dto';
@@ -63,6 +64,7 @@ export class AuthService {
     private readonly cookies: AuthCookieService,
     private readonly firebaseAdmin: FirebaseAdminService,
     private readonly resendEmail: ResendEmailService,
+    private readonly appDistribution: AppDistributionService,
   ) {}
 
   async register(dto: RegisterDto, res: Response): Promise<AuthSessionBody> {
@@ -95,6 +97,8 @@ export class AuthService {
           `[Registro] El correo de bienvenida se fue en la olla: ${String(err)}`,
         ),
       );
+    // Alta en App Distribution para que pueda descargar la APK Android
+    void this.appDistribution.addUserToTesterGroup(email);
     return this.commitSession(res, body);
   }
 
@@ -161,6 +165,8 @@ export class AuthService {
         .catch((err: unknown) =>
           this.logger.warn(`[Ingreso Google] Bienvenida falló: ${String(err)}`),
         );
+      // Primera vez con Google → también habilitar descarga de APK
+      void this.appDistribution.addUserToTesterGroup(emailRaw);
     } else {
       this.logger.log(`[Ingreso Google] Todo fino, volvió ${correoLog}`);
     }
