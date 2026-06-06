@@ -30,6 +30,13 @@ async function bootstrap(): Promise<void> {
   app.enableCors({
     origin: resolveCorsOrigin(process.env.FRONTEND_URL),
     credentials: true,
+    allowedHeaders: [
+      'Content-Type',
+      'Authorization',
+      'X-API-KEY',
+      'x-api-key',
+      'x-gastos-client',
+    ],
   });
   const port = Number.parseInt(process.env.PORT ?? '3088', 10);
   await app.listen(port);

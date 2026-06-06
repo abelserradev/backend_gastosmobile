@@ -41,6 +41,8 @@ export interface AuthResponseUser {
 
 export interface AuthSessionBody {
   user: AuthResponseUser;
+  /** Presente en login/registro/Google; la APK lo usa como Bearer (cookie no persiste en WebView). */
+  accessToken?: string;
 }
 
 interface JwtPayload {
@@ -83,7 +85,6 @@ export class AuthService {
       },
     });
     const body = this.buildSessionPayload(user.id, email, name, true);
-    this.cookies.setAccessJwt(res, body.token);
     this.logger.log(
       `[Registro] Listo: sesión montada (userId=${user.id}), mandando bienvenida en segundo plano`,
     );
@@ -94,7 +95,7 @@ export class AuthService {
           `[Registro] El correo de bienvenida se fue en la olla: ${String(err)}`,
         ),
       );
-    return { user: body.user };
+    return this.commitSession(res, body);
   }
 
   async loginWithFirebase(
@@ -151,7 +152,6 @@ export class AuthService {
     const name = user.name?.trim() ? user.name : '';
     const hasPassword = Boolean(user.passwordHash);
     const body = this.buildSessionPayload(user.id, emailRaw, name, hasPassword);
-    this.cookies.setAccessJwt(res, body.token);
     if (createdWithFirebase) {
       this.logger.log(
         `[Ingreso Google] Sesión lista; bienvenida en segundo plano pa' ${correoLog}`,
@@ -164,7 +164,7 @@ export class AuthService {
     } else {
       this.logger.log(`[Ingreso Google] Todo fino, volvió ${correoLog}`);
     }
-    return { user: body.user };
+    return this.commitSession(res, body);
   }
 
   async login(dto: LoginDto, res: Response): Promise<AuthSessionBody> {
@@ -203,9 +203,8 @@ export class AuthService {
     }
     const displayName = user.name?.trim() ? user.name : '';
     const body = this.buildSessionPayload(user.id, email, displayName, true);
-    this.cookies.setAccessJwt(res, body.token);
     this.logger.log(`[Ingreso] Todo fino, sesión montada para ${correoLog}`);
-    return { user: body.user };
+    return this.commitSession(res, body);
   }
 
   /** Envía OTP por correo si la cuenta existe, tiene clave y está bloqueada. */
@@ -470,6 +469,14 @@ export class AuthService {
       );
     }
     return this.timingDummyHash;
+  }
+
+  private commitSession(
+    res: Response,
+    body: { user: AuthResponseUser; token: string },
+  ): AuthSessionBody {
+    this.cookies.setAccessJwt(res, body.token);
+    return { user: body.user, accessToken: body.token };
   }
 
   private buildSessionPayload(
