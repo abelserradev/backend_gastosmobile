@@ -69,4 +69,7 @@ export const envValidationSchema = Joi.object({
   OLLAMA_KEEP_ALIVE: Joi.string().allow('').optional(),
   /** Redis opcional: caché caliente BCV y otros datos efímeros. Sin URL → memoria del proceso. */
   REDIS_URL: Joi.string().uri().allow('').optional(),
+
+  APP_DISTRIBUTION_PROJECT_NUMBER: Joi.string().allow('').optional(),
+  APP_DISTRIBUTION_GROUP_ALIAS: Joi.string().allow('').optional(),
 });

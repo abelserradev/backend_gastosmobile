@@ -7,6 +7,7 @@ import { EmailModule } from '../email/email.module';
 import { AuthCookieService } from './auth-cookie.service';
 import { AuthController } from './auth.controller';
 import { AuthService } from './auth.service';
+import { AppDistributionService } from './app-distribution.service';
 import { FirebaseAdminService } from './firebase-admin.service';
 import { JwtAuthGuard } from './jwt-auth.guard';
 import { JwtStrategy } from './jwt.strategy';
@@ -33,6 +34,7 @@ import { JwtStrategy } from './jwt.strategy';
   providers: [
     AuthCookieService,
     AuthService,
+    AppDistributionService,
     FirebaseAdminService,
     JwtStrategy,
     JwtAuthGuard,
