@@ -17,3 +17,7 @@ export const ACCOUNT_UNLOCK_CODE_TTL_MS = 15 * 60 * 1000;
 export const MAX_UNLOCK_CODE_ATTEMPTS = 5;
 
 export const AUTH_ERROR_ACCOUNT_LOCKED = 'ACCOUNT_LOCKED';
+
+/** Header opcional del cliente Capacitor (la APK también recibe accessToken siempre en login). */
+export const GASTOS_CLIENT_HEADER = 'x-gastos-client';
+export const GASTOS_CLIENT_CAPACITOR = 'capacitor';
