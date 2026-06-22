@@ -4,10 +4,10 @@ import {
 } from './build-invoice-result-hybrid';
 
 describe('build-invoice-result-hybrid', () => {
-  it('combina rawText con secciones Tesseract y GLM-OCR', () => {
+  it('combina rawText con secciones Tesseract y Cloud OCR', () => {
     const raw = buildHybridRawText('TOTAL 10', 'FARMATODO');
     expect(raw).toContain('# Tesseract (OCR)');
-    expect(raw).toContain('# GLM-OCR (Ollama)');
+    expect(raw).toContain('# Cloud OCR');
   });
 
   it('prefiere monto de Tesseract cuando ambos lo detectan', () => {
@@ -27,7 +27,7 @@ TOTAL: $ 12.50`;
     const dto = buildParseInvoiceHybrid(tess, '');
     expect(dto.amount).toBeCloseTo(12.5, 2);
     expect(dto.rawText).toContain('# Tesseract');
-    expect(dto.rawText).not.toContain('GLM-OCR');
+    expect(dto.rawText).not.toContain('Cloud OCR');
   });
 
   it('usa monto glm-ocr cuando sólo el VLM tiene línea Monto operación (Pagomóvil)', () => {
