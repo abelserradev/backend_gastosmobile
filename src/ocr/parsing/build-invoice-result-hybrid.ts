@@ -25,7 +25,7 @@ export function buildHybridRawText(
     chunks.push(`# Tesseract (OCR)\n${tt}`);
   }
   if (glm) {
-    chunks.push(`# GLM-OCR (Ollama)\n${glm}`);
+    chunks.push(`# Cloud OCR\n${glm}`);
   }
   return chunks.length > 0 ? chunks.join('\n\n') : tt || glm || '';
 }
