@@ -99,8 +99,8 @@ importers:
         specifier: ^0.2.2
         version: 0.2.2
       resend:
-        specifier: ^6.12.4
-        version: 6.12.4
+        specifier: ^6.17.1
+        version: 6.17.1
       rxjs:
         specifier: ^7.8.1
         version: 7.8.2
@@ -3539,8 +3539,8 @@ packages:
   react-is@18.3.1:
     resolution: {integrity: sha512-/LLMVyas0ljjAtoYiPqYiL8VWXzUUdThrmU5+n20DZv+a+ClRoevUzw5JxU+Ieh5/c87ytoTBV9G1FiKfNJdmg==}
 
-  react-is@19.2.6:
-    resolution: {integrity: sha512-XjBR15BhXuylgWGuslhDKqlSayuqvqBX91BP8pauG8kd1zY8kotkNWbXksTCNRarse4kuGbe2kIY05ARtwNIvw==}
+  react-is@19.2.7:
+    resolution: {integrity: sha512-kZFnouyVv7eP/Phmrlo9FK+zcAdriZJvzxXHF1Sl1P377WSGe2G/JxVolhTrB/jeV47lKImhNUsijjHAAbcl/A==}
 
   react@19.2.6:
     resolution: {integrity: sha512-sfWGGfavi0xr8Pg0sVsyHMAOziVYKgPLNrS7ig+ivMNb3wbCBw3KxtflsGBAwD3gYQlE/AEZsTLgToRrSCjb0Q==}
@@ -3583,8 +3583,8 @@ packages:
     resolution: {integrity: sha512-Xf0nWe6RseziFMu+Ap9biiUbmplq6S9/p+7w7YXP/JBHhrUDDUhwa+vANyubuqfZWTveU//DYVGsDG7RKL/vEw==}
     engines: {node: '>=0.10.0'}
 
-  resend@6.12.4:
-    resolution: {integrity: sha512-lRpJ2Hxd+ht+JPDm97juRcUp9HOMuZyxaRFRFmc9Tx8iNWiei94Dx9v6SWufgKk2667C/uCeKKspMotOHSpCSg==}
+  resend@6.17.1:
+    resolution: {integrity: sha512-QhHHIRPPM9Tq2uilWmNF8C8kd6nLkUmiFgDQCt1v4eR4o+6p86qrK+Vn12jnAs0jR8Gf6ABdxI18/90LGQ7GVA==}
     engines: {node: '>=20'}
     peerDependencies:
       '@react-email/render': '*'
@@ -8009,7 +8009,7 @@ snapshots:
       '@jest/schemas': 30.4.1
       ansi-styles: 5.2.0
       react-is-18: react-is@18.3.1
-      react-is-19: react-is@19.2.6
+      react-is-19: react-is@19.2.7
 
   prisma@7.8.0(@types/react@19.2.15)(react-dom@19.2.6(react@19.2.6))(react@19.2.6)(typescript@5.9.3):
     dependencies:
@@ -8096,7 +8096,7 @@ snapshots:
 
   react-is@18.3.1: {}
 
-  react-is@19.2.6: {}
+  react-is@19.2.7: {}
 
   react@19.2.6: {}
 
@@ -8126,7 +8126,7 @@ snapshots:
 
   require-from-string@2.0.2: {}
 
-  resend@6.12.4:
+  resend@6.17.1:
     dependencies:
       postal-mime: 2.7.4
       standardwebhooks: 1.0.0
