@@ -13,6 +13,7 @@ import { OcrModule } from './ocr/ocr.module';
 import { PrismaModule } from './prisma/prisma.module';
 import { InventoryModule } from './inventory/inventory.module';
 import { ProfileCollaboratorsModule } from './profile-collaborators/profile-collaborators.module';
+import { TelegramModule } from './telegram/telegram.module';
 
 @Module({
   imports: [
@@ -42,6 +43,7 @@ import { ProfileCollaboratorsModule } from './profile-collaborators/profile-coll
     ProfileCollaboratorsModule,
     BcvModule,
     OcrModule,
+    TelegramModule,
   ],
   providers: [
     { provide: APP_GUARD, useClass: ThrottlerGuard },

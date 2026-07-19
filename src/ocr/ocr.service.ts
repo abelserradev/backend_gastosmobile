@@ -4,9 +4,11 @@ import { buildParseInvoiceHybrid } from './parsing/build-invoice-result-hybrid';
 import { buildParseInvoiceFromTesseract } from './parsing/build-invoice-result';
 import { ParseInvoiceResultDto } from './dto/parse-invoice-result.dto';
 import { OllamaGlmOcrService } from './services/ollama-glm-ocr.service';
+import { GoogleVisionOcrService } from './services/google-vision-ocr.service';
+import { GoogleVisionQuotaService } from './services/google-vision-quota.service';
 
 /**
- * OCR híbrido: Tesseract.js (rápido, local) + glm-ocr vía Ollama cuando está habilitado.
+ * OCR híbrido: Tesseract.js (local) + Cloud Vision (por defecto) u Ollama legacy.
  */
 @Injectable()
 export class OcrService {
@@ -14,6 +16,8 @@ export class OcrService {
 
   constructor(
     private readonly tesseractEngine: TesseractInvoiceEngine,
+    private readonly googleVision: GoogleVisionOcrService,
+    private readonly visionQuota: GoogleVisionQuotaService,
     private readonly ollamaGlm: OllamaGlmOcrService,
   ) {}
 
@@ -24,16 +28,34 @@ export class OcrService {
   ): Promise<ParseInvoiceResultDto> {
     const forwardMime = this.resolveImageMimeTypeForForward(mimetype, filename);
     this.assertImageAcceptableForForward(fileBuffer, forwardMime, mimetype);
-    const useHybrid = this.ollamaGlm.isEnabled();
     let result: ParseInvoiceResultDto;
-    if (useHybrid) {
+    if (this.googleVision.isEnabled()) {
+      if (await this.visionQuota.canConsume()) {
+        await this.visionQuota.consume();
+        const [tessText, cloudText] = await Promise.all([
+          this.tesseractEngine.recognizeText(fileBuffer),
+          this.googleVision.transcribeReceipt(fileBuffer),
+        ]);
+        result = buildParseInvoiceHybrid(tessText, cloudText);
+        this.logger.log(
+          `OCR híbrido Vision: tess=${tessText.length} chars, cloud=${cloudText.length} chars, confidence=${result.confidence.toFixed(2)}`,
+        );
+      } else {
+        this.visionQuota.logQuotaExhausted();
+        const tessText = await this.tesseractEngine.recognizeText(fileBuffer);
+        result = buildParseInvoiceFromTesseract(tessText);
+        this.logger.log(
+          `OCR Tesseract (cuota Vision agotada): confidence=${result.confidence.toFixed(2)}, amount=${result.amount}`,
+        );
+      }
+    } else if (this.ollamaGlm.isEnabled()) {
       const [tessText, glmText] = await Promise.all([
         this.tesseractEngine.recognizeText(fileBuffer),
         this.ollamaGlm.transcribeReceipt(fileBuffer),
       ]);
       result = buildParseInvoiceHybrid(tessText, glmText);
       this.logger.log(
-        `OCR híbrido: tess=${tessText.length} chars, glm=${glmText.length} chars, confidence=${result.confidence.toFixed(2)}`,
+        `OCR híbrido Ollama: tess=${tessText.length} chars, glm=${glmText.length} chars, confidence=${result.confidence.toFixed(2)}`,
       );
     } else {
       const tessText = await this.tesseractEngine.recognizeText(fileBuffer);

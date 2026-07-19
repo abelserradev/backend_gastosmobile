@@ -67,9 +67,23 @@ export const envValidationSchema = Joi.object({
     .optional(),
   OLLAMA_OCR_WARMUP_TIMEOUT_MS: Joi.number().integer().min(60_000).optional(),
   OLLAMA_KEEP_ALIVE: Joi.string().allow('').optional(),
-  /** Redis opcional: caché caliente BCV y otros datos efímeros. Sin URL → memoria del proceso. */
+  /** Redis opcional: caché caliente BCV y cuota global Vision OCR. Sin URL → memoria del proceso. */
   REDIS_URL: Joi.string().uri().allow('').optional(),
+  /** Cloud Vision OCR: activo por defecto si hay FIREBASE_SERVICE_ACCOUNT_JSON. */
+  GOOGLE_VISION_ENABLED: Joi.string()
+    .valid('true', 'false', '0', '1', 'off', 'on')
+    .optional(),
+  GOOGLE_VISION_MONTHLY_LIMIT: Joi.number().integer().min(1).max(100_000).optional(),
+  GOOGLE_VISION_TIMEOUT_MS: Joi.number().integer().min(5_000).optional(),
 
   APP_DISTRIBUTION_PROJECT_NUMBER: Joi.string().allow('').optional(),
   APP_DISTRIBUTION_GROUP_ALIAS: Joi.string().allow('').optional(),
+
+  TELEGRAM_ENABLED: Joi.string()
+    .valid('true', 'false', '0', '1', 'off', 'on')
+    .optional(),
+  TELEGRAM_BOT_TOKEN: Joi.string().allow('').optional(),
+  TELEGRAM_BOT_USERNAME: Joi.string().allow('').optional(),
+  TELEGRAM_WEBHOOK_SECRET: Joi.string().allow('').optional(),
+  TELEGRAM_WEBHOOK_URL: Joi.string().uri().allow('').optional(),
 });

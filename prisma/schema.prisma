@@ -55,6 +55,39 @@ model User {
 
   profileCollaborations ProfileCollaborator[] @relation("profile_collaborations")
   profileInvitationsSent ProfileCollaborator[] @relation("profile_invitations_sent")
+
+  telegramLink         TelegramLink?
+  telegramLinkTokens   TelegramLinkToken[]
+}
+
+/// Vínculo 1:1 entre usuario Gastos y cuenta Telegram (MVP).
+model TelegramLink {
+  id                String   @id @default(uuid())
+  userId            String   @unique
+  user              User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  telegramUserId    String   @unique
+  chatId            String
+  username          String?
+  defaultProfileId  String?
+  isActive          Boolean  @default(true)
+  linkedAt          DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+
+  @@index([chatId])
+}
+
+/// Código de un solo uso para vincular Telegram desde la web (hash en BD).
+model TelegramLinkToken {
+  id        String    @id @default(uuid())
+  userId    String
+  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  codeHash  String
+  expiresAt DateTime
+  usedAt    DateTime?
+  createdAt DateTime  @default(now())
+
+  @@index([userId])
+  @@index([codeHash])
 }
 
 /// Código OTP hasheado para desbloquear cuenta tras intentos fallidos de login.
