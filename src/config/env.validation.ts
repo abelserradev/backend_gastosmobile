@@ -78,4 +78,12 @@ export const envValidationSchema = Joi.object({
 
   APP_DISTRIBUTION_PROJECT_NUMBER: Joi.string().allow('').optional(),
   APP_DISTRIBUTION_GROUP_ALIAS: Joi.string().allow('').optional(),
+
+  TELEGRAM_ENABLED: Joi.string()
+    .valid('true', 'false', '0', '1', 'off', 'on')
+    .optional(),
+  TELEGRAM_BOT_TOKEN: Joi.string().allow('').optional(),
+  TELEGRAM_BOT_USERNAME: Joi.string().allow('').optional(),
+  TELEGRAM_WEBHOOK_SECRET: Joi.string().allow('').optional(),
+  TELEGRAM_WEBHOOK_URL: Joi.string().uri().allow('').optional(),
 });
