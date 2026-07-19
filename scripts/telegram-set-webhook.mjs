@@ -4,7 +4,9 @@
  * Uso: node scripts/telegram-set-webhook.mjs
  * Requiere TELEGRAM_BOT_TOKEN y TELEGRAM_WEBHOOK_URL en el entorno.
  */
-import 'dotenv/config';
+import { loadDevEnv } from './load-dev-env.mjs';
+
+loadDevEnv();
 
 const token = process.env.TELEGRAM_BOT_TOKEN?.trim();
 const webhookUrl = process.env.TELEGRAM_WEBHOOK_URL?.trim();

@@ -5,7 +5,9 @@
  *   TELEGRAM_BOT_TOKEN=... TELEGRAM_WEBHOOK_SECRET=... node scripts/telegram-poll.mjs
  * Opcional: TELEGRAM_POLL_BACKEND=http://localhost:3088/api/telegram/webhook/SECRET
  */
-import 'dotenv/config';
+import { loadDevEnv } from './load-dev-env.mjs';
+
+loadDevEnv();
 
 const token = process.env.TELEGRAM_BOT_TOKEN?.trim();
 const secret = process.env.TELEGRAM_WEBHOOK_SECRET?.trim();
@@ -35,11 +37,7 @@ for (;;) {
   const res = await fetch(
     `https://api.telegram.org/bot${token}/getUpdates?timeout=30&offset=${offset}`,
   );
-  const json = (await res.json()) as {
-    ok?: boolean;
-    result?: { update_id: number }[];
-  };
-  if (!json.ok || !json.result?.length) {
+  const json = await res.json();  if (!json.ok || !json.result?.length) {
     continue;
   }
   for (const update of json.result) {

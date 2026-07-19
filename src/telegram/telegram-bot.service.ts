@@ -20,6 +20,7 @@ import {
   formatSummary,
   formatUnlinkedMessage,
 } from './telegram-message.formatter';
+import { TelegramMutationService } from './telegram-mutation.service';
 import type {
   ParsedTelegramIntent,
   TelegramCallbackQuery,
@@ -38,6 +39,7 @@ export class TelegramBotService {
     private readonly parser: TelegramIntentParserService,
     private readonly pending: TelegramPendingService,
     private readonly me: MeService,
+    private readonly mutations: TelegramMutationService,
   ) {}
 
   async handleUpdate(update: TelegramUpdate): Promise<void> {
@@ -72,6 +74,18 @@ export class TelegramBotService {
     }
 
     const user = buildAuthPayload(link.user.id, link.user.email);
+
+    if (/^\d+(?:[.,]\d{1,2})?$/.test(text)) {
+      const handled = await this.mutations.tryCompletePendingAmount(
+        chatId,
+        user,
+        text,
+      );
+      if (handled) {
+        return;
+      }
+    }
+
     const state = await this.me.getState(user);
     const intent = this.parser.parse(
       text,
@@ -130,6 +144,10 @@ export class TelegramBotService {
     state: Awaited<ReturnType<MeService['getState']>>,
     defaultProfileId: string | null,
   ): Promise<void> {
+    if (this.mutations.isMutationIntent(intent.type)) {
+      await this.mutations.dispatchMutation(chatId, user, intent, state);
+      return;
+    }
     if (intent.type === 'query_summary') {
       await this.sendSummary(chatId, state);
       return;
@@ -277,6 +295,11 @@ export class TelegramBotService {
       await this.api.sendMessage(chatIdStr, formatUnlinkedMessage());
       return;
     }
+    const user = buildAuthPayload(link.user.id, link.user.email);
+
+    if (await this.mutations.handleEntityCallback(chatIdStr, user, data)) {
+      return;
+    }
 
     const pending = await this.pending.get(chatIdStr);
     if (!pending) {
@@ -284,7 +307,6 @@ export class TelegramBotService {
       return;
     }
 
-    const user = buildAuthPayload(link.user.id, link.user.email);
     const state = await this.me.getState(user);
     const intentType =
       data === 'tg:intent:expense'

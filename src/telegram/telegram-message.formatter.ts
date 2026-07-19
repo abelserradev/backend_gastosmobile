@@ -36,7 +36,11 @@ export function formatHelpMessage(botUsername: string | null): string {
     '• gasté 25 en comida almuerzo\n' +
     '• recibí 800 de freelance\n' +
     '• cuánto llevo gastado este mes\n' +
-    '• mis ingresos\n\n' +
+    '• listar mis gastos / mis ingresos\n' +
+    '• eliminar gasto (elige de la lista y confirma)\n' +
+    '• eliminar gasto comida (filtra y luego eliges)\n' +
+    '• cambiar gasto comida a 30\n' +
+    '• inventario / eliminar producto leche\n\n' +
     'Comandos: /vincular CODIGO, /ayuda' +
     linkHint
   );
@@ -110,6 +114,99 @@ export function formatIncomesList(
     more +
     `\n\nTotal: ${fmtUsd(total)}`
   );
+}
+
+export function formatExpensesList(
+  periodLabel: string,
+  items: { title: string; amount: number; categoryName: string; isPaid: boolean }[],
+  total: number,
+): string {
+  if (items.length === 0) {
+    return `Sin gastos en ${periodLabel}.`;
+  }
+  const lines = items.slice(0, 8).map(
+    (e) =>
+      `• ${fmtUsd(e.amount)} ${e.categoryName}${e.isPaid ? ' ✓' : ''} — ${e.title}`,
+  );
+  const more = items.length > 8 ? `\n… y ${items.length - 8} más` : '';
+  return (
+    `Gastos · ${periodLabel}\n` +
+    lines.join('\n') +
+    more +
+    `\n\nTotal: ${fmtUsd(total)}`
+  );
+}
+
+export function formatInventoryList(
+  profileName: string,
+  items: { name: string; currentStock: number; unit?: string }[],
+): string {
+  if (items.length === 0) {
+    return `Inventario vacío (${profileName}).`;
+  }
+  const lines = items.slice(0, 10).map(
+    (i) => `• ${i.name}: ${i.currentStock}${i.unit ? ` ${i.unit}` : ''}`,
+  );
+  const more = items.length > 10 ? `\n… y ${items.length - 10} más` : '';
+  return `Inventario · ${profileName}\n${lines.join('\n')}${more}`;
+}
+
+export function formatDeleted(kind: string, label: string): string {
+  return `${kind} eliminado\n${label}`;
+}
+
+export function formatUpdated(kind: string, label: string): string {
+  return `${kind} actualizado\n${label}`;
+}
+
+export function formatNoMatches(kind: string): string {
+  return `No encontré ${kind} que coincidan. Prueba "listar mis gastos" o sé más específico.`;
+}
+
+export interface DeleteExpenseListOptions {
+  filtered?: boolean;
+  fallbackFull?: boolean;
+}
+
+export function formatDeleteExpenseList(
+  periodLabel: string,
+  picks: { label: string }[],
+  totalInPeriod: number,
+  options?: DeleteExpenseListOptions,
+): string {
+  if (picks.length === 0) {
+    return `Sin gastos en ${periodLabel}.`;
+  }
+  let header: string;
+  if (options?.fallbackFull) {
+    header = `No encontré coincidencias. Elige de tus gastos (${periodLabel}):`;
+  } else if (options?.filtered) {
+    header = `Gastos que coinciden · ${periodLabel}`;
+  } else {
+    header = `Elige el gasto a eliminar · ${periodLabel}`;
+  }
+  const lines = picks.map((p, i) => `${i + 1}. ${p.label}`);
+  const hidden = totalInPeriod - picks.length;
+  const more = hidden > 0 ? `\n… y ${hidden} más en este periodo` : '';
+  return (
+    `${header}\n${lines.join('\n')}${more}\n\nToca el botón del gasto que quieres eliminar.`
+  );
+}
+
+export function formatDeleteConfirm(label: string): string {
+  return `¿Eliminar este gasto?\n${label}`;
+}
+
+export function formatPickPrompt(action: string): string {
+  return `${action}. Elige cuál:`;
+}
+
+export function formatNeedNewAmount(kind: string): string {
+  return `¿A qué monto quieres cambiar el ${kind}? Ejemplo: 35`;
+}
+
+export function formatNoInventoryProfile(): string {
+  return 'No tienes un perfil tipo comercio con inventario. Créalo en la app web.';
 }
 
 export function formatSetupRequired(): string {

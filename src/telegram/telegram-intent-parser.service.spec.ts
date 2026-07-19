@@ -37,4 +37,21 @@ describe('TelegramIntentParserService', () => {
   it('extrae montos con símbolo $', () => {
     expect(parser.extractAmount('pagué $25 en taxi')).toBe(25);
   });
+
+  it('detecta eliminar gasto', () => {
+    const intent = parser.parse('eliminar gasto comida almuerzo', categories, sources);
+    expect(intent.type).toBe('delete_expense');
+    expect(intent.searchQuery).toMatch(/comida|almuerzo/i);
+  });
+
+  it('detecta cambiar gasto con nuevo monto', () => {
+    const intent = parser.parse('cambiar gasto comida a 30', categories, sources);
+    expect(intent.type).toBe('update_expense');
+    expect(intent.newAmount).toBe(30);
+  });
+
+  it('detecta listar gastos', () => {
+    const intent = parser.parse('listar mis gastos', categories, sources);
+    expect(intent.type).toBe('query_expenses');
+  });
 });

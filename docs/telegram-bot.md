@@ -51,8 +51,25 @@ node scripts/telegram-set-webhook.mjs
 - `gasté 25 en comida almuerzo`
 - `recibí 800 de freelance`
 - `cuánto llevo gastado este mes`
-- `mis ingresos`
+- `listar mis gastos` / `mis ingresos`
+- `eliminar gasto` — lista tus gastos del periodo; eliges cuál y confirmas en un segundo paso
+- `eliminar gasto comida` — filtra por palabra clave; si no hay coincidencias, muestra la lista completa
+- `cambiar gasto comida a 30`
+- `inventario` / `eliminar producto leche` (perfil comercio; flujo anterior con botones)
 - `/ayuda`
+
+## Eliminar gastos (Telegram)
+
+Flujo en dos pasos para evitar borrar el registro equivocado:
+
+1. Envías `eliminar gasto` o `eliminar gasto comida` (opcional: filtro por texto).
+2. El bot muestra una lista numerada del periodo activo (máx. 8 ítems en botones).
+3. Tocas el gasto correcto → aparece **¿Eliminar este gasto?** con **Sí, eliminar** / **Cancelar**.
+4. Solo al confirmar se borra el registro.
+
+Si el filtro no encuentra coincidencias, se muestra la lista completa del periodo con un aviso.
+
+Ingresos e inventario mantienen el flujo anterior (un paso con botones inline).
 
 ## Endpoints API
 

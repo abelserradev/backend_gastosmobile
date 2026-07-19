@@ -12,18 +12,31 @@ const INCOME_HINT = new RegExp(
   'i',
 );
 const QUERY_SUMMARY_HINT =
-  /\b(resumen|balance|tablero|cu[aá]nto (gast[ée]|llevo)|mis gastos|disponible)\b/i;
+  /\b(resumen|balance|tablero|cu[aá]nto (gast[ée]|llevo)|disponible)\b/i;
 const QUERY_INCOMES_HINT =
   /\b(mis ingresos|cu[aá]nto ingres[ée]|total ingresos)\b/i;
+const QUERY_EXPENSES_HINT =
+  /\b(listar|ver|mostrar|cu[aá]les)\b.*\b(gastos?)\b|\bmis gastos\b/i;
+const QUERY_INVENTORY_HINT =
+  /\b(inventario|productos?|stock)\b/i;
+
+const DELETE_HINT = /\b(eliminar|borrar|quitar|suprimir|delete)\b/i;
+const UPDATE_HINT = /\b(modificar|cambiar|actualizar|corregir|editar)\b/i;
+
+const EXPENSE_NOUN = /\b(gastos?)\b/i;
+const INCOME_NOUN = /\b(ingresos?)\b/i;
+const INVENTORY_NOUN = /\b(productos?|inventario|item|art[ií]culo)\b/i;
 
 const AMOUNT_PATTERN =
   /(?:\$|\busd\b|\u0024)?\s*(\d+(?:[.,]\d{1,2})?)\s*(?:usd|\$|\u0024)?|\b(\d+(?:[.,]\d{1,2})?)\s*(?:bs\.?|bol[ií]vares?)\b/i;
+const NEW_AMOUNT_PATTERN =
+  /\b(?:a|por|en)\s+(?:\$|\busd\b|\u0024)?\s*(\d+(?:[.,]\d{1,2})?)\s*(?:usd|\$|\u0024)?/i;
 
 const LINK_CMD = /^\/(?:vincular|link)(?:@\w+)?(?:\s+(\d{6}))?\s*$/i;
 const START_CMD = /^\/start(?:@\w+)?(?:\s+(\d{6}))?\s*$/i;
 
 /**
- * NLU por reglas en español (MVP); sin LLM para mantener latencia y costo bajos.
+ * NLU por reglas en español; prioriza borrar/editar/listar antes de crear.
  */
 @Injectable()
 export class TelegramIntentParserService {
@@ -37,11 +50,7 @@ export class TelegramIntentParserService {
 
     const linkMatch = rawText.match(LINK_CMD) ?? rawText.match(START_CMD);
     if (linkMatch?.[1]) {
-      return {
-        type: 'link',
-        linkCode: linkMatch[1],
-        rawText,
-      };
+      return { type: 'link', linkCode: linkMatch[1], rawText };
     }
     if (/^\/(?:ayuda|help)(?:@\w+)?\s*$/i.test(rawText)) {
       return { type: 'help', rawText };
@@ -50,11 +59,27 @@ export class TelegramIntentParserService {
       return { type: 'help', rawText };
     }
 
-    if (QUERY_SUMMARY_HINT.test(normalized)) {
+    const mutation = this.parseMutationIntent(
+      rawText,
+      normalized,
+      categoryNames,
+      sourceNames,
+    );
+    if (mutation) {
+      return mutation;
+    }
+
+    if (QUERY_SUMMARY_HINT.test(normalized) && !QUERY_EXPENSES_HINT.test(normalized)) {
       return { type: 'query_summary', rawText };
     }
     if (QUERY_INCOMES_HINT.test(normalized)) {
       return { type: 'query_incomes', rawText };
+    }
+    if (QUERY_EXPENSES_HINT.test(normalized)) {
+      return { type: 'query_expenses', rawText };
+    }
+    if (QUERY_INVENTORY_HINT.test(normalized) && !DELETE_HINT.test(normalized) && !UPDATE_HINT.test(normalized)) {
+      return { type: 'query_inventory', rawText };
     }
 
     const amount = this.extractAmount(rawText);
@@ -101,6 +126,82 @@ export class TelegramIntentParserService {
     }
     const raw = match[1] ?? match[2];
     return raw ? this.parseNumber(raw) : null;
+  }
+
+  private parseMutationIntent(
+    rawText: string,
+    normalized: string,
+    categoryNames: string[],
+    sourceNames: string[],
+  ): ParsedTelegramIntent | null {
+    const isDelete = DELETE_HINT.test(normalized);
+    const isUpdate = UPDATE_HINT.test(normalized);
+    if (!isDelete && !isUpdate) {
+      return null;
+    }
+
+    let entity: 'expense' | 'income' | 'inventory' | null = null;
+    if (EXPENSE_NOUN.test(normalized)) {
+      entity = 'expense';
+    } else if (INCOME_NOUN.test(normalized)) {
+      entity = 'income';
+    } else if (INVENTORY_NOUN.test(normalized)) {
+      entity = 'inventory';
+    }
+    if (!entity) {
+      return null;
+    }
+
+    const newAmountMatch = rawText.match(NEW_AMOUNT_PATTERN);
+    const newAmount = newAmountMatch?.[1]
+      ? this.parseNumber(newAmountMatch[1])
+      : undefined;
+    const searchQuery = this.extractSearchQuery(rawText, entity);
+    const categoryName =
+      entity === 'expense'
+        ? this.matchNamedEntity(rawText, categoryNames) ?? undefined
+        : undefined;
+    const sourceName =
+      entity === 'income'
+        ? this.matchNamedEntity(rawText, sourceNames) ?? undefined
+        : undefined;
+    const amountHint = this.extractAmount(
+      rawText.replace(NEW_AMOUNT_PATTERN, ' '),
+    );
+
+    const prefix = isDelete ? 'delete' : 'update';
+    const type = `${prefix}_${entity}` as ParsedTelegramIntent['type'];
+
+    return {
+      type,
+      rawText,
+      searchQuery,
+      newAmount: newAmount ?? undefined,
+      amount: amountHint ?? undefined,
+      categoryName,
+      sourceName,
+    };
+  }
+
+  private extractSearchQuery(
+    rawText: string,
+    entity: 'expense' | 'income' | 'inventory',
+  ): string | undefined {
+    let t = rawText
+      .replace(DELETE_HINT, ' ')
+      .replace(UPDATE_HINT, ' ')
+      .replace(EXPENSE_NOUN, ' ')
+      .replace(INCOME_NOUN, ' ')
+      .replace(INVENTORY_NOUN, ' ')
+      .replace(NEW_AMOUNT_PATTERN, ' ')
+      .replace(AMOUNT_PATTERN, ' ')
+      .replace(/\b(el|la|los|las|de|del|un|una|mi|mis|ultimo|último)\b/gi, ' ')
+      .replace(/\s+/g, ' ')
+      .trim();
+    if (!t && entity === 'expense') {
+      return undefined;
+    }
+    return t || undefined;
   }
 
   private parseNumber(raw: string): number | null {
