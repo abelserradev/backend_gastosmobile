@@ -20,8 +20,10 @@ import {
   formatSummary,
   formatUnlinkedMessage,
 } from './telegram-message.formatter';
+import { TelegramMutationService } from './telegram-mutation.service';
 import type {
   ParsedTelegramIntent,
+  TelegramAmountCurrency,
   TelegramCallbackQuery,
   TelegramMessage,
   TelegramPendingAction,
@@ -38,6 +40,7 @@ export class TelegramBotService {
     private readonly parser: TelegramIntentParserService,
     private readonly pending: TelegramPendingService,
     private readonly me: MeService,
+    private readonly mutations: TelegramMutationService,
   ) {}
 
   async handleUpdate(update: TelegramUpdate): Promise<void> {
@@ -72,6 +75,19 @@ export class TelegramBotService {
     }
 
     const user = buildAuthPayload(link.user.id, link.user.email);
+    const pendingAmount = await this.pending.get(chatId);
+
+    if (pendingAmount?.pendingUpdate && pendingAmount.pendingUpdate.newAmount == null) {
+      const handled = await this.mutations.tryCompletePendingAmount(
+        chatId,
+        user,
+        text,
+      );
+      if (handled) {
+        return;
+      }
+    }
+
     const state = await this.me.getState(user);
     const intent = this.parser.parse(
       text,
@@ -130,6 +146,10 @@ export class TelegramBotService {
     state: Awaited<ReturnType<MeService['getState']>>,
     defaultProfileId: string | null,
   ): Promise<void> {
+    if (this.mutations.isMutationIntent(intent.type)) {
+      await this.mutations.dispatchMutation(chatId, user, intent, state);
+      return;
+    }
     if (intent.type === 'query_summary') {
       await this.sendSummary(chatId, state);
       return;
@@ -139,13 +159,18 @@ export class TelegramBotService {
       return;
     }
     if (intent.type === 'unknown' || intent.amount == null) {
-      await this.askIntentClarification(chatId, intent);
+      await this.askIntentClarification(chatId, intent, state.preferences?.defaultCurrency);
       return;
     }
     if (intent.type === 'expense') {
+      const amountCurrency = this.resolveAmountCurrency(
+        intent.amountCurrency,
+        state.preferences?.defaultCurrency,
+      );
       const created = await this.me.createExpense(user, {
         title: intent.title ?? intent.categoryName ?? 'Gasto Telegram',
         amount: intent.amount,
+        amountCurrency,
         categoryName: intent.categoryName ?? 'Varios',
         profileId: defaultProfileId ?? undefined,
       });
@@ -161,14 +186,21 @@ export class TelegramBotService {
           periodLabel: fresh.activePeriod?.label ?? 'Periodo actual',
           remainingUsd:
             budget != null ? Math.max(0, budget - totalExp) : null,
+          inputAmountBs: amountCurrency === 'BS' ? intent.amount : undefined,
+          bcvRate: created.bcvRateApplied ?? undefined,
         }),
       );
       return;
     }
     if (intent.type === 'income') {
+      const amountCurrency = this.resolveAmountCurrency(
+        intent.amountCurrency,
+        state.preferences?.defaultCurrency,
+      );
       const created = await this.me.createIncome(user, {
         title: intent.title ?? intent.sourceName ?? 'Ingreso Telegram',
         amount: intent.amount,
+        amountCurrency,
         sourceName: intent.sourceName ?? 'Otros',
       });
       await this.api.sendMessage(
@@ -177,11 +209,30 @@ export class TelegramBotService {
           title: created.title,
           amount: created.amount,
           sourceName: created.source,
+          inputAmountBs: amountCurrency === 'BS' ? intent.amount : undefined,
+          bcvRate: created.bcvRateApplied ?? undefined,
         }),
       );
       return;
     }
-    await this.askIntentClarification(chatId, intent);
+    await this.askIntentClarification(chatId, intent, state.preferences?.defaultCurrency);
+  }
+
+  private resolveAmountCurrency(
+    explicit: TelegramAmountCurrency | undefined,
+    defaultCurrency: 'USD' | 'BS' | undefined,
+  ): TelegramAmountCurrency {
+    return explicit ?? defaultCurrency ?? 'USD';
+  }
+
+  private formatDetectedAmount(
+    amount: number,
+    currency: TelegramAmountCurrency,
+  ): string {
+    if (currency === 'BS') {
+      return `Bs ${amount.toLocaleString('es-VE', { minimumFractionDigits: 0, maximumFractionDigits: 2 })}`;
+    }
+    return `$${amount.toFixed(2)}`;
   }
 
   private async sendSummary(
@@ -225,10 +276,16 @@ export class TelegramBotService {
   private async askIntentClarification(
     chatId: string,
     intent: ParsedTelegramIntent,
+    defaultCurrency?: 'USD' | 'BS',
   ): Promise<void> {
+    const resolvedCurrency = this.resolveAmountCurrency(
+      intent.amountCurrency,
+      defaultCurrency,
+    );
     const pending: TelegramPendingAction = {
       rawText: intent.rawText,
       amount: intent.amount,
+      amountCurrency: resolvedCurrency,
       categoryName: intent.categoryName,
       sourceName: intent.sourceName,
       title: intent.title,
@@ -238,8 +295,8 @@ export class TelegramBotService {
     await this.api.sendMessage(
       chatId,
       intent.amount != null
-        ? `Detecté ${intent.amount} USD pero no estoy seguro del tipo. ¿Es gasto o ingreso?`
-        : 'No entendí el monto. Escribe por ejemplo: gasté 25 en comida',
+        ? `Detecté ${this.formatDetectedAmount(intent.amount, resolvedCurrency)} pero no estoy seguro del tipo. ¿Es gasto o ingreso?`
+        : 'No entendí el monto. Escribe por ejemplo: gasté 25 en comida o gasté 5000 bs en comida',
       {
         replyMarkup: {
           inline_keyboard: [
@@ -277,6 +334,11 @@ export class TelegramBotService {
       await this.api.sendMessage(chatIdStr, formatUnlinkedMessage());
       return;
     }
+    const user = buildAuthPayload(link.user.id, link.user.email);
+
+    if (await this.mutations.handleEntityCallback(chatIdStr, user, data)) {
+      return;
+    }
 
     const pending = await this.pending.get(chatIdStr);
     if (!pending) {
@@ -284,7 +346,6 @@ export class TelegramBotService {
       return;
     }
 
-    const user = buildAuthPayload(link.user.id, link.user.email);
     const state = await this.me.getState(user);
     const intentType =
       data === 'tg:intent:expense'
@@ -304,6 +365,7 @@ export class TelegramBotService {
     const intent: ParsedTelegramIntent = {
       type: intentType,
       amount: pending.amount,
+      amountCurrency: pending.amountCurrency,
       categoryName: pending.categoryName ?? 'Varios',
       sourceName: pending.sourceName ?? 'Otros',
       title: pending.title ?? pending.rawText,

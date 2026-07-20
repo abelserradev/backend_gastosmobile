@@ -48,11 +48,46 @@ node scripts/telegram-set-webhook.mjs
 
 ## Ejemplos de mensajes
 
-- `gasté 25 en comida almuerzo`
-- `recibí 800 de freelance`
+- `gasté 25 en comida` / `gasté 5000 bs en comida`
+- `recibí 800 de freelance` / `recibí 120000 bs de freelance`
 - `cuánto llevo gastado este mes`
-- `mis ingresos`
+- `listar mis gastos` / `mis ingresos`
+- `eliminar gasto` — lista tus gastos del periodo; eliges cuál y confirmas en un segundo paso
+- `eliminar gasto comida` — filtra por palabra clave; si no hay coincidencias, muestra la lista completa
+- `cambiar gasto comida a 30` / `cambiar gasto comida a 6000 bs`
+- `inventario` / `eliminar producto leche` (perfil comercio; flujo anterior con botones)
 - `/ayuda`
+
+## Eliminar gastos (Telegram)
+
+Flujo en dos pasos para evitar borrar el registro equivocado:
+
+1. Envías `eliminar gasto` o `eliminar gasto comida` (opcional: filtro por texto).
+2. El bot muestra una lista numerada del periodo activo (máx. 8 ítems en botones).
+3. Tocas el gasto correcto → aparece **¿Eliminar este gasto?** con **Sí, eliminar** / **Cancelar**.
+4. Solo al confirmar se borra el registro.
+
+Si el filtro no encuentra coincidencias, se muestra la lista completa del periodo con un aviso.
+
+Ingresos e inventario mantienen el flujo anterior (un paso con botones inline).
+
+## Montos en bolívares (Bs)
+
+El tablero guarda todo en **USD**. Desde Telegram puedes registrar en Bs de dos formas:
+
+1. **Explícito:** añade `bs` o `bolívares` al monto (`gasté 5000 bs en comida`).
+2. **Preferencia:** si en la app tu moneda por defecto es **BS**, un número sin sufijo se interpreta en bolívares (`gasté 5000 en comida`).
+
+El backend convierte con la **tasa BCV del día** (Caracas) y responde confirmando la equivalencia, por ejemplo:
+
+```
+Gasto registrado
+Bs 5.000,00 → $97,09 (BCV 51,50)
+$97,09 · Comida
+...
+```
+
+Lo mismo aplica a ingresos y a cambios de monto (`cambiar gasto comida a 6000 bs`).
 
 ## Endpoints API
 

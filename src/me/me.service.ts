@@ -14,6 +14,7 @@ import {
   startOfMonthYmdInCaracas,
   type BudgetPeriod,
 } from '../common/utils/caracas-date';
+import { resolveAmountUsd } from '../common/utils/amount-currency.util';
 import type { AuthUserPayload } from '../common/types/auth-user.payload';
 import { type Prisma } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
@@ -54,6 +55,8 @@ import { ProfileCollaboratorService } from '../profile-collaborators/profile-col
 import { resolveActiveBudgetContext } from '../common/utils/active-budget-context.util';
 import { CreateIncomeDto } from './dto/create-income.dto';
 import { DeleteIncomesDto } from './dto/delete-income.dto';
+import { UpdateExpenseFieldsDto } from './dto/update-expense-fields.dto';
+import { UpdateIncomeFieldsDto } from './dto/update-income-fields.dto';
 import { mapIncomeToResponse } from './me.mappers';
 import { DEFAULT_INCOME_SOURCES_NAMES } from './income-source.default';
 
@@ -918,13 +921,19 @@ export class MeService {
     const { vesPerUsd, rateDate } =
       await this.bcv.getVesPerUsdForCalendarDay(rateYmd);
     const paymentDate = parseYmdToUtcNoon(rateYmd);
+    const vesPerUsdNum = Number(vesPerUsd.toString());
+    const amountUsd = resolveAmountUsd(
+      dto.amount,
+      dto.amountCurrency,
+      vesPerUsdNum,
+    );
     const row = await this.prisma.expense.create({
       data: {
         profileId,
         categoryId,
         title: dto.title.trim(),
         description: dto.description?.trim() ?? '',
-        amount: dto.amount,
+        amount: amountUsd,
         referenceMonth: toReferenceMonthDate(refStr),
         paymentDate,
         bcvRateApplied: vesPerUsd,
@@ -958,8 +967,11 @@ export class MeService {
     const refStr = budget.activeReferenceMonth;
 
     const vesPerUsdNum = Number(vesPerUsd.toString());
-    const amountUsd =
-      dto.amountCurrency === 'BS' ? dto.amount / vesPerUsdNum : dto.amount;
+    const amountUsd = resolveAmountUsd(
+      dto.amount,
+      dto.amountCurrency,
+      vesPerUsdNum,
+    );
 
     // Título autogenerado si no viene del frontend: "Factura · YYYY-MM-DD" o "Pago · ..."
     const title = dto.title?.trim() || `Comprobante · ${rateYmd}`;
@@ -1526,13 +1538,19 @@ export class MeService {
     const rateYmd = dto.receivedDate ?? formatYmdInCaracas();
     const { vesPerUsd, rateDate } =
       await this.bcv.getVesPerUsdForCalendarDay(rateYmd);
+    const vesPerUsdNum = Number(vesPerUsd.toString());
+    const amountUsd = resolveAmountUsd(
+      dto.amount,
+      dto.amountCurrency,
+      vesPerUsdNum,
+    );
     const row = (await this.incomePrisma.incomeEntry.create({
       data: {
         userId,
         sourceId,
         title: dto.title.trim(),
         description: dto.description?.trim() ?? '',
-        amount: dto.amount,
+        amount: amountUsd,
         referenceMonth: toReferenceMonthDate(refStr),
         receivedDate: parseYmdToUtcNoon(rateYmd),
         bcvRateApplied: vesPerUsd,
@@ -1547,5 +1565,87 @@ export class MeService {
       where: { id: { in: dto.ids }, userId: user.userId },
     });
     return { deleted: result.count };
+  }
+
+  async updateExpenseFields(
+    user: AuthUserPayload,
+    expenseId: string,
+    dto: UpdateExpenseFieldsDto,
+  ) {
+    const row = await this.prisma.expense.findFirst({
+      where: { id: expenseId, profile: { userId: user.userId } },
+    });
+    if (!row) {
+      throw new NotFoundException('Gasto no encontrado');
+    }
+    const data: Prisma.ExpenseUpdateInput = {};
+    if (dto.title?.trim()) {
+      data.title = dto.title.trim();
+    }
+    if (dto.amount != null) {
+      const rateYmd = formatYmdInCaracas();
+      const { vesPerUsd, rateDate } =
+        await this.bcv.getVesPerUsdForCalendarDay(rateYmd);
+      const vesPerUsdNum = Number(vesPerUsd.toString());
+      data.amount = resolveAmountUsd(dto.amount, dto.amountCurrency, vesPerUsdNum);
+      data.bcvRateApplied = vesPerUsd;
+      data.bcvRateDate = rateDate;
+    }
+    if (dto.categoryName?.trim()) {
+      const categoryId = await this.findCategoryOrThrow(user.userId, {
+        name: dto.categoryName,
+      });
+      data.category = { connect: { id: categoryId } };
+    }
+    if (Object.keys(data).length === 0) {
+      throw new BadRequestException('Indica qué cambiar (monto, título o categoría)');
+    }
+    const updated = await this.prisma.expense.update({
+      where: { id: expenseId },
+      data,
+      include: { category: true, profile: true },
+    });
+    return mapExpenseToResponse(updated);
+  }
+
+  async updateIncomeFields(
+    user: AuthUserPayload,
+    incomeId: string,
+    dto: UpdateIncomeFieldsDto,
+  ) {
+    const row = (await this.incomePrisma.incomeEntry.findFirst({
+      where: { id: incomeId, userId: user.userId },
+    })) as IncomeEntryWithSourceRow | null;
+    if (!row) {
+      throw new NotFoundException('Ingreso no encontrado');
+    }
+    const data: Prisma.IncomeEntryUpdateInput = {};
+    if (dto.title?.trim()) {
+      data.title = dto.title.trim();
+    }
+    if (dto.amount != null) {
+      const rateYmd = formatYmdInCaracas();
+      const { vesPerUsd, rateDate } =
+        await this.bcv.getVesPerUsdForCalendarDay(rateYmd);
+      const vesPerUsdNum = Number(vesPerUsd.toString());
+      data.amount = resolveAmountUsd(dto.amount, dto.amountCurrency, vesPerUsdNum);
+      data.bcvRateApplied = vesPerUsd;
+      data.bcvRateDate = rateDate;
+    }
+    if (dto.sourceName?.trim()) {
+      const sourceId = await this.findIncomeSourceOrThrow(user.userId, {
+        name: dto.sourceName,
+      });
+      data.source = { connect: { id: sourceId } };
+    }
+    if (Object.keys(data).length === 0) {
+      throw new BadRequestException('Indica qué cambiar (monto, título o fuente)');
+    }
+    const updated = (await this.incomePrisma.incomeEntry.update({
+      where: { id: incomeId },
+      data,
+      include: { source: true },
+    })) as IncomeEntryWithSourceRow;
+    return mapIncomeToResponse(updated);
   }
 }

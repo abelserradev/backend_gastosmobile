@@ -1,5 +1,6 @@
 import { Type } from 'class-transformer';
 import {
+  IsIn,
   IsNumber,
   IsOptional,
   IsString,
@@ -26,6 +27,10 @@ export class CreateIncomeDto {
   @IsNumber()
   @Min(0)
   amount!: number;
+
+  @IsOptional()
+  @IsIn(['USD', 'BS'])
+  amountCurrency?: 'USD' | 'BS';
 
   @IsOptional()
   @IsUUID()
