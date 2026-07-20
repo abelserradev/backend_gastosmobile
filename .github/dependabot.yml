@@ -4,14 +4,39 @@ updates:
     directory: /
     schedule:
       interval: weekly
-    open-pull-requests-limit: 15
+      day: monday
+      time: "09:00"
+      timezone: "America/Caracas"
+    open-pull-requests-limit: 5
     labels:
       - dependencies
+    groups:
+      security-updates:
+        applies-to: security-updates
+        patterns:
+          - "*"
+      production-patches:
+        dependency-type: production
+        update-types:
+          - patch
+      production-minors:
+        dependency-type: production
+        update-types:
+          - minor
+      dev-dependencies:
+        dependency-type: development
+        patterns:
+          - "*"
 
   - package-ecosystem: github-actions
     directory: /
     schedule:
       interval: weekly
+    open-pull-requests-limit: 3
+    groups:
+      github-actions:
+        patterns:
+          - "*"
     labels:
       - dependencies
       - github-actions

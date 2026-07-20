@@ -1,0 +1,39 @@
+# Merge batch de PRs Dependabot con CI verde hacia develop (respaldo semanal).
+name: Dependabot batch merge
+
+on:
+  schedule:
+    - cron: "0 10 * * 1"
+  workflow_dispatch:
+
+permissions:
+  contents: write
+  pull-requests: write
+
+jobs:
+  merge-green-dependabot-prs:
+    name: Merge PRs Dependabot verdes
+    runs-on: ubuntu-latest
+    steps:
+      - name: Auto-merge PRs abiertos con checks en SUCCESS
+        run: |
+          gh pr list \
+            --author "app/dependabot" \
+            --state open \
+            --base develop \
+            --json number \
+            --jq '.[].number' \
+          | while read -r pr; do
+              if [ -z "$pr" ]; then
+                continue
+              fi
+              checks="$(gh pr checks "$pr" --json state -q '.[].state' | sort -u | tr '\n' ' ')"
+              if [ "$checks" = "SUCCESS " ] || [ "$checks" = "SUCCESS" ]; then
+                echo "Auto-merge PR #$pr"
+                gh pr merge "$pr" --auto --squash || true
+              else
+                echo "Skip PR #$pr (checks: $checks)"
+              fi
+            done
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}

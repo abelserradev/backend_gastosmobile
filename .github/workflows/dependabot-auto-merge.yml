@@ -1,0 +1,32 @@
+# Auto-merge de PRs Dependabot (patch + security) hacia develop cuando CI pase.
+name: Dependabot auto-merge
+
+on:
+  pull_request:
+    branches:
+      - develop
+
+permissions:
+  contents: write
+  pull-requests: write
+
+jobs:
+  auto-merge:
+    name: Auto-merge patch/security
+    runs-on: ubuntu-latest
+    if: github.actor == 'dependabot[bot]' && github.event.pull_request.base.ref == 'develop'
+    steps:
+      - name: Obtener metadata del PR
+        id: metadata
+        uses: dependabot/fetch-metadata@v2
+        with:
+          github-token: "${{ secrets.GITHUB_TOKEN }}"
+
+      - name: Habilitar auto-merge (patch o security)
+        if: |
+          steps.metadata.outputs.update-type == 'version-update:semver-patch' ||
+          steps.metadata.outputs.dependency-group == 'security-updates'
+        run: gh pr merge --auto --squash "$PR_URL"
+        env:
+          PR_URL: ${{ github.event.pull_request.html_url }}
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
