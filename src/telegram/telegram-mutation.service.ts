@@ -8,6 +8,7 @@ import type { AuthUserPayload } from '../common/types/auth-user.payload';
 import { MeService } from '../me/me.service';
 import { TelegramApiClient } from './telegram-api.client';
 import { TelegramEntityResolverService } from './telegram-entity-resolver.service';
+import { TelegramIntentParserService } from './telegram-intent-parser.service';
 import { TelegramPendingService } from './telegram-pending.service';
 import {
   formatDeleted,
@@ -24,6 +25,7 @@ import {
 } from './telegram-message.formatter';
 import type {
   ParsedTelegramIntent,
+  TelegramAmountCurrency,
   TelegramEntityPick,
   TelegramPendingAction,
 } from './telegram.types';
@@ -39,6 +41,7 @@ export class TelegramMutationService {
     private readonly me: MeService,
     private readonly inventoryItems: InventoryItemService,
     private readonly resolver: TelegramEntityResolverService,
+    private readonly parser: TelegramIntentParserService,
     private readonly pending: TelegramPendingService,
   ) {}
 
@@ -152,11 +155,17 @@ export class TelegramMutationService {
     if (!pending?.pendingUpdate) {
       return false;
     }
-    const amount = Number.parseFloat(text.replace(',', '.'));
-    if (!Number.isFinite(amount) || amount < 0) {
+    const parsed = this.parser.extractAmountWithCurrency(text);
+    if (!parsed) {
       return false;
     }
-    pending.pendingUpdate.newAmount = amount;
+    const state = await this.me.getState(user);
+    const amountCurrency = this.resolveAmountCurrency(
+      parsed.currency,
+      state.preferences?.defaultCurrency,
+    );
+    pending.pendingUpdate.newAmount = parsed.amount;
+    pending.pendingUpdate.newAmountCurrency = amountCurrency;
     await this.pending.clear(chatId);
     try {
       await this.applyPendingUpdate(chatId, user, pending.pendingUpdate);
@@ -165,6 +174,23 @@ export class TelegramMutationService {
       await this.api.sendMessage(chatId, formatErrorMessage(msg));
     }
     return true;
+  }
+
+  private resolveAmountCurrency(
+    explicit: TelegramAmountCurrency | undefined,
+    defaultCurrency: 'USD' | 'BS' | undefined,
+  ): TelegramAmountCurrency {
+    return explicit ?? defaultCurrency ?? 'USD';
+  }
+
+  private resolveUpdateCurrency(
+    intent: ParsedTelegramIntent,
+    state: MeState,
+  ): TelegramAmountCurrency {
+    return this.resolveAmountCurrency(
+      intent.newAmountCurrency,
+      state.preferences?.defaultCurrency,
+    );
   }
 
   private async listExpenses(chatId: string, state: MeState): Promise<void> {
@@ -462,6 +488,7 @@ export class TelegramMutationService {
         kind,
         id: picks[0].id,
         newAmount: intent.newAmount,
+        newAmountCurrency: intent.newAmountCurrency,
         salePrice: intent.newAmount,
       },
     });
@@ -574,10 +601,15 @@ export class TelegramMutationService {
   ): Promise<void> {
     const pending = await this.pending.get(chatId);
     const newAmount = pending?.pendingUpdate?.newAmount;
+    const newAmountCurrency = pending?.pendingUpdate?.newAmountCurrency;
     const salePrice = pending?.pendingUpdate?.salePrice;
     await this.pending.clear(chatId);
 
     const state = await this.me.getState(user);
+    const resolvedCurrency = this.resolveAmountCurrency(
+      newAmountCurrency,
+      state.preferences?.defaultCurrency,
+    );
     try {
       if (code === 'e') {
         const id = this.resolver.resolveShortId(
@@ -597,6 +629,7 @@ export class TelegramMutationService {
         }
         const updated = await this.me.updateExpenseFields(user, id, {
           amount: newAmount,
+          amountCurrency: resolvedCurrency,
         });
         await this.api.sendMessage(
           chatId,
@@ -625,6 +658,7 @@ export class TelegramMutationService {
         }
         const updated = await this.me.updateIncomeFields(user, id, {
           amount: newAmount,
+          amountCurrency: resolvedCurrency,
         });
         await this.api.sendMessage(
           chatId,
@@ -670,9 +704,12 @@ export class TelegramMutationService {
     pick: TelegramEntityPick,
     intent: ParsedTelegramIntent,
   ): Promise<void> {
+    const state = await this.me.getState(user);
+    const amountCurrency = this.resolveUpdateCurrency(intent, state);
     if (pick.kind === 'expense' && intent.newAmount != null) {
       const updated = await this.me.updateExpenseFields(user, pick.id, {
         amount: intent.newAmount,
+        amountCurrency,
         categoryName: intent.categoryName,
         title: intent.title,
       });
@@ -688,6 +725,7 @@ export class TelegramMutationService {
     if (pick.kind === 'income' && intent.newAmount != null) {
       const updated = await this.me.updateIncomeFields(user, pick.id, {
         amount: intent.newAmount,
+        amountCurrency,
         sourceName: intent.sourceName,
       });
       await this.api.sendMessage(
@@ -721,9 +759,15 @@ export class TelegramMutationService {
     user: AuthUserPayload,
     upd: NonNullable<TelegramPendingAction['pendingUpdate']>,
   ): Promise<void> {
+    const state = await this.me.getState(user);
+    const amountCurrency = this.resolveAmountCurrency(
+      upd.newAmountCurrency,
+      state.preferences?.defaultCurrency,
+    );
     if (upd.kind === 'expense') {
       const updated = await this.me.updateExpenseFields(user, upd.id, {
         amount: upd.newAmount,
+        amountCurrency,
       });
       await this.api.sendMessage(
         chatId,
@@ -737,6 +781,7 @@ export class TelegramMutationService {
     if (upd.kind === 'income') {
       const updated = await this.me.updateIncomeFields(user, upd.id, {
         amount: upd.newAmount,
+        amountCurrency,
       });
       await this.api.sendMessage(
         chatId,

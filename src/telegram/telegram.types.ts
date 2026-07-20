@@ -1,3 +1,5 @@
+export type TelegramAmountCurrency = 'USD' | 'BS';
+
 export type TelegramEntityKind = 'expense' | 'income' | 'inventory';
 
 export type TelegramIntentType =
@@ -20,8 +22,11 @@ export type TelegramIntentType =
 export interface ParsedTelegramIntent {
   type: TelegramIntentType;
   amount?: number;
+  /** Moneda explícita del monto; si falta, el bot usa defaultCurrency del usuario. */
+  amountCurrency?: TelegramAmountCurrency;
   /** Monto nuevo en comandos de actualización (ej. "cambiar gasto comida a 30"). */
   newAmount?: number;
+  newAmountCurrency?: TelegramAmountCurrency;
   categoryName?: string;
   sourceName?: string;
   title?: string;
@@ -41,6 +46,7 @@ export interface TelegramEntityPick {
 export interface TelegramPendingAction {
   rawText: string;
   amount?: number;
+  amountCurrency?: TelegramAmountCurrency;
   categoryName?: string;
   sourceName?: string;
   title?: string;
@@ -52,6 +58,7 @@ export interface TelegramPendingAction {
     id: string;
     profileId?: string;
     newAmount?: number;
+    newAmountCurrency?: TelegramAmountCurrency;
     newTitle?: string;
     categoryName?: string;
     sourceName?: string;

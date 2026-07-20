@@ -14,6 +14,7 @@ import {
   startOfMonthYmdInCaracas,
   type BudgetPeriod,
 } from '../common/utils/caracas-date';
+import { resolveAmountUsd } from '../common/utils/amount-currency.util';
 import type { AuthUserPayload } from '../common/types/auth-user.payload';
 import { type Prisma } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
@@ -920,13 +921,19 @@ export class MeService {
     const { vesPerUsd, rateDate } =
       await this.bcv.getVesPerUsdForCalendarDay(rateYmd);
     const paymentDate = parseYmdToUtcNoon(rateYmd);
+    const vesPerUsdNum = Number(vesPerUsd.toString());
+    const amountUsd = resolveAmountUsd(
+      dto.amount,
+      dto.amountCurrency,
+      vesPerUsdNum,
+    );
     const row = await this.prisma.expense.create({
       data: {
         profileId,
         categoryId,
         title: dto.title.trim(),
         description: dto.description?.trim() ?? '',
-        amount: dto.amount,
+        amount: amountUsd,
         referenceMonth: toReferenceMonthDate(refStr),
         paymentDate,
         bcvRateApplied: vesPerUsd,
@@ -960,8 +967,11 @@ export class MeService {
     const refStr = budget.activeReferenceMonth;
 
     const vesPerUsdNum = Number(vesPerUsd.toString());
-    const amountUsd =
-      dto.amountCurrency === 'BS' ? dto.amount / vesPerUsdNum : dto.amount;
+    const amountUsd = resolveAmountUsd(
+      dto.amount,
+      dto.amountCurrency,
+      vesPerUsdNum,
+    );
 
     // Título autogenerado si no viene del frontend: "Factura · YYYY-MM-DD" o "Pago · ..."
     const title = dto.title?.trim() || `Comprobante · ${rateYmd}`;
@@ -1528,13 +1538,19 @@ export class MeService {
     const rateYmd = dto.receivedDate ?? formatYmdInCaracas();
     const { vesPerUsd, rateDate } =
       await this.bcv.getVesPerUsdForCalendarDay(rateYmd);
+    const vesPerUsdNum = Number(vesPerUsd.toString());
+    const amountUsd = resolveAmountUsd(
+      dto.amount,
+      dto.amountCurrency,
+      vesPerUsdNum,
+    );
     const row = (await this.incomePrisma.incomeEntry.create({
       data: {
         userId,
         sourceId,
         title: dto.title.trim(),
         description: dto.description?.trim() ?? '',
-        amount: dto.amount,
+        amount: amountUsd,
         referenceMonth: toReferenceMonthDate(refStr),
         receivedDate: parseYmdToUtcNoon(rateYmd),
         bcvRateApplied: vesPerUsd,
@@ -1567,7 +1583,13 @@ export class MeService {
       data.title = dto.title.trim();
     }
     if (dto.amount != null) {
-      data.amount = dto.amount;
+      const rateYmd = formatYmdInCaracas();
+      const { vesPerUsd, rateDate } =
+        await this.bcv.getVesPerUsdForCalendarDay(rateYmd);
+      const vesPerUsdNum = Number(vesPerUsd.toString());
+      data.amount = resolveAmountUsd(dto.amount, dto.amountCurrency, vesPerUsdNum);
+      data.bcvRateApplied = vesPerUsd;
+      data.bcvRateDate = rateDate;
     }
     if (dto.categoryName?.trim()) {
       const categoryId = await this.findCategoryOrThrow(user.userId, {
@@ -1602,7 +1624,13 @@ export class MeService {
       data.title = dto.title.trim();
     }
     if (dto.amount != null) {
-      data.amount = dto.amount;
+      const rateYmd = formatYmdInCaracas();
+      const { vesPerUsd, rateDate } =
+        await this.bcv.getVesPerUsdForCalendarDay(rateYmd);
+      const vesPerUsdNum = Number(vesPerUsd.toString());
+      data.amount = resolveAmountUsd(dto.amount, dto.amountCurrency, vesPerUsdNum);
+      data.bcvRateApplied = vesPerUsd;
+      data.bcvRateDate = rateDate;
     }
     if (dto.sourceName?.trim()) {
       const sourceId = await this.findIncomeSourceOrThrow(user.userId, {

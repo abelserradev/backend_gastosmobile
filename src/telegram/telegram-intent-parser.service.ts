@@ -1,5 +1,9 @@
 import { Injectable } from '@nestjs/common';
-import type { ParsedTelegramIntent, TelegramIntentType } from './telegram.types';
+import type {
+  ParsedTelegramIntent,
+  TelegramAmountCurrency,
+  TelegramIntentType,
+} from './telegram.types';
 
 const WORD_END = String.raw`(?=\s|$|[.,!?;:])`;
 
@@ -27,10 +31,23 @@ const EXPENSE_NOUN = /\b(gastos?)\b/i;
 const INCOME_NOUN = /\b(ingresos?)\b/i;
 const INVENTORY_NOUN = /\b(productos?|inventario|item|art[ií]culo)\b/i;
 
+const AMOUNT_BS_PATTERN =
+  /\b(\d+(?:[.,]\d{1,2})?)\s*(?:bs\.?|bol[ií]vares?)\b/i;
+const AMOUNT_USD_PATTERN =
+  /(?:\$|\busd\b|\u0024)\s*(\d+(?:[.,]\d{1,2})?)\s*(?:usd|\$|\u0024)?|\b(\d+(?:[.,]\d{1,2})?)\s*(?:usd|\$|\u0024)\b/i;
+const NEW_AMOUNT_BS_PATTERN =
+  /\b(?:a|por|en)\s+(\d+(?:[.,]\d{1,2})?)\s*(?:bs\.?|bol[ií]vares?)\b/i;
+const NEW_AMOUNT_USD_PATTERN =
+  /\b(?:a|por|en)\s+(?:(?:\$|\busd\b|\u0024)\s*)?(\d+(?:[.,]\d{1,2})?)\s*(?:usd|\$|\u0024)?\b/i;
+/** Legacy: usado al limpiar títulos y búsquedas. */
 const AMOUNT_PATTERN =
   /(?:\$|\busd\b|\u0024)?\s*(\d+(?:[.,]\d{1,2})?)\s*(?:usd|\$|\u0024)?|\b(\d+(?:[.,]\d{1,2})?)\s*(?:bs\.?|bol[ií]vares?)\b/i;
-const NEW_AMOUNT_PATTERN =
-  /\b(?:a|por|en)\s+(?:\$|\busd\b|\u0024)?\s*(\d+(?:[.,]\d{1,2})?)\s*(?:usd|\$|\u0024)?/i;
+const NEW_AMOUNT_PATTERN = NEW_AMOUNT_USD_PATTERN;
+
+export interface ParsedTelegramAmount {
+  amount: number;
+  currency?: TelegramAmountCurrency;
+}
 
 const LINK_CMD = /^\/(?:vincular|link)(?:@\w+)?(?:\s+(\d{6}))?\s*$/i;
 const START_CMD = /^\/start(?:@\w+)?(?:\s+(\d{6}))?\s*$/i;
@@ -82,7 +99,8 @@ export class TelegramIntentParserService {
       return { type: 'query_inventory', rawText };
     }
 
-    const amount = this.extractAmount(rawText);
+    const parsedAmount = this.extractAmountWithCurrency(rawText);
+    const amount = parsedAmount?.amount ?? null;
     const expenseScore = EXPENSE_HINT.test(normalized) ? 2 : 0;
     const incomeScore = INCOME_HINT.test(normalized) ? 2 : 0;
 
@@ -108,6 +126,7 @@ export class TelegramIntentParserService {
     return {
       type,
       amount: amount ?? undefined,
+      amountCurrency: parsedAmount?.currency,
       categoryName,
       sourceName,
       title,
@@ -115,17 +134,42 @@ export class TelegramIntentParserService {
     };
   }
 
-  extractAmount(text: string): number | null {
-    const match = text.match(AMOUNT_PATTERN);
-    if (!match) {
-      const fallback = text.match(/\b(\d+(?:[.,]\d{1,2})?)\b/);
-      if (!fallback) {
-        return null;
-      }
-      return this.parseNumber(fallback[1]);
+  extractAmountWithCurrency(text: string): ParsedTelegramAmount | null {
+    const bsMatch = text.match(AMOUNT_BS_PATTERN);
+    if (bsMatch) {
+      const n = this.parseNumber(bsMatch[1]);
+      return n != null ? { amount: n, currency: 'BS' } : null;
     }
-    const raw = match[1] ?? match[2];
-    return raw ? this.parseNumber(raw) : null;
+    const usdMatch = text.match(AMOUNT_USD_PATTERN);
+    if (usdMatch) {
+      const raw = usdMatch[1] ?? usdMatch[2];
+      const n = raw ? this.parseNumber(raw) : null;
+      return n != null ? { amount: n, currency: 'USD' } : null;
+    }
+    const fallback = text.match(/\b(\d+(?:[.,]\d{1,2})?)\b/);
+    if (!fallback) {
+      return null;
+    }
+    const n = this.parseNumber(fallback[1]);
+    return n != null ? { amount: n } : null;
+  }
+
+  extractAmount(text: string): number | null {
+    return this.extractAmountWithCurrency(text)?.amount ?? null;
+  }
+
+  private extractNewAmountWithCurrency(text: string): ParsedTelegramAmount | null {
+    const bsMatch = text.match(NEW_AMOUNT_BS_PATTERN);
+    if (bsMatch) {
+      const n = this.parseNumber(bsMatch[1]);
+      return n != null ? { amount: n, currency: 'BS' } : null;
+    }
+    const usdMatch = text.match(NEW_AMOUNT_USD_PATTERN);
+    if (!usdMatch) {
+      return null;
+    }
+    const n = this.parseNumber(usdMatch[1]);
+    return n != null ? { amount: n, currency: 'USD' } : null;
   }
 
   private parseMutationIntent(
@@ -152,10 +196,7 @@ export class TelegramIntentParserService {
       return null;
     }
 
-    const newAmountMatch = rawText.match(NEW_AMOUNT_PATTERN);
-    const newAmount = newAmountMatch?.[1]
-      ? this.parseNumber(newAmountMatch[1])
-      : undefined;
+    const newAmountParsed = this.extractNewAmountWithCurrency(rawText);
     const searchQuery = this.extractSearchQuery(rawText, entity);
     const categoryName =
       entity === 'expense'
@@ -165,8 +206,10 @@ export class TelegramIntentParserService {
       entity === 'income'
         ? this.matchNamedEntity(rawText, sourceNames) ?? undefined
         : undefined;
-    const amountHint = this.extractAmount(
-      rawText.replace(NEW_AMOUNT_PATTERN, ' '),
+    const amountHintParsed = this.extractAmountWithCurrency(
+      rawText
+        .replace(NEW_AMOUNT_BS_PATTERN, ' ')
+        .replace(NEW_AMOUNT_USD_PATTERN, ' '),
     );
 
     const prefix = isDelete ? 'delete' : 'update';
@@ -176,8 +219,10 @@ export class TelegramIntentParserService {
       type,
       rawText,
       searchQuery,
-      newAmount: newAmount ?? undefined,
-      amount: amountHint ?? undefined,
+      newAmount: newAmountParsed?.amount,
+      newAmountCurrency: newAmountParsed?.currency,
+      amount: amountHintParsed?.amount,
+      amountCurrency: amountHintParsed?.currency,
       categoryName,
       sourceName,
     };
@@ -193,7 +238,8 @@ export class TelegramIntentParserService {
       .replace(EXPENSE_NOUN, ' ')
       .replace(INCOME_NOUN, ' ')
       .replace(INVENTORY_NOUN, ' ')
-      .replace(NEW_AMOUNT_PATTERN, ' ')
+      .replace(NEW_AMOUNT_BS_PATTERN, ' ')
+      .replace(NEW_AMOUNT_USD_PATTERN, ' ')
       .replace(AMOUNT_PATTERN, ' ')
       .replace(/\b(el|la|los|las|de|del|un|una|mi|mis|ultimo|último)\b/gi, ' ')
       .replace(/\s+/g, ' ')

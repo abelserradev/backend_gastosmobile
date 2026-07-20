@@ -6,12 +6,17 @@ interface ExpenseCreatedPayload {
   categoryName: string;
   periodLabel: string;
   remainingUsd: number | null;
+  /** Monto original en Bs cuando hubo conversión. */
+  inputAmountBs?: number;
+  bcvRate?: number;
 }
 
 interface IncomeCreatedPayload {
   title: string;
   amount: number;
   sourceName: string;
+  inputAmountBs?: number;
+  bcvRate?: number;
 }
 
 interface SummaryPayload {
@@ -26,6 +31,14 @@ function fmtUsd(n: number): string {
   return `$${n.toFixed(2)}`;
 }
 
+function fmtBs(n: number): string {
+  return `Bs ${n.toLocaleString('es-VE', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+}
+
+function formatConversionNote(inputAmountBs: number, amountUsd: number, bcvRate: number): string {
+  return `${fmtBs(inputAmountBs)} → ${fmtUsd(amountUsd)} (BCV ${bcvRate.toFixed(2)})\n`;
+}
+
 export function formatHelpMessage(botUsername: string | null): string {
   const linkHint = botUsername
     ? `\nVincula tu cuenta en la app y envía el código con /vincular CODIGO o abre t.me/${botUsername}?start=CODIGO`
@@ -33,8 +46,8 @@ export function formatHelpMessage(botUsername: string | null): string {
   return (
     'Spend$ave por Telegram\n\n' +
     'Ejemplos:\n' +
-    '• gasté 25 en comida almuerzo\n' +
-    '• recibí 800 de freelance\n' +
+    '• gasté 25 en comida / gasté 5000 bs en comida\n' +
+    '• recibí 800 de freelance / recibí 120000 bs de freelance\n' +
     '• cuánto llevo gastado este mes\n' +
     '• listar mis gastos / mis ingresos\n' +
     '• eliminar gasto (elige de la lista y confirma)\n' +
@@ -62,8 +75,13 @@ export function formatExpenseCreated(p: ExpenseCreatedPayload): string {
     p.remainingUsd != null
       ? `\nDisponible en el periodo: ${fmtUsd(p.remainingUsd)}`
       : '';
+  const conversion =
+    p.inputAmountBs != null && p.bcvRate != null
+      ? formatConversionNote(p.inputAmountBs, p.amount, p.bcvRate)
+      : '';
   return (
     `Gasto registrado\n` +
+    conversion +
     `${fmtUsd(p.amount)} · ${p.categoryName}\n` +
     `${p.title}\n` +
     `Periodo: ${p.periodLabel}` +
@@ -72,8 +90,13 @@ export function formatExpenseCreated(p: ExpenseCreatedPayload): string {
 }
 
 export function formatIncomeCreated(p: IncomeCreatedPayload): string {
+  const conversion =
+    p.inputAmountBs != null && p.bcvRate != null
+      ? formatConversionNote(p.inputAmountBs, p.amount, p.bcvRate)
+      : '';
   return (
     `Ingreso registrado\n` +
+    conversion +
     `${fmtUsd(p.amount)} · ${p.sourceName}\n` +
     `${p.title}`
   );
@@ -202,7 +225,7 @@ export function formatPickPrompt(action: string): string {
 }
 
 export function formatNeedNewAmount(kind: string): string {
-  return `¿A qué monto quieres cambiar el ${kind}? Ejemplo: 35`;
+  return `¿A qué monto quieres cambiar el ${kind}? Ejemplo: 35 o 5000 bs`;
 }
 
 export function formatNoInventoryProfile(): string {

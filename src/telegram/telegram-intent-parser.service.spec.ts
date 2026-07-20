@@ -54,4 +54,31 @@ describe('TelegramIntentParserService', () => {
     const intent = parser.parse('listar mis gastos', categories, sources);
     expect(intent.type).toBe('query_expenses');
   });
+
+  it('detecta gasto con monto en bs', () => {
+    const intent = parser.parse('gasté 5000 bs en comida almuerzo', categories, sources);
+    expect(intent.type).toBe('expense');
+    expect(intent.amount).toBe(5000);
+    expect(intent.amountCurrency).toBe('BS');
+  });
+
+  it('detecta ingreso con bolívares', () => {
+    const intent = parser.parse('recibí 120000 bolívares de freelance', categories, sources);
+    expect(intent.type).toBe('income');
+    expect(intent.amount).toBe(120000);
+    expect(intent.amountCurrency).toBe('BS');
+  });
+
+  it('extractAmountWithCurrency sin sufijo no fija moneda', () => {
+    const parsed = parser.extractAmountWithCurrency('gasté 5000 en comida');
+    expect(parsed?.amount).toBe(5000);
+    expect(parsed?.currency).toBeUndefined();
+  });
+
+  it('detecta cambiar gasto con monto en bs', () => {
+    const intent = parser.parse('cambiar gasto comida a 6000 bs', categories, sources);
+    expect(intent.type).toBe('update_expense');
+    expect(intent.newAmount).toBe(6000);
+    expect(intent.newAmountCurrency).toBe('BS');
+  });
 });

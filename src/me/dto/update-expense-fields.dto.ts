@@ -1,4 +1,4 @@
-import { IsNumber, IsOptional, IsString, MaxLength, Min } from 'class-validator';
+import { IsIn, IsNumber, IsOptional, IsString, MaxLength, Min } from 'class-validator';
 
 /** Campos editables de un gasto vía Telegram o API futura. */
 export class UpdateExpenseFieldsDto {
@@ -11,6 +11,10 @@ export class UpdateExpenseFieldsDto {
   @IsNumber({ maxDecimalPlaces: 2 })
   @Min(0)
   amount?: number;
+
+  @IsOptional()
+  @IsIn(['USD', 'BS'])
+  amountCurrency?: 'USD' | 'BS';
 
   @IsOptional()
   @IsString()
