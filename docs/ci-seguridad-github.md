@@ -23,9 +23,20 @@ Cuando Dependabot no puede actualizar una dependencia transitiva (p. ej. *"canno
 |---------|----------------|---------------|
 | `websocket-driver` | `>=0.7.5` | `firebase-admin` |
 | `axios` | `1.18.1` | `@nestjs/axios` |
-| `js-yaml@3` / `js-yaml@4` | `3.15.0` / `4.2.0` | Jest, ESLint, Nest CLI |
+| `js-yaml@3` / `js-yaml@4` | `3.15.1` / `4.3.1` | Jest, ESLint, Nest CLI |
+| `brace-expansion@1/@2/@5` | `1.1.18` / `2.1.4` / `5.0.9` | Jest, ESLint, `@google-cloud/vision` |
+| `deepmerge-ts` | `>=8.0.0` | `prisma` → `@prisma/config` |
+| `fast-uri` | `>=3.1.5` | `ajv` (Nest CLI, Prisma dev) |
+| `valibot` | `>=1.4.2` | `prisma` → `@prisma/dev` |
+| `body-parser` | `>=2.3.0` | Express vía `@nestjs/platform-express` |
 | `protobufjs` | `>=7.6.3` | Firebase / Google Cloud |
 | `@babel/core` | `>=7.29.6` | Jest (dev) |
+
+Notas:
+
+- Las cadenas de `hono` / `@hono/node-server` desaparecieron con el bump a Prisma 7.9.1 (`@prisma/dev@0.24.17` ya no las usa); se retiraron sus overrides.
+- `deepmerge-ts@8` es un major forzado sobre lo que declara `@prisma/config`: validado con `prisma validate`, `prisma generate`, tests y build. Si Prisma actualiza su rango, retirar el override.
+- Evidencia post-remediación: [`code-audit/analysis/pnpm-audit-post-fix.txt`](code-audit/analysis/pnpm-audit-post-fix.txt) (`pnpm audit` → 0 vulnerabilidades, 2026-08-21).
 
 Tras cambiar overrides: `pnpm install`, `pnpm audit --audit-level=moderate`, y validar build/tests antes de mergear.
 
