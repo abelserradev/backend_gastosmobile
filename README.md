@@ -47,6 +47,20 @@ Si Ollama es **recurso aparte** en Coolify: `OLLAMA_URL=http://<hostname-interno
 
 **Timeout `120000ms` y `glm=0 chars`:** en logs de Ollama aparece `library=cpu` y `total_vram=0 B` — glm-ocr en CPU puede tardar **más de 2 minutos** por factura. Sube `OLLAMA_OCR_TIMEOUT_MS=300000` (o `600000` si sigue cortando) y espera en logs `glm-ocr precargado`. Opcional: `OLLAMA_MODEL=glm-ocr:q8_0` o GPU en el servidor.
 
+## Asistente de ayuda (chat IA)
+
+Widget en **mobilegastos** → `POST /api/chat/message` (JWT + `X-API-KEY`). Especializado en gastos, ingresos e inventario (comercio). Modelo de texto distinto al OCR.
+
+| Variable | Default | Uso |
+|----------|---------|-----|
+| `CHAT_ENABLED` | `true` | `false` desactiva el chat |
+| `CHAT_OLLAMA_MODEL` | `llama3.2` | `ollama pull llama3.2` en el Ollama del stack |
+| `CHAT_OLLAMA_TIMEOUT_MS` | `90000` | Timeout respuesta LLM |
+
+**Coolify:** `OLLAMA_URL=http://ollama:11434` en el backend; el front usa `api-gastos.buildforge.work` (CORS ya configurado). No reutilizar el chat del portfolio.
+
+**Seguridad:** rate limit 20 msg/min, detección de prompt injection, sanitización de salida, sesiones en memoria por usuario, sin acceso a BD.
+
 ## Docker (producción)
 
 **Stack API (+ Ollama en compose)** en `docker-compose.yml` y `Dockerfile`. Plantilla de variables:
