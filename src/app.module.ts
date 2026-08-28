@@ -14,6 +14,7 @@ import { PrismaModule } from './prisma/prisma.module';
 import { InventoryModule } from './inventory/inventory.module';
 import { ProfileCollaboratorsModule } from './profile-collaborators/profile-collaborators.module';
 import { TelegramModule } from './telegram/telegram.module';
+import { ChatModule } from './chat/chat.module';
 
 @Module({
   imports: [
@@ -48,6 +49,7 @@ import { TelegramModule } from './telegram/telegram.module';
     BcvModule,
     OcrModule,
     TelegramModule,
+    ChatModule,
   ],
   providers: [
     { provide: APP_GUARD, useClass: ThrottlerGuard },
