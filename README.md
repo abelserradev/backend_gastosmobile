@@ -106,7 +106,7 @@ curl -i http://localhost:3088/api/auth/health
 
 ## CI y seguridad (GitHub Actions)
 
-En cada push/PR a **`develop`**, `main`, `master` o `backend` se ejecutan **CI** y **Security audit** (`npm ci`, audit high/critical, lint, tests, build).
+En cada push/PR a **`develop`**, `main`, `master` o `backend` se ejecutan **CI** y **Security audit** (`pnpm install --frozen-lockfile`, audit high/critical, lint, tests, build).
 
 Configuración de branch protection y flujo de PR: [`docs/ci-seguridad-github.md`](docs/ci-seguridad-github.md).
 
