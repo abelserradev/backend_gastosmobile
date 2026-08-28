@@ -86,4 +86,11 @@ export const envValidationSchema = Joi.object({
   TELEGRAM_BOT_USERNAME: Joi.string().allow('').optional(),
   TELEGRAM_WEBHOOK_SECRET: Joi.string().allow('').optional(),
   TELEGRAM_WEBHOOK_URL: Joi.string().uri().allow('').optional(),
+
+  /** Asistente de ayuda (Ollama texto; distinto del modelo OCR glm-ocr). */
+  CHAT_ENABLED: Joi.string()
+    .valid('true', 'false', '0', '1', 'off', 'on')
+    .optional(),
+  CHAT_OLLAMA_MODEL: Joi.string().allow('').optional(),
+  CHAT_OLLAMA_TIMEOUT_MS: Joi.number().integer().min(15_000).optional(),
 });
