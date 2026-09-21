@@ -14,7 +14,9 @@ RUN corepack enable
 COPY package.json pnpm-lock.yaml pnpm-workspace.yaml ./
 COPY prisma ./prisma/
 COPY prisma.config.ts ./prisma.config.ts
-# Coolify suele pasar NODE_ENV=production al build; sin devDeps no hay Nest/TS para compilar.
+# Coolify inyecta NODE_ENV=production en build-time: con --frozen-lockfile pnpm falla si
+# el lock incluye devDependencies y el entorno pide omitirlas (Nest CLI / TypeScript).
+ENV NODE_ENV=development
 RUN pnpm install --frozen-lockfile
 
 COPY . .
