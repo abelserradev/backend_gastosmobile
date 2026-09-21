@@ -28,7 +28,7 @@
   "dependencies": {
     "@google-cloud/vision": "^6.0.0",
     "@nestjs/axios": "^4.0.1",
-    "@nestjs/common": "^11.1.28",
+    "@nestjs/common": "^11.2.5",
     "@nestjs/config": "^4.0.0",
     "@nestjs/core": "^11.1.28",
     "@nestjs/jwt": "^11.0.0",
