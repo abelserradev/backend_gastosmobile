@@ -32,15 +32,11 @@ export class BudgetCycleConfig {
 
   /**
    * Día del mes que CIERRA el periodo (corte).
-   * - El usuario cobra este día → cierra periodo, calcula sobrante.
-   * - El nuevo periodo empieza el día siguiente (tablero en blanco).
-   * - Ej: corte=15 → periodo va del 16 al 15 del mes siguiente.
-   *
-   * Recomendado 1-28 para evitar inconsistencias (febrero no tiene 29-30-31).
+   * 1–31; meses sin ese día usan el último día (ver caracas-date.getEffectiveCutoffDate).
    */
   @IsInt()
   @Min(1)
-  @Max(28)
+  @Max(31)
   cutoffDay!: number;
 }
 

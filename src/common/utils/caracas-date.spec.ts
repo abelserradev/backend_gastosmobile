@@ -63,6 +63,15 @@ describe('caracas-date', () => {
       const aprResult = getBudgetPeriodForCutoffDay('2026-04-20', 30);
       expect(aprResult.cutoffDate).toBe('2026-04-30');
     });
+    
+    it('con corte 31 en abril usa 30 como fin de periodo', () => {
+      const result = getBudgetPeriodForCutoffDay('2026-04-20', 31);
+      expect(result.cutoffDate).toBe('2026-04-30');
+    });
+    it('con corte 31 en mayo usa 31', () => {
+      const result = getBudgetPeriodForCutoffDay('2026-05-20', 31);
+      expect(result.cutoffDate).toBe('2026-05-31');
+    });
 
     it('con corte 1 (default), comportamiento calendario', () => {
       // Hoy 20 de mayo, corte es el 1 → el corte de mayo ya pasó

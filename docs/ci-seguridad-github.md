@@ -23,7 +23,8 @@ Cuando Dependabot no puede actualizar una dependencia transitiva (p. ej. *"canno
 |---------|----------------|---------------|
 | `websocket-driver` | `>=0.7.5` | `firebase-admin` |
 | `axios` | `1.18.1` | `@nestjs/axios` |
-| `js-yaml@3` / `js-yaml@4` | `3.15.1` / `4.3.1` | Jest, ESLint, Nest CLI |
+| `js-yaml@3` / `js-yaml@4` | `3.15.2` / `4.3.2` | Jest, ESLint, Nest CLI (GHSA-2883-xcg3-v3hh) |
+| `multer` | `>=2.3.0` | `@nestjs/platform-express` uploads (GHSA-wc9g-mqfw-jrwm, GHSA-535w-7cp7-47q4) |
 | `brace-expansion@1/@2/@5` | `1.1.18` / `2.1.4` / `5.0.9` | Jest, ESLint, `@google-cloud/vision` |
 | `deepmerge-ts` | `>=8.0.2` | `prisma` → `@prisma/config` (GHSA-ggr8-5vv4-36mx) |
 | `uuid` | `>=11.1.1` | `firebase-admin` / Google Cloud (GHSA-w5hq-g745-h8pq) |
