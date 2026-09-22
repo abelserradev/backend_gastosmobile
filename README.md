@@ -104,6 +104,32 @@ La comprobación más útil en despliegue es:
 curl -i http://localhost:3088/api/auth/health
 ```
 
+## Redis (cache-aside opcional)
+
+Redis se usa como **caché caliente** para lecturas frecuentes. PostgreSQL sigue siendo la fuente de verdad.
+
+| Variable | Default | Uso |
+|----------|---------|-----|
+| `REDIS_URL` | — | URL completa del servidor Redis, p. ej. `redis://localhost:6379` o `rediss://...` con TLS. Si no está definida, el cache vive en memoria del proceso. |
+
+**Entornos soportados:**
+
+- **Local:** Redis incluido en `docker-compose.local.yml` (`redis://redis:6379`).
+- **Coolify:** crear recurso Redis (managed) o servicio propio; exportar `REDIS_URL` en variables del contenedor backend.
+
+**Comportamiento clave:**
+
+- Si Redis no responde, el backend sigue funcionando con memoria de proceso (fail-open); no falla la petición HTTP.
+- El endpoint `/api/auth/health` responde `{ ok: true, redis: "up" | "down" | "disabled" }` para probes.
+- Claves compartidas usan prefijo `gastos:`.
+
+**Casos de uso actuales:**
+
+- Tasas BCV por día (`bcv:day:*`).
+- Cuota mensual de OCR (`vision:quota:*`).
+- Acciones pendientes del bot Telegram (`telegram:pending:*`).
+- (Próximo) listado de perfiles del usuario (`me:profiles:*`).
+
 ## CI y seguridad (GitHub Actions)
 
 En cada push/PR a **`develop`**, `main`, `master` o `backend` se ejecutan **CI** y **Security audit** (`pnpm install --frozen-lockfile`, audit high/critical, lint, tests, build).

@@ -1,12 +1,12 @@
 import {
   BadRequestException,
   ConflictException,
-  ForbiddenException,
   Injectable,
   NotFoundException,
 } from '@nestjs/common';
 import type { ProfileCollaborator } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
+import { CacheService } from '../common/cache/cache.service';
 import { ProfileAccessService } from '../common/services/profile-access.service';
 import { ProfileOwnershipService } from '../common/services/profile-ownership.service';
 import { InviteProfileCollaboratorDto } from './dto/invite-profile-collaborator.dto';
@@ -16,15 +16,46 @@ import type {
   UserProfileListItemResponse,
 } from './profile-collaborator.response';
 
+const PROFILE_LIST_TTL_MS = 60_000;
+
 @Injectable()
 export class ProfileCollaboratorService {
   constructor(
     private readonly prisma: PrismaService,
+    private readonly cache: CacheService,
     private readonly profileAccess: ProfileAccessService,
     private readonly profileOwnership: ProfileOwnershipService,
   ) {}
 
   async listProfilesForUser(
+    userId: string,
+  ): Promise<UserProfileListItemResponse[]> {
+    const cached = await this.cache.get<UserProfileListItemResponse[]>(
+      this.profileListCacheKey(userId),
+    );
+    if (cached) {
+      return cached;
+    }
+
+    const result = await this.loadProfilesForUser(userId);
+    await this.cache.set(
+      this.profileListCacheKey(userId),
+      result,
+      PROFILE_LIST_TTL_MS,
+    );
+    return result;
+  }
+
+  /** Invalida el listado cacheado de un usuario (llamar tras mutaciones). */
+  async invalidateProfileList(userId: string): Promise<void> {
+    await this.cache.del(this.profileListCacheKey(userId));
+  }
+
+  private profileListCacheKey(userId: string): string {
+    return `me:profiles:${userId}`;
+  }
+
+  private async loadProfilesForUser(
     userId: string,
   ): Promise<UserProfileListItemResponse[]> {
     const owned = await this.prisma.profile.findMany({
@@ -141,6 +172,11 @@ export class ProfileCollaboratorService {
       });
     }
 
+    // La lista del dueño cambia (colaborador en estado pendiente/aceptado)
+    // y la del invitado cambia si acepta posteriormente.
+    await this.invalidateProfileList(ownerUserId);
+    await this.invalidateProfileList(invitee.id);
+
     return this.mapCollaborator(row);
   }
 
@@ -190,6 +226,8 @@ export class ProfileCollaboratorService {
 
     if (row.status === 'pending') {
       await this.prisma.profileCollaborator.delete({ where: { id: row.id } });
+      await this.invalidateProfileList(ownerUserId);
+      await this.invalidateProfileList(collaboratorUserId);
       return;
     }
 
@@ -197,6 +235,8 @@ export class ProfileCollaboratorService {
       where: { id: row.id },
       data: { status: 'revoked', acceptedAt: null },
     });
+    await this.invalidateProfileList(ownerUserId);
+    await this.invalidateProfileList(collaboratorUserId);
   }
 
   async listPendingInvitations(
@@ -236,6 +276,10 @@ export class ProfileCollaboratorService {
       },
     });
 
+    // El perfil ahora aparece en la lista del invitado y del dueño.
+    await this.invalidateProfileList(userId);
+    await this.invalidateProfileList(row.invitedById);
+
     return this.mapCollaborator(updated);
   }
 
@@ -246,6 +290,9 @@ export class ProfileCollaboratorService {
       where: { id: row.id },
       data: { status: 'rejected' },
     });
+
+    // No afecta la lista visible, pero invalidamos por seguridad.
+    await this.invalidateProfileList(userId);
   }
 
   private async findPendingInvitation(invitationId: string, userId: string) {
