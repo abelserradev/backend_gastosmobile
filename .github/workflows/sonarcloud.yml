@@ -1,0 +1,50 @@
+name: SonarCloud
+
+on:
+  push:
+    branches: [main, master, backend, develop]
+  pull_request:
+    branches: [main, master, backend, develop]
+
+permissions:
+  contents: read
+  pull-requests: write
+
+jobs:
+  sonar:
+    name: SonarCloud (backend)
+    runs-on: ubuntu-latest
+    env:
+      DATABASE_URL: postgresql://ci:ci@127.0.0.1:5432/ci
+
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+
+      - uses: pnpm/action-setup@v6
+
+      - uses: actions/setup-node@v7
+        with:
+          node-version: '22'
+          cache: pnpm
+          cache-dependency-path: pnpm-lock.yaml
+
+      - name: Instalar dependencias
+        run: pnpm install --frozen-lockfile
+
+      - name: Tests con cobertura
+        run: pnpm run test:cov
+
+      - name: SonarCloud Scan
+        if: ${{ secrets.SONAR_TOKEN != '' }}
+        uses: SonarSource/sonarcloud-github-action@v2
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
+
+      - name: Aviso — configurar SONAR_TOKEN
+        if: ${{ secrets.SONAR_TOKEN == '' }}
+        run: |
+          echo "::warning::SONAR_TOKEN no definido en GitHub Actions. Tests OK; escaneo SonarCloud omitido."
+          echo "Pasos: docs/ci-sonarcloud.md (SonarCloud → token → secret SONAR_TOKEN en el repo)."
