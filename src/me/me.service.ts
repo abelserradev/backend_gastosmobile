@@ -795,6 +795,7 @@ export class MeService {
       },
       select: { id: true, name: true, type: true },
     });
+    await this.profileCollaborators.invalidateProfileList(user.userId);
     return { ...created, access: 'owner' as const };
   }
 
@@ -805,7 +806,17 @@ export class MeService {
     if (!row) {
       throw new NotFoundException('Perfil no encontrado');
     }
+    const collaborators = await this.prisma.profileCollaborator.findMany({
+      where: { profileId, status: 'accepted' },
+      select: { userId: true },
+    });
     await this.prisma.profile.delete({ where: { id: profileId } });
+    await this.profileCollaborators.invalidateProfileList(user.userId);
+    for (const collaborator of collaborators) {
+      await this.profileCollaborators.invalidateProfileList(
+        collaborator.userId,
+      );
+    }
   }
 
   async listProfileMembers(user: AuthUserPayload, profileId: string) {

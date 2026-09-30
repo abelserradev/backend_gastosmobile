@@ -25,18 +25,21 @@ Cuando Dependabot no puede actualizar una dependencia transitiva (p. ej. *"canno
 | `axios` | `1.18.1` | `@nestjs/axios` |
 | `js-yaml@3` / `js-yaml@4` | `3.15.2` / `4.3.2` | Jest, ESLint, Nest CLI (GHSA-2883-xcg3-v3hh) |
 | `multer` | `>=2.3.0` | `@nestjs/platform-express` uploads (GHSA-wc9g-mqfw-jrwm, GHSA-535w-7cp7-47q4) |
-| `brace-expansion@1/@2/@5` | `1.1.18` / `2.1.4` / `5.0.9` | Jest, ESLint, `@google-cloud/vision` |
+| `brace-expansion@1/@2/@5` | `1.1.20` / `2.1.6` / `5.0.11` | Jest, ESLint, `@nestjs/cli` (GHSA-qhr7, GHSA-6j4f) |
 | `deepmerge-ts` | `>=8.0.2` | `prisma` → `@prisma/config` (GHSA-ggr8-5vv4-36mx) |
 | `uuid` | `>=11.1.1` | `firebase-admin` / Google Cloud (GHSA-w5hq-g745-h8pq) |
 | `fast-uri` | `>=3.1.5` | `ajv` (Nest CLI, Prisma dev) |
 | `valibot` | `>=1.4.2` | `prisma` → `@prisma/dev` |
+| `hono` | `>=4.12.25` | Prisma Composer CLI / `@prisma/dev` |
+| `@hono/node-server` | `>=1.19.10` | idem |
+| `lodash` | `>=4.17.24` | chevrotain vía `@mrleebo/prisma-ast` (CLI) |
 | `body-parser` | `>=2.3.0` | Express vía `@nestjs/platform-express` |
 | `protobufjs` | `>=7.6.3` | Firebase / Google Cloud |
 | `@babel/core` | `>=7.29.6` | Jest (dev) |
 
 Notas:
 
-- Las cadenas de `hono` / `@hono/node-server` desaparecieron con el bump a Prisma 7.9.1 (`@prisma/dev@0.24.17` ya no las usa); se retiraron sus overrides.
+- `hono` / `@hono/node-server` / `lodash` en cadena `@prisma/composer-cli` → `@prisma/dev`: overrides de toolchain CLI (no runtime Docker tras `pnpm prune --prod`).
 - `deepmerge-ts@8` es un major forzado sobre lo que declara `@prisma/config`: validado con `prisma validate`, `prisma generate`, tests y build. Si Prisma actualiza su rango, retirar el override.
 - Evidencia post-remediación: [`code-audit/analysis/pnpm-audit-post-fix.txt`](code-audit/analysis/pnpm-audit-post-fix.txt) (`pnpm audit` → 0 vulnerabilidades, 2026-08-21).
 

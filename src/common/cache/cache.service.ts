@@ -48,6 +48,24 @@ export class CacheService implements OnModuleDestroy {
     }
   }
 
+  /** Indica si el proceso intentara usar Redis (puede estar caido; health usa ping). */
+  isUsingRedis(): boolean {
+    return this.redis !== null;
+  }
+
+  /** Ping liviano a Redis; devuelve false si no hay URL o la conexion falla. */
+  async ping(): Promise<boolean> {
+    if (!this.redis) {
+      return false;
+    }
+    try {
+      const result = await this.redis.ping();
+      return result === 'PONG';
+    } catch {
+      return false;
+    }
+  }
+
   private scopedKey(key: string): string {
     return `${KEY_PREFIX}${key}`;
   }
@@ -89,6 +107,36 @@ export class CacheService implements OnModuleDestroy {
       return;
     }
     this.memory.set(key, { data, expiresAt: Date.now() + ttlMs });
+  }
+
+  async del(key: string): Promise<void> {
+    if (this.redis) {
+      try {
+        await this.redis.del(this.scopedKey(key));
+      } catch {
+        // Invalidacion es best-effort; no fallamos la peticion HTTP.
+      }
+      return;
+    }
+    this.memory.delete(key);
+  }
+
+  async delMany(keys: string[]): Promise<void> {
+    if (keys.length === 0) {
+      return;
+    }
+    const scoped = keys.map((k) => this.scopedKey(k));
+    if (this.redis) {
+      try {
+        await this.redis.del(...scoped);
+      } catch {
+        // best-effort
+      }
+      return;
+    }
+    for (const key of keys) {
+      this.memory.delete(key);
+    }
   }
 
   async getCounter(key: string): Promise<number> {

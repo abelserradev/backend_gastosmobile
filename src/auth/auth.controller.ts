@@ -4,6 +4,7 @@ import type { Response } from 'express';
 import { CurrentUser } from '../common/decorators/current-user.decorator';
 import { Public } from '../common/decorators/public.decorator';
 import type { AuthUserPayload } from '../common/types/auth-user.payload';
+import { CacheService } from '../common/cache/cache.service';
 import { AuthService, AuthSessionBody } from './auth.service';
 import { FirebaseLoginDto } from './dto/firebase-login.dto';
 import { LoginDto } from './dto/login.dto';
@@ -15,7 +16,10 @@ import { UnlockAccountRequestDto } from './dto/unlock-account-request.dto';
 import { UnlockAccountVerifyDto } from './dto/unlock-account-verify.dto';
 @Controller('auth')
 export class AuthController {
-  constructor(private readonly auth: AuthService) {}
+  constructor(
+    private readonly auth: AuthService,
+    private readonly cache: CacheService,
+  ) {}
 
   /** Valida la cookie JWT y devuelve el usuario (rehidratar UI sin token en localStorage). */
   @Get('me')
@@ -103,11 +107,17 @@ export class AuthController {
     return { ok: true };
   }
 
-  /** Smoke check; requiere X-API-KEY (Coolify/probes sin JWT). */
+  /** Smoke check; requiere X-API-KEY (Coolify/probes sin JWT).
+   * Incluye estado de Redis: up, down o disabled (sin REDIS_URL).
+   */
   @Public()
   @SkipThrottle()
   @Get('health')
-  health(): { ok: boolean } {
-    return { ok: true };
+  async health(): Promise<{ ok: boolean; redis: 'up' | 'down' | 'disabled' }> {
+    if (!this.cache.isUsingRedis()) {
+      return { ok: true, redis: 'disabled' };
+    }
+    const redisUp = await this.cache.ping();
+    return { ok: true, redis: redisUp ? 'up' : 'down' };
   }
 }
