@@ -18,7 +18,8 @@ allowBuilds:
 overrides:
   '@babel/core': ^7.29.6
   '@tootallnate/once': ^3.0.1
-  axios: 1.18.1
+  axios: 1.20.0
+  '@grpc/grpc-js': '>=1.14.5'
   body-parser: '>=2.3.0'
   brace-expansion@1: 1.1.20
   brace-expansion@2: 2.1.6

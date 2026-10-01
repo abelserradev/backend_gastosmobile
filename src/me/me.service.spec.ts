@@ -22,10 +22,19 @@ const mockPrisma = () => ({
     findFirst: jest.fn(),
     delete: jest.fn(),
   },
+  category: {
+    findFirst: jest.fn(),
+    upsert: jest.fn(),
+  },
+  expense: {
+    findFirst: jest.fn(),
+    update: jest.fn(),
+  },
 });
 
 const mockBcv = () => ({
   getLatestVesPerUsdPreferToday: jest.fn(),
+  getVesPerUsdForCalendarDay: jest.fn(),
 });
 
 const mockResendEmail = () => ({
@@ -108,6 +117,49 @@ describe('MeService — perfiles e invalidación de caché', () => {
         service.deleteProfile({ userId: 'u1', email: 'u1@test.com' }, 'p1'),
       ).rejects.toBeInstanceOf(NotFoundException);
       expect(collaborators.invalidateProfileList).not.toHaveBeenCalled();
+    });
+  });
+
+  describe('updateExpenseFields', () => {
+    it('debe crear categoría por upsert al cambiar a un nombre nuevo', async () => {
+      prisma.expense.findFirst.mockResolvedValueOnce({
+        id: 'e1',
+        profile: { userId: 'u1' },
+      });
+      prisma.category.upsert.mockResolvedValueOnce({
+        id: 'c-new',
+        name: 'Mascotas',
+      });
+      prisma.expense.update.mockResolvedValueOnce({
+        id: 'e1',
+        title: 'Veterinario',
+        description: '',
+        amount: { toString: () => '12.5' },
+        isPaid: true,
+        referenceMonth: new Date('2026-10-01'),
+        paymentDate: new Date('2026-10-01'),
+        bcvRateApplied: null,
+        bcvRateDate: null,
+        paidByDisplayName: null,
+        paidAt: null,
+        paidByMemberId: null,
+        receiptMime: null,
+        profile: { id: 'p1', name: 'Familiar' },
+        category: { name: 'Mascotas' },
+      });
+
+      const row = await service.updateExpenseFields(
+        { userId: 'u1', email: 'u1@test.com' },
+        'e1',
+        { categoryName: 'Mascotas' },
+      );
+
+      expect(prisma.category.upsert).toHaveBeenCalledWith(
+        expect.objectContaining({
+          where: { userId_name: { userId: 'u1', name: 'Mascotas' } },
+        }),
+      );
+      expect(row.category).toBe('Mascotas');
     });
   });
 });
