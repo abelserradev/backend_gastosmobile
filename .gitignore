@@ -9,3 +9,6 @@ coverage
 *.log
 
 .agents/
+
+# Salidas locales de auditoría (no versionar dumps de pnpm audit)
+docs/code-audit/analysis/pnpm-audit-*.txt

@@ -921,7 +921,7 @@ export class MeService {
 
   async createExpense(user: AuthUserPayload, dto: CreateExpenseDto) {
     const userId = user.userId;
-    const categoryId = await this.findCategoryOrThrow(userId, {
+    const categoryId = await this.resolveCategoryId(userId, {
       id: dto.categoryId,
       name: dto.categoryName,
     });
@@ -966,7 +966,7 @@ export class MeService {
     imageMime: string,
   ) {
     const userId = user.userId;
-    const categoryId = await this.findCategoryOrThrow(userId, {
+    const categoryId = await this.resolveCategoryId(userId, {
       name: dto.categoryName,
     });
     const profileId = await this.resolveProfileId(userId, undefined);
@@ -1301,8 +1301,8 @@ export class MeService {
     );
   }
 
-  /** Lookup unificado de categoría por id o nombre; evita duplicar la misma query en dos métodos. */
-  private async findCategoryOrThrow(
+  /** Id de categoría por UUID (estricto) o nombre (find-or-create, mismo criterio que replaceCategories). */
+  private async resolveCategoryId(
     userId: string,
     opts: { id?: string; name?: string },
   ): Promise<string> {
@@ -1316,11 +1316,12 @@ export class MeService {
     const name = opts.name?.trim();
     if (!name)
       throw new BadRequestException('Indica categoría por id o nombre');
-    const cat = await this.prisma.category.findFirst({
-      where: { userId, name },
+    const row = await this.prisma.category.upsert({
+      where: { userId_name: { userId, name } },
+      create: { userId, name },
+      update: {},
     });
-    if (!cat) throw new BadRequestException(`No existe la categoría "${name}"`);
-    return cat.id;
+    return row.id;
   }
 
   /**
@@ -1603,7 +1604,7 @@ export class MeService {
       data.bcvRateDate = rateDate;
     }
     if (dto.categoryName?.trim()) {
-      const categoryId = await this.findCategoryOrThrow(user.userId, {
+      const categoryId = await this.resolveCategoryId(user.userId, {
         name: dto.categoryName,
       });
       data.category = { connect: { id: categoryId } };

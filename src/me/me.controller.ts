@@ -26,6 +26,7 @@ import { CreateProfileDto } from './dto/create-profile.dto';
 import { DeleteExpensesDto } from './dto/delete-expenses.dto';
 import { MarkExpensesPaidDto } from './dto/mark-expenses-paid.dto';
 import { PatchExpenseDto } from './dto/patch-expense.dto';
+import { UpdateExpenseFieldsDto } from './dto/update-expense-fields.dto';
 import { ReplaceCategoriesDto } from './dto/replace-categories.dto';
 import { SubmitOcrFeedbackDto } from './dto/submit-ocr-feedback.dto';
 import { UpdatePreferencesDto } from './dto/update-preferences.dto';
@@ -209,6 +210,15 @@ export class MeController {
     @Body() dto: PatchExpenseDto,
   ) {
     return this.me.patchExpense(user, id, dto);
+  }
+
+  @Patch('expenses/:id/fields')
+  updateExpenseFields(
+    @CurrentUser() user: AuthUserPayload,
+    @Param('id', ParseUUIDPipe) id: string,
+    @Body() dto: UpdateExpenseFieldsDto,
+  ) {
+    return this.me.updateExpenseFields(user, id, dto);
   }
 
   @Get('income-sources')
