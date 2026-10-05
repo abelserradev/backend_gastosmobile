@@ -1,8 +1,4 @@
-import {
-  BadRequestException,
-  Injectable,
-  Logger,
-} from '@nestjs/common';
+import { BadRequestException, Injectable, Logger } from '@nestjs/common';
 import { MeService } from '../me/me.service';
 import { TelegramApiClient } from './telegram-api.client';
 import { TelegramIntentParserService } from './telegram-intent-parser.service';
@@ -58,16 +54,23 @@ export class TelegramBotService {
 
     const linkIntent = this.parser.parse(text, [], []);
     if (linkIntent.type === 'link' && linkIntent.linkCode) {
-      await this.handleLink(chatId, telegramUserId, message, linkIntent.linkCode);
+      await this.handleLink(
+        chatId,
+        telegramUserId,
+        message,
+        linkIntent.linkCode,
+      );
       return;
     }
 
-    const link = await this.linkService.findActiveLinkByTelegramUserId(
-      telegramUserId,
-    );
+    const link =
+      await this.linkService.findActiveLinkByTelegramUserId(telegramUserId);
     if (!link) {
       if (linkIntent.type === 'help' || /^\/start/i.test(text)) {
-        await this.api.sendMessage(chatId, formatHelpMessage(this.api.getBotUsername()));
+        await this.api.sendMessage(
+          chatId,
+          formatHelpMessage(this.api.getBotUsername()),
+        );
         return;
       }
       await this.api.sendMessage(chatId, formatUnlinkedMessage());
@@ -77,7 +80,10 @@ export class TelegramBotService {
     const user = buildAuthPayload(link.user.id, link.user.email);
     const pendingAmount = await this.pending.get(chatId);
 
-    if (pendingAmount?.pendingUpdate && pendingAmount.pendingUpdate.newAmount == null) {
+    if (
+      pendingAmount?.pendingUpdate &&
+      pendingAmount.pendingUpdate.newAmount == null
+    ) {
       const handled = await this.mutations.tryCompletePendingAmount(
         chatId,
         user,
@@ -96,16 +102,25 @@ export class TelegramBotService {
     );
 
     if (intent.type === 'help' || /^\/start/i.test(text)) {
-      await this.api.sendMessage(chatId, formatHelpMessage(this.api.getBotUsername()));
+      await this.api.sendMessage(
+        chatId,
+        formatHelpMessage(this.api.getBotUsername()),
+      );
       return;
     }
 
     try {
-      await this.dispatchIntent(chatId, user, intent, state, link.defaultProfileId);
+      await this.dispatchIntent(
+        chatId,
+        user,
+        intent,
+        state,
+        link.defaultProfileId,
+      );
     } catch (err: unknown) {
       const msg =
         err instanceof BadRequestException
-          ? (err.message as string)
+          ? err.message
           : err instanceof Error
             ? err.message
             : 'Error desconocido';
@@ -159,7 +174,11 @@ export class TelegramBotService {
       return;
     }
     if (intent.type === 'unknown' || intent.amount == null) {
-      await this.askIntentClarification(chatId, intent, state.preferences?.defaultCurrency);
+      await this.askIntentClarification(
+        chatId,
+        intent,
+        state.preferences?.defaultCurrency,
+      );
       return;
     }
     if (intent.type === 'expense') {
@@ -184,8 +203,7 @@ export class TelegramBotService {
           amount: created.amount,
           categoryName: created.category,
           periodLabel: fresh.activePeriod?.label ?? 'Periodo actual',
-          remainingUsd:
-            budget != null ? Math.max(0, budget - totalExp) : null,
+          remainingUsd: budget != null ? Math.max(0, budget - totalExp) : null,
           inputAmountBs: amountCurrency === 'BS' ? intent.amount : undefined,
           bcvRate: created.bcvRateApplied ?? undefined,
         }),
@@ -215,7 +233,11 @@ export class TelegramBotService {
       );
       return;
     }
-    await this.askIntentClarification(chatId, intent, state.preferences?.defaultCurrency);
+    await this.askIntentClarification(
+      chatId,
+      intent,
+      state.preferences?.defaultCurrency,
+    );
   }
 
   private resolveAmountCurrency(
@@ -327,9 +349,8 @@ export class TelegramBotService {
       return;
     }
 
-    const link = await this.linkService.findActiveLinkByTelegramUserId(
-      telegramUserId,
-    );
+    const link =
+      await this.linkService.findActiveLinkByTelegramUserId(telegramUserId);
     if (!link) {
       await this.api.sendMessage(chatIdStr, formatUnlinkedMessage());
       return;
@@ -342,7 +363,10 @@ export class TelegramBotService {
 
     const pending = await this.pending.get(chatIdStr);
     if (!pending) {
-      await this.api.sendMessage(chatIdStr, 'Esta acción expiró. Escribe de nuevo.');
+      await this.api.sendMessage(
+        chatIdStr,
+        'Esta acción expiró. Escribe de nuevo.',
+      );
       return;
     }
 

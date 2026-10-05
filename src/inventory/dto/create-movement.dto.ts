@@ -60,7 +60,7 @@ export class CreateStockMovementDto {
   targetBranchId?: string;
 
   // Validación: targetBranchId solo aplica para transferencias
-  @ValidateIf((o) =>
+  @ValidateIf((o: CreateStockMovementDto) =>
     [MovementType.TRANSFER_OUT, MovementType.TRANSFER_IN].includes(o.type),
   )
   @IsUUID()

@@ -35,7 +35,11 @@ function fmtBs(n: number): string {
   return `Bs ${n.toLocaleString('es-VE', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
 }
 
-function formatConversionNote(inputAmountBs: number, amountUsd: number, bcvRate: number): string {
+function formatConversionNote(
+  inputAmountBs: number,
+  amountUsd: number,
+  bcvRate: number,
+): string {
   return `${fmtBs(inputAmountBs)} → ${fmtUsd(amountUsd)} (BCV ${bcvRate.toFixed(2)})\n`;
 }
 
@@ -106,9 +110,7 @@ export function formatSummary(p: SummaryPayload): string {
   const budgetLine =
     p.budgetUsd != null ? `\nPresupuesto: ${fmtUsd(p.budgetUsd)}` : '';
   const remainingLine =
-    p.remainingUsd != null
-      ? `\nDisponible: ${fmtUsd(p.remainingUsd)}`
-      : '';
+    p.remainingUsd != null ? `\nDisponible: ${fmtUsd(p.remainingUsd)}` : '';
   return (
     `Resumen · ${p.periodLabel}\n` +
     `Gastos: ${fmtUsd(p.totalExpensesUsd)}\n` +
@@ -126,11 +128,10 @@ export function formatIncomesList(
   if (items.length === 0) {
     return `Sin ingresos en ${periodLabel}.`;
   }
-  const lines = items.slice(0, 8).map(
-    (i) => `• ${fmtUsd(i.amount)} ${i.sourceName} — ${i.title}`,
-  );
-  const more =
-    items.length > 8 ? `\n… y ${items.length - 8} más` : '';
+  const lines = items
+    .slice(0, 8)
+    .map((i) => `• ${fmtUsd(i.amount)} ${i.sourceName} — ${i.title}`);
+  const more = items.length > 8 ? `\n… y ${items.length - 8} más` : '';
   return (
     `Ingresos · ${periodLabel}\n` +
     lines.join('\n') +
@@ -141,16 +142,23 @@ export function formatIncomesList(
 
 export function formatExpensesList(
   periodLabel: string,
-  items: { title: string; amount: number; categoryName: string; isPaid: boolean }[],
+  items: {
+    title: string;
+    amount: number;
+    categoryName: string;
+    isPaid: boolean;
+  }[],
   total: number,
 ): string {
   if (items.length === 0) {
     return `Sin gastos en ${periodLabel}.`;
   }
-  const lines = items.slice(0, 8).map(
-    (e) =>
-      `• ${fmtUsd(e.amount)} ${e.categoryName}${e.isPaid ? ' ✓' : ''} — ${e.title}`,
-  );
+  const lines = items
+    .slice(0, 8)
+    .map(
+      (e) =>
+        `• ${fmtUsd(e.amount)} ${e.categoryName}${e.isPaid ? ' ✓' : ''} — ${e.title}`,
+    );
   const more = items.length > 8 ? `\n… y ${items.length - 8} más` : '';
   return (
     `Gastos · ${periodLabel}\n` +
@@ -167,9 +175,9 @@ export function formatInventoryList(
   if (items.length === 0) {
     return `Inventario vacío (${profileName}).`;
   }
-  const lines = items.slice(0, 10).map(
-    (i) => `• ${i.name}: ${i.currentStock}${i.unit ? ` ${i.unit}` : ''}`,
-  );
+  const lines = items
+    .slice(0, 10)
+    .map((i) => `• ${i.name}: ${i.currentStock}${i.unit ? ` ${i.unit}` : ''}`);
   const more = items.length > 10 ? `\n… y ${items.length - 10} más` : '';
   return `Inventario · ${profileName}\n${lines.join('\n')}${more}`;
 }
@@ -211,9 +219,7 @@ export function formatDeleteExpenseList(
   const lines = picks.map((p, i) => `${i + 1}. ${p.label}`);
   const hidden = totalInPeriod - picks.length;
   const more = hidden > 0 ? `\n… y ${hidden} más en este periodo` : '';
-  return (
-    `${header}\n${lines.join('\n')}${more}\n\nToca el botón del gasto que quieres eliminar.`
-  );
+  return `${header}\n${lines.join('\n')}${more}\n\nToca el botón del gasto que quieres eliminar.`;
 }
 
 export function formatDeleteConfirm(label: string): string {
@@ -250,8 +256,4 @@ export function buildAuthPayload(
   return { userId, email: email ?? '' };
 }
 
-export type {
-  ExpenseCreatedPayload,
-  IncomeCreatedPayload,
-  SummaryPayload,
-};
+export type { ExpenseCreatedPayload, IncomeCreatedPayload, SummaryPayload };

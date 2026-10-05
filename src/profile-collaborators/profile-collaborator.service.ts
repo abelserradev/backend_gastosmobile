@@ -133,9 +133,7 @@ export class ProfileCollaboratorService {
     }
 
     if (existing?.status === 'accepted') {
-      throw new ConflictException(
-        'Este usuario ya es colaborador del perfil',
-      );
+      throw new ConflictException('Este usuario ya es colaborador del perfil');
     }
 
     let row: ProfileCollaborator & {

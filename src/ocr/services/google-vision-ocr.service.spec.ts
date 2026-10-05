@@ -9,7 +9,9 @@ const validSa = JSON.stringify({
 });
 
 describe('GoogleVisionOcrService.isEnabled', () => {
-  const build = (env: Record<string, string | undefined>): GoogleVisionOcrService => {
+  const build = (
+    env: Record<string, string | undefined>,
+  ): GoogleVisionOcrService => {
     const config = {
       get: (key: string) => env[key],
     } as ConfigService;
@@ -36,7 +38,9 @@ describe('GoogleVisionOcrService.isEnabled', () => {
 
   it('inactivo si el JSON no tiene project_id', () => {
     const svc = build({
-      FIREBASE_SERVICE_ACCOUNT_JSON: JSON.stringify({ type: 'service_account' }),
+      FIREBASE_SERVICE_ACCOUNT_JSON: JSON.stringify({
+        type: 'service_account',
+      }),
     });
     expect(svc.isEnabled()).toBe(false);
   });

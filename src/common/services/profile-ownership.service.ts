@@ -16,10 +16,7 @@ import { PrismaService } from '../../prisma/prisma.service';
 export class ProfileOwnershipService {
   constructor(private readonly prisma: PrismaService) {}
 
-  async getOwnedProfile(
-    profileId: string,
-    userId: string,
-  ): Promise<Profile> {
+  async getOwnedProfile(profileId: string, userId: string): Promise<Profile> {
     const profile = await this.prisma.profile.findFirst({
       where: { id: profileId, userId },
     });

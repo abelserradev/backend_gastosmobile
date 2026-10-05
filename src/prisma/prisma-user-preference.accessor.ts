@@ -15,9 +15,14 @@ export type UserPreferenceWritableRow = Readonly<{
 
 export type UserPreferencePartialUpdate = Readonly<
   Partial<
-    Omit<UserPreferenceWritableRow, 'userId' | 'budgetCycleMode' | 'budgetCutoffDay'>
+    Omit<
+      UserPreferenceWritableRow,
+      'userId' | 'budgetCycleMode' | 'budgetCutoffDay'
+    >
   > &
-    Partial<Pick<UserPreferenceWritableRow, 'budgetCycleMode' | 'budgetCutoffDay'>>
+    Partial<
+      Pick<UserPreferenceWritableRow, 'budgetCycleMode' | 'budgetCutoffDay'>
+    >
 >;
 
 type PreferenceWriteDelegate = Readonly<{
@@ -28,7 +33,10 @@ type PreferenceWriteDelegate = Readonly<{
   }) => Promise<unknown>;
   update: (args: {
     where: { userId: string };
-    data: Pick<UserPreferenceWritableRow, 'incomeReferenceMonth' | 'carryoverUsd'>;
+    data: Pick<
+      UserPreferenceWritableRow,
+      'incomeReferenceMonth' | 'carryoverUsd'
+    >;
   }) => Promise<unknown>;
 }>;
 
@@ -46,13 +54,17 @@ type PreferenceReadDelegate = Readonly<{
 }>;
 
 /** Escrituras de UserPreference cuando el analyzer no enlaza el codegen de Prisma. */
-export function preferenceWriteDb(prisma: PrismaService): PreferenceWriteDelegate {
+export function preferenceWriteDb(
+  prisma: PrismaService,
+): PreferenceWriteDelegate {
   return (prisma as unknown as { userPreference: PreferenceWriteDelegate })
     .userPreference;
 }
 
 /** Lecturas parciales de UserPreference (ciclo/corte). */
-export function preferenceReadDb(prisma: PrismaService): PreferenceReadDelegate {
+export function preferenceReadDb(
+  prisma: PrismaService,
+): PreferenceReadDelegate {
   return (prisma as unknown as { userPreference: PreferenceReadDelegate })
     .userPreference;
 }

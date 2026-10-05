@@ -50,6 +50,8 @@ type ExpenseReceiptDelegate = Readonly<{
 }>;
 
 /** Lectura/escritura de comprobantes cuando el analyzer no enlaza receiptImage en ExpenseSelect. */
-export function expenseReceiptDb(prisma: PrismaService): ExpenseReceiptDelegate {
+export function expenseReceiptDb(
+  prisma: PrismaService,
+): ExpenseReceiptDelegate {
   return (prisma as unknown as { expense: ExpenseReceiptDelegate }).expense;
 }

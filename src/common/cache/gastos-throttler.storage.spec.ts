@@ -11,7 +11,9 @@ describe('GastosThrottlerStorage', () => {
     } as unknown as ConfigService;
     const cache = {
       isUsingRedis: jest.fn(() => usingRedis),
-      incrementFixedWindow: jest.fn().mockResolvedValue({ count: 2, pttlMs: 55_000 }),
+      incrementFixedWindow: jest
+        .fn()
+        .mockResolvedValue({ count: 2, pttlMs: 55_000 }),
     } as unknown as CacheService;
     const storage = new GastosThrottlerStorage(config, cache);
     return { storage, cache };

@@ -147,11 +147,13 @@ export class TelegramEntityResolverService {
       .filter((x) => x.score > 0)
       .sort((a, b) => b.score - a.score);
 
-    return scored.slice(0, TelegramEntityResolverService.MAX_PICKS).map(({ row }) => ({
-      kind: row.kind,
-      id: row.id,
-      profileId: row.profileId,
-      label: row.label,
-    }));
+    return scored
+      .slice(0, TelegramEntityResolverService.MAX_PICKS)
+      .map(({ row }) => ({
+        kind: row.kind,
+        id: row.id,
+        profileId: row.profileId,
+        label: row.label,
+      }));
   }
 }

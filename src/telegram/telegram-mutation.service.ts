@@ -1,8 +1,4 @@
-import {
-  BadRequestException,
-  Injectable,
-  Logger,
-} from '@nestjs/common';
+import { BadRequestException, Injectable, Logger } from '@nestjs/common';
 import { InventoryItemService } from '../inventory/inventory-item.service';
 import type { AuthUserPayload } from '../common/types/auth-user.payload';
 import { MeService } from '../me/me.service';
@@ -243,7 +239,7 @@ export class TelegramMutationService {
     const periodLabel = state.activePeriod?.label ?? 'Periodo actual';
     const searchQuery = intent.searchQuery ?? intent.categoryName;
     const hasFilter = Boolean(searchQuery?.trim());
-    let picks: TelegramEntityPick[] = [];
+    let picks: TelegramEntityPick[];
     let fallbackFull = false;
 
     if (state.expenses.length === 0) {
@@ -386,7 +382,10 @@ export class TelegramMutationService {
       shortId,
     );
     if (!id) {
-      await this.api.sendMessage(chatId, formatErrorMessage('Gasto no encontrado'));
+      await this.api.sendMessage(
+        chatId,
+        formatErrorMessage('Gasto no encontrado'),
+      );
       return;
     }
     const target = state.expenses.find((e) => e.id === id)!;
@@ -406,9 +405,9 @@ export class TelegramMutationService {
     });
   }
 
-  private buildExpenseDeletePickKeyboard(
-    picks: TelegramEntityPick[],
-  ): { inline_keyboard: { text: string; callback_data: string }[][] } {
+  private buildExpenseDeletePickKeyboard(picks: TelegramEntityPick[]): {
+    inline_keyboard: { text: string; callback_data: string }[][];
+  } {
     const rows = picks.map((p, index) => [
       {
         text: `${index + 1}. ${p.label.slice(0, 36)}`,
@@ -425,7 +424,10 @@ export class TelegramMutationService {
     kindLabel: string,
   ): Promise<void> {
     if (picks.length === 0) {
-      await this.api.sendMessage(chatId, formatNoMatches(kindLabel.toLowerCase()));
+      await this.api.sendMessage(
+        chatId,
+        formatNoMatches(kindLabel.toLowerCase()),
+      );
       return;
     }
     if (picks.length === 1) {
@@ -470,9 +472,13 @@ export class TelegramMutationService {
         picks,
         pendingUpdate: { kind, id: picks[0].id },
       });
-      await this.api.sendMessage(chatId, formatPickPrompt('Indica cuál cambiar'), {
-        replyMarkup: this.buildActionKeyboard(picks, 'upd'),
-      });
+      await this.api.sendMessage(
+        chatId,
+        formatPickPrompt('Indica cuál cambiar'),
+        {
+          replyMarkup: this.buildActionKeyboard(picks, 'upd'),
+        },
+      );
       await this.api.sendMessage(chatId, formatNeedNewAmount(kindLabel));
       return;
     }
@@ -492,9 +498,13 @@ export class TelegramMutationService {
         salePrice: intent.newAmount,
       },
     });
-    await this.api.sendMessage(chatId, formatPickPrompt('Elige cuál actualizar'), {
-      replyMarkup: this.buildActionKeyboard(picks, 'upd'),
-    });
+    await this.api.sendMessage(
+      chatId,
+      formatPickPrompt('Elige cuál actualizar'),
+      {
+        replyMarkup: this.buildActionKeyboard(picks, 'upd'),
+      },
+    );
   }
 
   private async sendDeleteButtons(
@@ -576,7 +586,10 @@ export class TelegramMutationService {
       if (!profile) {
         throw new BadRequestException('Sin perfil comercio');
       }
-      const items = await this.inventoryItems.listItems(profile.id, user.userId);
+      const items = await this.inventoryItems.listItems(
+        profile.id,
+        user.userId,
+      );
       const id = this.resolver.resolveShortId(
         items.map((i) => i.id),
         shortId,
@@ -586,7 +599,10 @@ export class TelegramMutationService {
       }
       const target = items.find((i) => i.id === id)!;
       await this.inventoryItems.deleteItem(profile.id, id, user.userId);
-      await this.api.sendMessage(chatId, formatDeleted('Producto', target.name));
+      await this.api.sendMessage(
+        chatId,
+        formatDeleted('Producto', target.name),
+      );
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : 'Error';
       await this.api.sendMessage(chatId, formatErrorMessage(msg));
@@ -673,7 +689,10 @@ export class TelegramMutationService {
       if (!profile) {
         throw new BadRequestException('Sin perfil comercio');
       }
-      const items = await this.inventoryItems.listItems(profile.id, user.userId);
+      const items = await this.inventoryItems.listItems(
+        profile.id,
+        user.userId,
+      );
       const id = this.resolver.resolveShortId(
         items.map((i) => i.id),
         shortId,
@@ -683,14 +702,24 @@ export class TelegramMutationService {
       }
       const price = salePrice ?? newAmount;
       if (price == null) {
-        throw new BadRequestException('Indica el nuevo precio: cambiar producto X a 2.50');
+        throw new BadRequestException(
+          'Indica el nuevo precio: cambiar producto X a 2.50',
+        );
       }
-      const updated = await this.inventoryItems.updateItem(profile.id, id, user.userId, {
-        salePrice: price,
-      });
+      const updated = await this.inventoryItems.updateItem(
+        profile.id,
+        id,
+        user.userId,
+        {
+          salePrice: price,
+        },
+      );
       await this.api.sendMessage(
         chatId,
-        formatUpdated('Producto', `${updated.name} · precio $${price.toFixed(2)}`),
+        formatUpdated(
+          'Producto',
+          `${updated.name} · precio $${price.toFixed(2)}`,
+        ),
       );
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : 'Error';
@@ -737,7 +766,11 @@ export class TelegramMutationService {
       );
       return;
     }
-    if (pick.kind === 'inventory' && intent.newAmount != null && pick.profileId) {
+    if (
+      pick.kind === 'inventory' &&
+      intent.newAmount != null &&
+      pick.profileId
+    ) {
       const updated = await this.inventoryItems.updateItem(
         pick.profileId,
         pick.id,
@@ -793,7 +826,9 @@ export class TelegramMutationService {
     }
   }
 
-  private resolveComercioProfile(state: MeState): { id: string; name: string } | null {
+  private resolveComercioProfile(
+    state: MeState,
+  ): { id: string; name: string } | null {
     const p = state.profiles.find((x) => x.type === 'comercio');
     return p ? { id: p.id, name: p.name } : null;
   }
