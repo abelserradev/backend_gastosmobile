@@ -52,7 +52,7 @@
     "pg": "^8.23.0",
     "prisma": "^7.10.0",
     "reflect-metadata": "^0.2.2",
-    "resend": "^6.28.1",
+    "resend": "^6.32.0",
     "rxjs": "^7.8.1",
     "tesseract.js": "^7.0.0"
   },
