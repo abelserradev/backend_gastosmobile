@@ -1,10 +1,18 @@
-import { Body, Controller, Get, Post, Res } from '@nestjs/common';
+import {
+  Body,
+  Controller,
+  Get,
+  Post,
+  Req,
+  Res,
+} from '@nestjs/common';
 import { SkipThrottle, Throttle } from '@nestjs/throttler';
-import type { Response } from 'express';
+import type { Request, Response } from 'express';
 import { CurrentUser } from '../common/decorators/current-user.decorator';
 import { Public } from '../common/decorators/public.decorator';
 import type { AuthUserPayload } from '../common/types/auth-user.payload';
 import { CacheService } from '../common/cache/cache.service';
+import { extractAuditContext } from '../audit/request-context.util';
 import { AuthService, AuthSessionBody } from './auth.service';
 import { FirebaseLoginDto } from './dto/firebase-login.dto';
 import { LoginDto } from './dto/login.dto';
@@ -33,8 +41,9 @@ export class AuthController {
   register(
     @Body() dto: RegisterDto,
     @Res({ passthrough: true }) res: Response,
+    @Req() req: Request,
   ): Promise<AuthSessionBody> {
-    return this.auth.register(dto, res);
+    return this.auth.register(dto, res, extractAuditContext(req));
   }
 
   @Public()
@@ -43,8 +52,9 @@ export class AuthController {
   login(
     @Body() dto: LoginDto,
     @Res({ passthrough: true }) res: Response,
+    @Req() req: Request,
   ): Promise<AuthSessionBody> {
-    return this.auth.login(dto, res);
+    return this.auth.login(dto, res, extractAuditContext(req));
   }
 
   @Public()
@@ -53,8 +63,9 @@ export class AuthController {
   loginFirebase(
     @Body() dto: FirebaseLoginDto,
     @Res({ passthrough: true }) res: Response,
+    @Req() req: Request,
   ): Promise<AuthSessionBody> {
-    return this.auth.loginWithFirebase(dto.idToken, res);
+    return this.auth.loginWithFirebase(dto.idToken, res, extractAuditContext(req));
   }
 
   @Public()

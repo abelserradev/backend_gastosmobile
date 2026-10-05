@@ -5,6 +5,7 @@ import { PrismaService } from '../prisma/prisma.service';
 import { BcvRateService } from '../bcv/bcv-rate.service';
 import { ResendEmailService } from '../email/resend-email.service';
 import { ProfileCollaboratorService } from '../profile-collaborators/profile-collaborator.service';
+import { AuditService } from '../audit/audit.service';
 
 const mockPrisma = () => ({
   profile: {
@@ -46,6 +47,11 @@ const mockProfileCollaborators = () => ({
   invalidateProfileList: jest.fn(),
 });
 
+const mockAudit = () => ({
+  logBackend: jest.fn().mockResolvedValue(undefined),
+  recordDomainEvent: jest.fn().mockResolvedValue(undefined),
+});
+
 describe('MeService — perfiles e invalidación de caché', () => {
   let service: MeService;
   let prisma: ReturnType<typeof mockPrisma>;
@@ -62,6 +68,7 @@ describe('MeService — perfiles e invalidación de caché', () => {
           provide: ProfileCollaboratorService,
           useValue: mockProfileCollaborators(),
         },
+        { provide: AuditService, useValue: mockAudit() },
       ],
     }).compile();
 
