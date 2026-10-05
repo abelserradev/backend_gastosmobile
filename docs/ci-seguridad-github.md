@@ -4,7 +4,7 @@
 
 | Workflow | Cuándo corre | Qué hace |
 |----------|--------------|----------|
-| **CI** | Push y PR a `develop`, `main`, `master`, `backend` | `pnpm install --frozen-lockfile`, audit (high+), Prisma validate, tests, build |
+| **CI** | Push y PR a `develop`, `main`, `master`, `backend` | `pnpm install --frozen-lockfile`, Prettier check, ESLint (`--max-warnings 0`), audit (high+), Prisma validate, tests, build |
 | **Security audit** | Mismo + lunes 06:00 UTC + manual | `pnpm install --frozen-lockfile`, audit, listado de dependencias |
 | **Dependabot auto-merge** | PR de Dependabot hacia `develop` | Auto-merge squash si es patch o security y CI pasa |
 | **Dependabot batch merge** | Lunes 10:00 UTC + manual | Merge de respaldo de PRs Dependabot con checks verdes hacia `develop` |
@@ -44,6 +44,28 @@ Notas:
 - Evidencia post-remediación: [`code-audit/analysis/pnpm-audit-post-fix.txt`](code-audit/analysis/pnpm-audit-post-fix.txt) (`pnpm audit` → 0 vulnerabilidades, 2026-08-21).
 
 Tras cambiar overrides: `pnpm install`, `pnpm audit --audit-level=moderate`, y validar build/tests antes de mergear.
+
+## Hooks locales (pre-commit)
+
+El repo incluye [`.pre-commit-config.yaml`](../.pre-commit-config.yaml) con:
+
+| Hook | Stage | Descripción |
+|------|-------|-------------|
+| **gitleaks** | pre-commit | Detección de secretos en staged files. |
+| **prettier** | pre-commit | Verifica formato de archivos TS staged. |
+| **eslint** | pre-commit | Lint de archivos TS staged (`--max-warnings 0`). |
+| **lint + tests** | pre-push | Ejecuta `pnpm run lint:ci && pnpm test` en todo el proyecto. |
+
+### Instalación
+
+```bash
+pip install pre-commit   # o brew install pre-commit
+pre-commit install
+pre-commit install --hook-type pre-push
+pre-commit run --all-files
+```
+
+Los hooks no sustituyen a CI; aseguran feedback rápido antes de subir cambios.
 
 ## Branch protection (configurar en GitHub)
 
