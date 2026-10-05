@@ -1104,7 +1104,7 @@ export class MeService {
     }
     if (rows.some((r) => r.isPaid)) {
       throw new BadRequestException(
-        'Solo se pueden marcar gastos pendientes; quitá los ya pagados de la selección',
+        'Solo se pueden marcar gastos pendientes; quita los ya pagados de la selección',
       );
     }
 

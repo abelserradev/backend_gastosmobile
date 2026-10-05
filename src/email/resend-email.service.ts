@@ -98,7 +98,7 @@ export class ResendEmailService {
     }
     const html = `
       <p>Recibimos una solicitud para restablecer tu contraseña en Gastos.</p>
-      <p><a href="${this.escapeHtml(resetUrl)}">Elegí una nueva contraseña</a></p>
+      <p><a href="${this.escapeHtml(resetUrl)}">Elige una nueva contraseña</a></p>
       <p>Si no realizaste esta solicitud, ignora este mensaje.</p>
       <p style="color:#6b7280;font-size:12px;">El enlace caduca en una hora.</p>
     `;
@@ -113,7 +113,7 @@ export class ResendEmailService {
         `[Correo reset clave] Falló (${destino}): ${error.message}`,
       );
       throw new BadGatewayException(
-        'No se pudo enviar el correo; intentá de nuevo más tarde',
+        'No se pudo enviar el correo; intenta de nuevo más tarde',
       );
     }
     this.logger.log(
@@ -149,7 +149,7 @@ export class ResendEmailService {
         `[Correo crear clave] Falló (${destino}): ${error.message}`,
       );
       throw new BadGatewayException(
-        'No se pudo enviar el correo; intentá de nuevo más tarde',
+        'No se pudo enviar el correo; intenta de nuevo más tarde',
       );
     }
     this.logger.log(
@@ -185,7 +185,7 @@ export class ResendEmailService {
         `[Correo desbloqueo] Falló (${destino}): ${error.message}`,
       );
       throw new BadGatewayException(
-        'No se pudo enviar el correo; intentá de nuevo más tarde',
+        'No se pudo enviar el correo; intenta de nuevo más tarde',
       );
     }
     this.logger.log(
