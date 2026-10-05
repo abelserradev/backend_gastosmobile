@@ -63,7 +63,7 @@ describe('caracas-date', () => {
       const aprResult = getBudgetPeriodForCutoffDay('2026-04-20', 30);
       expect(aprResult.cutoffDate).toBe('2026-04-30');
     });
-    
+
     it('con corte 31 en abril usa 30 como fin de periodo', () => {
       const result = getBudgetPeriodForCutoffDay('2026-04-20', 31);
       expect(result.cutoffDate).toBe('2026-04-30');

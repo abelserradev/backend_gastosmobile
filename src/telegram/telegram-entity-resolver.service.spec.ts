@@ -63,7 +63,9 @@ describe('TelegramEntityResolverService', () => {
   it('toShortId y resolveShortId son reversibles', () => {
     const short = resolver.toShortId(expenses[0].id);
     expect(short).toHaveLength(8);
-    expect(resolver.resolveShortId([expenses[0].id], short)).toBe(expenses[0].id);
+    expect(resolver.resolveShortId([expenses[0].id], short)).toBe(
+      expenses[0].id,
+    );
   });
 });
 
@@ -71,13 +73,17 @@ describe('formatDeleteExpenseList', () => {
   const picks = [{ label: '$25.00 · Comida — almuerzo' }];
 
   it('muestra encabezado de lista filtrada', () => {
-    const text = formatDeleteExpenseList('Mar 2026', picks, 5, { filtered: true });
+    const text = formatDeleteExpenseList('Mar 2026', picks, 5, {
+      filtered: true,
+    });
     expect(text).toContain('Gastos que coinciden');
     expect(text).toContain('1. $25.00');
   });
 
   it('muestra fallback a lista completa', () => {
-    const text = formatDeleteExpenseList('Mar 2026', picks, 5, { fallbackFull: true });
+    const text = formatDeleteExpenseList('Mar 2026', picks, 5, {
+      fallbackFull: true,
+    });
     expect(text).toContain('No encontré coincidencias');
   });
 

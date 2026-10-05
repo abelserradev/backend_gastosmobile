@@ -41,12 +41,7 @@ export class GastosThrottlerStorage
     }
 
     try {
-      return await this.incrementRedis(
-        key,
-        ttl,
-        limit,
-        throttlerName,
-      );
+      return await this.incrementRedis(key, ttl, limit, throttlerName);
     } catch {
       return this.memory.increment(
         key,

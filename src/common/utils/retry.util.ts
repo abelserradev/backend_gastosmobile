@@ -23,5 +23,5 @@ export async function withRetry<T>(
       await new Promise((r) => setTimeout(r, delay));
     }
   }
-  throw lastError;
+  throw lastError ?? new Error('Retry failed after maximum attempts');
 }

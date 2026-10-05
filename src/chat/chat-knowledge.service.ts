@@ -72,9 +72,13 @@ FORMATO:
     }
     if (ctx.mode === 'single' && ctx.activeProfileName) {
       lineas.push(`- Perfil activo: "${ctx.activeProfileName}"`);
-      lineas.push(`- Tipo de perfil: ${ctx.activeProfileType ?? 'desconocido'}`);
+      lineas.push(
+        `- Tipo de perfil: ${ctx.activeProfileType ?? 'desconocido'}`,
+      );
       if (ctx.access === 'collaborator') {
-        lineas.push('- Acceso: colaborador (permisos de edición según invitación)');
+        lineas.push(
+          '- Acceso: colaborador (permisos de edición según invitación)',
+        );
       } else {
         lineas.push('- Acceso: propietario del perfil');
       }
@@ -90,9 +94,7 @@ FORMATO:
       } else {
         lineas.push('- Inventario: no aplica (solo perfiles comercio)');
       }
-      lineas.push(
-        '- Prioriza explicaciones acordes al tipo de perfil activo',
-      );
+      lineas.push('- Prioriza explicaciones acordes al tipo de perfil activo');
     } else if (ctx.otherProfilesSummary?.length) {
       lineas.push('- Vista general; perfiles del usuario:');
       for (const p of ctx.otherProfilesSummary.slice(0, 8)) {

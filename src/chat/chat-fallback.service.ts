@@ -25,14 +25,22 @@ export class ChatFallbackService {
       );
     }
 
-    if (m.includes('inventario') || m.includes('stock') || m.includes('comercio')) {
+    if (
+      m.includes('inventario') ||
+      m.includes('stock') ||
+      m.includes('comercio')
+    ) {
       return (
         prefijo +
         'El inventario está disponible en perfiles tipo **comercio**. Ve al menú Inventario, crea productos y registra movimientos (compra, venta o ajuste). ' +
         'El stock no puede quedar negativo. Si tienes varias sucursales, usa transferencias entre ellas.'
       );
     }
-    if (m.includes('ingreso') || m.includes('salario') || m.includes('mensual')) {
+    if (
+      m.includes('ingreso') ||
+      m.includes('salario') ||
+      m.includes('mensual')
+    ) {
       return (
         'Para ingresos abre **Ingreso Mensual** en el menú lateral. Ahí registras entradas del mes (salario, ventas, etc.) con monto y descripción. ' +
         'Puedes tener varios ingresos en el mismo mes.'
@@ -61,7 +69,11 @@ export class ChatFallbackService {
         'Puedes filtrar por mes y ver gráficos del resumen.'
       );
     }
-    if (m.includes('perfil') || m.includes('familiar') || m.includes('grupal')) {
+    if (
+      m.includes('perfil') ||
+      m.includes('familiar') ||
+      m.includes('grupal')
+    ) {
       return (
         'Los **perfiles** separan contextos: familiar (personal), grupal (compartido) o comercio (con inventario). ' +
         'Cámbialos desde el menú Perfiles. Cada uno tiene su presupuesto y movimientos.'

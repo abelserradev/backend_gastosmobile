@@ -30,10 +30,10 @@ export class TelegramWebhookController {
   @Public()
   @Post('webhook/:secret')
   @HttpCode(HttpStatus.OK)
-  async webhook(
+  webhook(
     @Param('secret') secret: string,
     @Body() update: TelegramUpdate,
-  ): Promise<{ ok: true }> {
+  ): { ok: true } {
     const expected = this.config.get<string>('TELEGRAM_WEBHOOK_SECRET')?.trim();
     if (!expected || secret !== expected) {
       throw new ForbiddenException();

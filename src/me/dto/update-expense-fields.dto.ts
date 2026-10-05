@@ -1,4 +1,11 @@
-import { IsIn, IsNumber, IsOptional, IsString, MaxLength, Min } from 'class-validator';
+import {
+  IsIn,
+  IsNumber,
+  IsOptional,
+  IsString,
+  MaxLength,
+  Min,
+} from 'class-validator';
 
 /** Campos editables de un gasto vía Telegram o API futura. */
 export class UpdateExpenseFieldsDto {

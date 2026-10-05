@@ -79,6 +79,8 @@ export class InventoryController {
   listLowStock(
     @CurrentUser() user: AuthUserPayload,
     @Param('profileId', ParseUUIDPipe) profileId: string,
+    // El query object se parsea por ValidateDto pero no se usa explícitamente aún.
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
     @Query() _query: LowStockQuery,
   ): Promise<InventoryItemResponse[]> {
     return this.itemService.listLowStock(profileId, user.userId);

@@ -41,7 +41,7 @@ export class UpdateInventoryItemDto {
 
   /** FEAT-004: precio de catálogo (opcional; null para borrar). */
   @IsOptional()
-  @ValidateIf((o) => o.salePrice != null)
+  @ValidateIf((o: UpdateInventoryItemDto) => o.salePrice != null)
   @IsNumber({ maxDecimalPlaces: 2 })
   @Min(0)
   salePrice?: number | null;

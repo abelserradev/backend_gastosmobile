@@ -14,29 +14,23 @@ import {
 describe('inventory-pricing.util (FEAT-004)', () => {
   describe('resolvePersistedUnitPrice', () => {
     it('debe persistir unitPrice en SALE cuando se envía', () => {
-      expect(
-        resolvePersistedUnitPrice(MovementType.SALE, 2.5),
-      ).toBe(2.5);
+      expect(resolvePersistedUnitPrice(MovementType.SALE, 2.5)).toBe(2.5);
     });
 
     it('debe permitir SALE sin unitPrice (null)', () => {
       expect(resolvePersistedUnitPrice(MovementType.SALE, null)).toBeNull();
-      expect(resolvePersistedUnitPrice(MovementType.SALE, undefined)).toBeNull();
+      expect(
+        resolvePersistedUnitPrice(MovementType.SALE, undefined),
+      ).toBeNull();
     });
 
     it('debe persistir unitPrice opcional en PURCHASE', () => {
-      expect(
-        resolvePersistedUnitPrice(MovementType.PURCHASE, 1.75),
-      ).toBe(1.75);
+      expect(resolvePersistedUnitPrice(MovementType.PURCHASE, 1.75)).toBe(1.75);
     });
 
     it('debe persistir unitPrice opcional en INITIAL y RETURN', () => {
-      expect(
-        resolvePersistedUnitPrice(MovementType.INITIAL, 3),
-      ).toBe(3);
-      expect(
-        resolvePersistedUnitPrice(MovementType.RETURN, 4),
-      ).toBe(4);
+      expect(resolvePersistedUnitPrice(MovementType.INITIAL, 3)).toBe(3);
+      expect(resolvePersistedUnitPrice(MovementType.RETURN, 4)).toBe(4);
     });
 
     it('debe ignorar unitPrice en TRANSFER_OUT aunque el cliente lo envíe', () => {
@@ -46,15 +40,11 @@ describe('inventory-pricing.util (FEAT-004)', () => {
     });
 
     it('debe ignorar unitPrice en TRANSFER_IN aunque el cliente lo envíe', () => {
-      expect(
-        resolvePersistedUnitPrice(MovementType.TRANSFER_IN, 5),
-      ).toBeNull();
+      expect(resolvePersistedUnitPrice(MovementType.TRANSFER_IN, 5)).toBeNull();
     });
 
     it('debe ignorar unitPrice en ADJUSTMENT', () => {
-      expect(
-        resolvePersistedUnitPrice(MovementType.ADJUSTMENT, 2),
-      ).toBeNull();
+      expect(resolvePersistedUnitPrice(MovementType.ADJUSTMENT, 2)).toBeNull();
     });
   });
 

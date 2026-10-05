@@ -20,7 +20,7 @@ describe('AuthService login lockout', () => {
     };
   };
 
-  beforeEach(async () => {
+  beforeEach(() => {
     prisma = {
       user: {
         findUnique: jest.fn(),

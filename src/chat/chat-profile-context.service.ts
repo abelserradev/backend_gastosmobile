@@ -49,7 +49,8 @@ export class ChatProfileContextService {
       mode: 'overview',
       currency,
       otherProfilesSummary: perfiles.map(
-        (p) => `${p.name} (${p.type}, ${p.access === 'owner' ? 'propio' : 'colaborador'})`,
+        (p) =>
+          `${p.name} (${p.type}, ${p.access === 'owner' ? 'propio' : 'colaborador'})`,
       ),
     };
   }
@@ -78,7 +79,9 @@ export class ChatProfileContextService {
 
   private async listarPerfilesAccesibles(
     userId: string,
-  ): Promise<Array<{ name: string; type: ProfileType; access: ProfileAccess }>> {
+  ): Promise<
+    Array<{ name: string; type: ProfileType; access: ProfileAccess }>
+  > {
     const owned = await this.prisma.profile.findMany({
       where: { userId },
       select: { name: true, type: true },
