@@ -381,7 +381,7 @@ export class AuthService {
     const now = Date.now();
     if (!row || row.expiresAt.getTime() <= now || !row.user.email) {
       throw new BadRequestException(
-        'El enlace no es válido o expiró; solicitá uno nuevo.',
+        'El enlace no es válido o expiró; solicita uno nuevo.',
       );
     }
     const prevHash = row.user.passwordHash;
@@ -417,7 +417,7 @@ export class AuthService {
     }
     if (user.passwordHash) {
       throw new BadRequestException(
-        'Ya tenés contraseña; para cambiarla usá el flujo de recuperación por correo.',
+        'Ya tienes contraseña; para cambiarla usa el flujo de recuperación por correo.',
       );
     }
     const passwordHash = await bcrypt.hash(dto.password, BCRYPT_SALT_ROUNDS);
