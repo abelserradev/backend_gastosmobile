@@ -40,6 +40,12 @@ jobs:
       - name: Instalar dependencias (lockfile estricto)
         run: pnpm install --frozen-lockfile
 
+      - name: Verificar formato con Prettier
+        run: pnpm run format:check
+
+      - name: ESLint (sin fix, max-warnings 0)
+        run: pnpm run lint:ci
+
       - name: pnpm audit — bloquea high/critical
         run: pnpm audit --audit-level=high
 
