@@ -9,6 +9,19 @@ import {
 import { AuthCookieService } from './auth-cookie.service';
 import { FirebaseAdminService } from './firebase-admin.service';
 import { ResendEmailService } from '../email/resend-email.service';
+import { AuditService } from '../audit/audit.service';
+
+const auditMock = {
+  logBackend: jest.fn().mockResolvedValue(undefined),
+  recordDomainEvent: jest.fn().mockResolvedValue(undefined),
+} as unknown as AuditService;
+
+const auditCtxMock = {
+  requestId: 'req-test',
+  ip: '127.0.0.1',
+  userAgent: 'jest',
+  channel: 'web' as const,
+};
 
 describe('AuthService login lockout', () => {
   const resMock = {} as import('express').Response;
@@ -35,6 +48,8 @@ describe('AuthService login lockout', () => {
       {
         isConfigured: jest.fn().mockReturnValue(false),
       } as unknown as ResendEmailService,
+      {} as never,
+      auditMock,
     );
   });
 
@@ -48,7 +63,7 @@ describe('AuthService login lockout', () => {
       lockedAt: new Date(),
     });
     await expect(
-      service.login({ email: 'a@test.com', password: 'x' }, resMock),
+      service.login({ email: 'a@test.com', password: 'x' }, resMock, auditCtxMock),
     ).rejects.toMatchObject({
       response: { code: AUTH_ERROR_ACCOUNT_LOCKED },
     });
@@ -72,7 +87,11 @@ describe('AuthService login lockout', () => {
       })
       .mockResolvedValueOnce({ id: 'u1', lockedAt: new Date() });
     await expect(
-      service.login({ email: 'a@test.com', password: 'wrong' }, resMock),
+      service.login(
+        { email: 'a@test.com', password: 'wrong' },
+        resMock,
+        auditCtxMock,
+      ),
     ).rejects.toBeInstanceOf(ForbiddenException);
     expect(prisma.user.update).toHaveBeenCalledTimes(2);
   });
@@ -88,7 +107,11 @@ describe('AuthService login lockout', () => {
       lockedAt: null,
     });
     prisma.user.update.mockResolvedValue({});
-    await service.login({ email: 'a@test.com', password: 'secret' }, resMock);
+    await service.login(
+      { email: 'a@test.com', password: 'secret' },
+      resMock,
+      auditCtxMock,
+    );
     expect(prisma.user.update).toHaveBeenCalledWith({
       where: { id: 'u1' },
       data: { failedLoginAttempts: 0 },
@@ -98,7 +121,11 @@ describe('AuthService login lockout', () => {
   it('should not increment attempts when user does not exist', async () => {
     prisma.user.findUnique.mockResolvedValue(null);
     await expect(
-      service.login({ email: 'ghost@test.com', password: 'x' }, resMock),
+      service.login(
+        { email: 'ghost@test.com', password: 'x' },
+        resMock,
+        auditCtxMock,
+      ),
     ).rejects.toBeInstanceOf(UnauthorizedException);
     expect(prisma.user.update).not.toHaveBeenCalled();
   });

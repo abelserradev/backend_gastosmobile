@@ -1,11 +1,13 @@
 import { Module } from '@nestjs/common';
 import { ConfigModule } from '@nestjs/config';
-import { APP_GUARD } from '@nestjs/core';
+import { APP_FILTER, APP_GUARD } from '@nestjs/core';
 import { ThrottlerGuard, ThrottlerModule } from '@nestjs/throttler';
 import { envValidationSchema } from './config/env.validation';
 import { CacheModule } from './common/cache/cache.module';
 import { GastosThrottlerStorage } from './common/cache/gastos-throttler.storage';
 import { GuardsModule } from './common/guards/guards.module';
+import { AllExceptionsFilter } from './common/filters/all-exceptions.filter';
+import { AuditModule } from './audit/audit.module';
 import { AuthModule } from './auth/auth.module';
 import { JwtAuthGuard } from './auth/jwt-auth.guard';
 import { BcvModule } from './bcv/bcv.module';
@@ -47,6 +49,7 @@ import { ChatModule } from './chat/chat.module';
     }),
     CacheModule,
     GuardsModule,
+    AuditModule,
     PrismaModule,
     AuthModule,
     MeModule,
@@ -60,6 +63,7 @@ import { ChatModule } from './chat/chat.module';
   providers: [
     { provide: APP_GUARD, useClass: ThrottlerGuard },
     { provide: APP_GUARD, useClass: JwtAuthGuard },
+    { provide: APP_FILTER, useClass: AllExceptionsFilter },
   ],
 })
 export class AppModule {}

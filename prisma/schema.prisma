@@ -410,3 +410,49 @@ model StockBalance {
   @@unique([itemId, branchId])
   @@index([branchId])
 }
+
+/// Logs operativos del API (Nest). No sustituyen métricas externas (Coolify, APM).
+enum LogLevel {
+  debug
+  info
+  warn
+  error
+}
+
+model BackendLog {
+  id        String   @id @default(uuid())
+  level     LogLevel
+  message   String
+  context   Json?
+  requestId String?
+  userId    String?
+  createdAt DateTime @default(now())
+
+  @@index([createdAt(sort: Desc)])
+  @@index([level, createdAt(sort: Desc)])
+  @@map("backend_logs")
+}
+
+/// Eventos de dominio para auditoría (gastos, inventario, errores). Postgres = fuente única.
+enum AuditStream {
+  expense
+  inventory
+  error
+  system
+}
+
+model DomainAuditEvent {
+  id         String       @id @default(uuid())
+  stream     AuditStream
+  eventType  String
+  entityId   String?
+  profileId  String?
+  userId     String?
+  payload    Json?
+  occurredAt DateTime     @default(now())
+
+  @@index([stream, occurredAt(sort: Desc)])
+  @@index([profileId, occurredAt(sort: Desc)])
+  @@index([entityId, occurredAt(sort: Desc)])
+  @@map("domain_audit_events")
+}

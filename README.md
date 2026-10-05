@@ -131,6 +131,22 @@ Redis se usa como **caché caliente** para lecturas frecuentes. PostgreSQL sigue
 - Listado de perfiles (`me:profiles:*`) y resumen inventario (`inventory:summary:*`).
 - Throttler compartido entre réplicas (`throttle:*`) cuando `REDIS_URL` está activo.
 
+## Auditoría / "chismógrafo" (PostgreSQL)
+
+El backend registra eventos de negocio y logs operativos en la misma instancia PostgreSQL (`DATABASE_URL`), nunca en MongoDB:
+
+| Tabla | Uso |
+|-------|-----|
+| `backend_logs` | Logs operativos: login, register, errores. |
+| `domain_audit_events` | Eventos de dominio: gastos, inventario, errores. |
+
+**Reglas:**
+
+- Escritura **fail-open**: si la tabla de audit falla, el request principal continúa.
+- No se almacenan contraseñas, tokens ni imágenes de comprobante.
+- Retención: 90 días (`scripts/purge-audit-logs-90d.sql`).
+- Lectura v1: SQL/Prisma Studio; sin endpoint REST.
+
 ## CI y seguridad (GitHub Actions)
 
 En cada push/PR a **`develop`**, `main`, `master` o `backend` se ejecutan **CI** y **Security audit** (`pnpm install --frozen-lockfile`, audit high/critical, lint, tests, build).

@@ -6,6 +6,8 @@ import {
 import { PrismaService } from '../prisma/prisma.service';
 import { CacheService } from '../common/cache/cache.service';
 import { ProfileAccessService } from '../common/services/profile-access.service';
+import { AuditService } from '../audit/audit.service';
+import { AuditEventTypes } from '../audit/audit.types';
 import { invalidateInventorySummary } from './inventory-cache.util';
 import { CreateInventoryItemDto } from './dto/create-item.dto';
 import { UpdateInventoryItemDto } from './dto/update-item.dto';
@@ -37,6 +39,7 @@ export class InventoryItemService {
     private readonly prisma: PrismaService,
     private readonly cache: CacheService,
     private readonly profileAccess: ProfileAccessService,
+    private readonly audit: AuditService,
   ) {}
 
   /**
@@ -142,6 +145,18 @@ export class InventoryItemService {
     });
 
     await invalidateInventorySummary(this.cache, profileId);
+    this.recordInventoryEvent(
+      AuditEventTypes.inventory.itemCreated,
+      userId,
+      result.id,
+      profileId,
+      {
+        name: result.name,
+        sku: result.sku,
+        initialStock: dto.initialStock,
+        salePrice: dto.salePrice,
+      },
+    );
     return mapInventoryItemToResponse(result);
   }
 
@@ -196,6 +211,17 @@ export class InventoryItemService {
     });
 
     await invalidateInventorySummary(this.cache, profileId);
+    this.recordInventoryEvent(
+      AuditEventTypes.inventory.itemUpdated,
+      userId,
+      itemId,
+      profileId,
+      {
+        name: updated.name,
+        sku: updated.sku,
+        salePrice: updated.salePrice,
+      },
+    );
     return mapInventoryItemToResponse(updated);
   }
 
@@ -239,6 +265,13 @@ export class InventoryItemService {
 
     await this.prisma.inventoryItem.delete({ where: { id: itemId } });
     await invalidateInventorySummary(this.cache, profileId);
+    this.recordInventoryEvent(
+      AuditEventTypes.inventory.itemDeleted,
+      userId,
+      itemId,
+      profileId,
+      { name: item.name },
+    );
   }
 
   /**
@@ -284,6 +317,27 @@ export class InventoryItemService {
       quantity: b.quantity,
       updatedAt: b.updatedAt.toISOString(),
     }));
+  }
+
+  private recordInventoryEvent(
+    eventType: string,
+    userId: string,
+    entityId: string,
+    profileId: string,
+    payload: Record<string, unknown>,
+  ): void {
+    void this.audit
+      .recordDomainEvent({
+        stream: 'inventory',
+        eventType,
+        entityId,
+        profileId,
+        userId,
+        payload,
+      })
+      .catch(() => {
+        // Fail-open.
+      });
   }
 
   private async assertItemBelongsToProfile(

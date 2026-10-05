@@ -2,9 +2,27 @@ import { ValidationPipe } from '@nestjs/common';
 import { NestFactory } from '@nestjs/core';
 import cookieParser from 'cookie-parser';
 import helmet from 'helmet';
+import { randomUUID } from 'node:crypto';
+import type { Request, Response, NextFunction } from 'express';
 import { AppModule } from './app.module';
 import { resolveCorsOrigin } from './common/bootstrap/cors-options';
-import { AllExceptionsFilter } from './common/filters/all-exceptions.filter';
+
+/**
+ * Asigna un requestId único por petición si el cliente no envía x-request-id.
+ * El id se usa para correlacionar logs del servidor con filas de auditoría.
+ */
+function requestIdMiddleware(
+  req: Request,
+  _res: Response,
+  next: NextFunction,
+): void {
+  const header = req.headers['x-request-id'];
+  req.headers['x-request-id'] =
+    typeof header === 'string' && header.trim().length > 0
+      ? header.trim()
+      : randomUUID();
+  next();
+}
 
 async function bootstrap(): Promise<void> {
   const app = await NestFactory.create(AppModule);
@@ -18,7 +36,7 @@ async function bootstrap(): Promise<void> {
     }),
   );
   app.use(cookieParser());
-  app.useGlobalFilters(new AllExceptionsFilter());
+  app.use(requestIdMiddleware);
   app.setGlobalPrefix('api');
   app.useGlobalPipes(
     new ValidationPipe({
