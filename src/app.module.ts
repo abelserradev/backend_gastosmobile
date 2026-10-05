@@ -4,6 +4,7 @@ import { APP_GUARD } from '@nestjs/core';
 import { ThrottlerGuard, ThrottlerModule } from '@nestjs/throttler';
 import { envValidationSchema } from './config/env.validation';
 import { CacheModule } from './common/cache/cache.module';
+import { GastosThrottlerStorage } from './common/cache/gastos-throttler.storage';
 import { GuardsModule } from './common/guards/guards.module';
 import { AuthModule } from './auth/auth.module';
 import { JwtAuthGuard } from './auth/jwt-auth.guard';
@@ -30,14 +31,19 @@ import { ChatModule } from './chat/chat.module';
         allowUnknown: true,
       },
     }),
-    ThrottlerModule.forRoot({
-      throttlers: [
-        {
-          name: 'default',
-          ttl: 60000,
-          limit: 100,
-        },
-      ],
+    ThrottlerModule.forRootAsync({
+      imports: [CacheModule],
+      inject: [GastosThrottlerStorage],
+      useFactory: (storage: GastosThrottlerStorage) => ({
+        throttlers: [
+          {
+            name: 'default',
+            ttl: 60000,
+            limit: 100,
+          },
+        ],
+        storage,
+      }),
     }),
     CacheModule,
     GuardsModule,

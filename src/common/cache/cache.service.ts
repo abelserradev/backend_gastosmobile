@@ -163,6 +163,36 @@ export class CacheService implements OnModuleDestroy {
     return entry.value;
   }
 
+  /**
+   * Ventana fija atómica (INCR + PEXPIRE) para throttler multi-réplica.
+   */
+  async incrementFixedWindow(
+    key: string,
+    ttlMs: number,
+  ): Promise<{ count: number; pttlMs: number }> {
+    const ttl = Math.max(1, ttlMs);
+    if (this.redis) {
+      const scoped = this.scopedKey(key);
+      const count = await this.redis.incr(scoped);
+      if (count === 1) {
+        await this.redis.pexpire(scoped, ttl);
+      }
+      const pttl = await this.redis.pttl(scoped);
+      return {
+        count,
+        pttlMs: pttl > 0 ? pttl : ttl,
+      };
+    }
+    const entry = this.counters.get(key);
+    const now = Date.now();
+    if (!entry || now > entry.expiresAt) {
+      this.counters.set(key, { value: 1, expiresAt: now + ttl });
+      return { count: 1, pttlMs: ttl };
+    }
+    entry.value += 1;
+    return { count: entry.value, pttlMs: entry.expiresAt - now };
+  }
+
   async increment(key: string): Promise<number> {
     if (this.redis) {
       try {

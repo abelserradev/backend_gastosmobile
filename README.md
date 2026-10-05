@@ -128,7 +128,8 @@ Redis se usa como **caché caliente** para lecturas frecuentes. PostgreSQL sigue
 - Tasas BCV por día (`bcv:day:*`).
 - Cuota mensual de OCR (`vision:quota:*`).
 - Acciones pendientes del bot Telegram (`telegram:pending:*`).
-- (Próximo) listado de perfiles del usuario (`me:profiles:*`).
+- Listado de perfiles (`me:profiles:*`) y resumen inventario (`inventory:summary:*`).
+- Throttler compartido entre réplicas (`throttle:*`) cuando `REDIS_URL` está activo.
 
 ## CI y seguridad (GitHub Actions)
 
