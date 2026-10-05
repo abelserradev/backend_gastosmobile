@@ -26,7 +26,7 @@
     "test:e2e": "jest --config ./test/jest-e2e.json"
   },
   "dependencies": {
-    "@google-cloud/vision": "^6.1.0",
+    "@google-cloud/vision": "^6.1.1",
     "@nestjs/axios": "^4.0.1",
     "@nestjs/common": "^11.2.5",
     "@nestjs/config": "^4.0.0",
@@ -34,7 +34,7 @@
     "@nestjs/jwt": "^11.0.0",
     "@nestjs/passport": "^11.0.5",
     "@nestjs/platform-express": "^11.1.28",
-    "@nestjs/throttler": "^6.7.0",
+    "@nestjs/throttler": "^6.7.1",
     "@prisma/adapter-pg": "^7.10.0",
     "@prisma/client": "^7.10.0",
     "bcrypt": "^6.0.0",
@@ -49,7 +49,7 @@
     "jsonwebtoken": "^9.0.2",
     "passport": "^0.7.0",
     "passport-jwt": "^4.0.1",
-    "pg": "^8.23.0",
+    "pg": "^8.23.1",
     "prisma": "^7.10.0",
     "reflect-metadata": "^0.2.2",
     "resend": "^6.28.1",
