@@ -10,6 +10,20 @@ updates:
     open-pull-requests-limit: 5
     labels:
       - dependencies
+    # Nest 11 + TS 5.9: ignorar majors que Dependabot propone fuera de ecosistema
+    ignore:
+      - dependency-name: "@nestjs/axios"
+        update-types: ["version-update:semver-major"]
+      - dependency-name: "@nestjs/cli"
+        update-types: ["version-update:semver-major"]
+      - dependency-name: "@nestjs/schematics"
+        update-types: ["version-update:semver-major"]
+      - dependency-name: "@nestjs/testing"
+        update-types: ["version-update:semver-major"]
+      - dependency-name: "typescript"
+        update-types: ["version-update:semver-major"]
+      - dependency-name: "dotenv"
+        update-types: ["version-update:semver-major"]
     groups:
       security-updates:
         applies-to: security-updates

@@ -4,7 +4,9 @@ import {
   NotFoundException,
 } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
+import { CacheService } from '../common/cache/cache.service';
 import { ProfileAccessService } from '../common/services/profile-access.service';
+import { invalidateInventorySummary } from './inventory-cache.util';
 import { CreateInventoryItemDto } from './dto/create-item.dto';
 import { UpdateInventoryItemDto } from './dto/update-item.dto';
 import {
@@ -33,6 +35,7 @@ import { validateOptionalPrice } from './inventory-pricing.util';
 export class InventoryItemService {
   constructor(
     private readonly prisma: PrismaService,
+    private readonly cache: CacheService,
     private readonly profileAccess: ProfileAccessService,
   ) {}
 
@@ -138,6 +141,7 @@ export class InventoryItemService {
       return item;
     });
 
+    await invalidateInventorySummary(this.cache, profileId);
     return mapInventoryItemToResponse(result);
   }
 
@@ -191,6 +195,7 @@ export class InventoryItemService {
       data: updateData,
     });
 
+    await invalidateInventorySummary(this.cache, profileId);
     return mapInventoryItemToResponse(updated);
   }
 
@@ -233,6 +238,7 @@ export class InventoryItemService {
     }
 
     await this.prisma.inventoryItem.delete({ where: { id: itemId } });
+    await invalidateInventorySummary(this.cache, profileId);
   }
 
   /**

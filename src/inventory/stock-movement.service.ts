@@ -4,7 +4,9 @@ import {
   NotFoundException,
 } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
+import { CacheService } from '../common/cache/cache.service';
 import { ProfileAccessService } from '../common/services/profile-access.service';
+import { invalidateInventorySummary } from './inventory-cache.util';
 import {
   AdjustStockDto,
   CreateStockMovementDto,
@@ -33,6 +35,7 @@ import { resolvePersistedUnitPrice } from './inventory-pricing.util';
 export class StockMovementService {
   constructor(
     private readonly prisma: PrismaService,
+    private readonly cache: CacheService,
     private readonly profileAccess: ProfileAccessService,
   ) {}
 
@@ -133,6 +136,7 @@ export class StockMovementService {
       return movement;
     });
 
+    await invalidateInventorySummary(this.cache, profileId);
     return mapStockMovementToResponse(result);
   }
 
@@ -180,6 +184,7 @@ export class StockMovementService {
       return movement;
     });
 
+    await invalidateInventorySummary(this.cache, profileId);
     return mapStockMovementToResponse(result);
   }
 
@@ -269,6 +274,7 @@ export class StockMovementService {
       },
     });
 
+    await invalidateInventorySummary(this.cache, profileId);
     return movements.map(mapStockMovementToResponse);
   }
 

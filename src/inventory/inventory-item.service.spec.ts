@@ -9,6 +9,7 @@ import { UpdateInventoryItemDto } from './dto/update-item.dto';
 
 describe('InventoryItemService', () => {
   let service: InventoryItemService;
+  let cache: { del: jest.Mock };
   let profileAccess: {
     assertInventoryAccess: jest.Mock;
   };
@@ -34,6 +35,7 @@ describe('InventoryItemService', () => {
   const mockItemId = 'item-001';
 
   beforeEach(() => {
+    cache = { del: jest.fn().mockResolvedValue(undefined) };
     profileAccess = {
       assertInventoryAccess: jest.fn().mockResolvedValue({
         access: 'owner',
@@ -58,6 +60,7 @@ describe('InventoryItemService', () => {
     };
     service = new InventoryItemService(
       prisma as never,
+      cache as never,
       profileAccess as never,
     );
   });
