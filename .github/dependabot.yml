@@ -24,6 +24,10 @@ updates:
         update-types: ["version-update:semver-major"]
       - dependency-name: "dotenv"
         update-types: ["version-update:semver-major"]
+      - dependency-name: "@nestjs/config"
+        update-types: ["version-update:semver-major"]
+      - dependency-name: "firebase-admin"
+        update-types: ["version-update:semver-major"]
     groups:
       security-updates:
         applies-to: security-updates
