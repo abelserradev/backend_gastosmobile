@@ -8,6 +8,7 @@ import {
 } from '@nestjs/common';
 import type { Request, Response } from 'express';
 import { AuditService } from '../../audit/audit.service';
+import type { AuthUserPayload } from '../types/auth-user.payload';
 import { AuditEventTypes } from '../../audit/audit.types';
 import { extractAuditContext } from '../../audit/request-context.util';
 
@@ -24,7 +25,7 @@ export class AllExceptionsFilter implements ExceptionFilter {
   catch(exception: unknown, host: ArgumentsHost): void {
     const ctx = host.switchToHttp();
     const res = ctx.getResponse<Response>();
-    const req = ctx.getRequest<Request>();
+    const req = ctx.getRequest<Request & { user?: AuthUserPayload }>();
     const isProd = process.env.NODE_ENV === 'production';
 
     if (exception instanceof HttpException) {
@@ -44,7 +45,7 @@ export class AllExceptionsFilter implements ExceptionFilter {
         level: 'error',
         message: err.message,
         requestId: auditCtx.requestId,
-        userId: (req.user as { userId?: string } | undefined)?.userId,
+        userId: req.user?.userId,
         context: {
           path: req.url,
           method: req.method,
@@ -61,7 +62,7 @@ export class AllExceptionsFilter implements ExceptionFilter {
       .recordDomainEvent({
         stream: 'error',
         eventType: AuditEventTypes.error.unhandled,
-        userId: (req.user as { userId?: string } | undefined)?.userId,
+        userId: req.user?.userId,
         payload: {
           path: req.url,
           method: req.method,
