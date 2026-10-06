@@ -32,8 +32,10 @@ import { UnlockAccountVerifyDto } from './dto/unlock-account-verify.dto';
 import { enmascararCorreo } from '../common/utils/mask-correo-for-log.util';
 import { ResendEmailService } from '../email/resend-email.service';
 import { AuditService } from '../audit/audit.service';
-import { AuditEventTypes } from '../audit/audit.types';
-import type { AuditRequestContext } from '../audit/audit.types';
+import {
+  AuditEventTypes,
+  type AuditRequestContext,
+} from '../audit/audit.types';
 
 export interface AuthResponseUser {
   id: string;
@@ -101,12 +103,9 @@ export class AuthService {
       },
     });
     const body = this.buildSessionPayload(user.id, email, name, true);
-    this.recordAuthEvent(
-      AuditEventTypes.system.authRegister,
-      user.id,
-      ctx,
-      { method: 'password' },
-    );
+    this.recordAuthEvent(AuditEventTypes.system.authRegister, user.id, ctx, {
+      method: 'password',
+    });
     this.logger.log(
       `[Registro] Listo: sesión montada (userId=${user.id}), mandando bienvenida en segundo plano`,
     );
@@ -195,15 +194,10 @@ export class AuthService {
     const name = user.name?.trim() ? user.name : '';
     const hasPassword = Boolean(user.passwordHash);
     const body = this.buildSessionPayload(user.id, emailRaw, name, hasPassword);
-    this.recordAuthEvent(
-      AuditEventTypes.system.authFirebase,
-      user.id,
-      ctx,
-      {
-        method: 'firebase',
-        isNewUser: createdWithFirebase,
-      },
-    );
+    this.recordAuthEvent(AuditEventTypes.system.authFirebase, user.id, ctx, {
+      method: 'firebase',
+      isNewUser: createdWithFirebase,
+    });
     if (createdWithFirebase) {
       this.logger.log(
         `[Ingreso Google] Sesión lista; bienvenida en segundo plano pa' ${correoLog}`,

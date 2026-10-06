@@ -1,11 +1,4 @@
-import {
-  Body,
-  Controller,
-  Get,
-  Post,
-  Req,
-  Res,
-} from '@nestjs/common';
+import { Body, Controller, Get, Post, Req, Res } from '@nestjs/common';
 import { SkipThrottle, Throttle } from '@nestjs/throttler';
 import type { Request, Response } from 'express';
 import { CurrentUser } from '../common/decorators/current-user.decorator';
@@ -22,6 +15,7 @@ import { ResetPasswordDto } from './dto/reset-password.dto';
 import { SetupPasswordDto } from './dto/setup-password.dto';
 import { UnlockAccountRequestDto } from './dto/unlock-account-request.dto';
 import { UnlockAccountVerifyDto } from './dto/unlock-account-verify.dto';
+
 @Controller('auth')
 export class AuthController {
   constructor(
@@ -65,7 +59,11 @@ export class AuthController {
     @Res({ passthrough: true }) res: Response,
     @Req() req: Request,
   ): Promise<AuthSessionBody> {
-    return this.auth.loginWithFirebase(dto.idToken, res, extractAuditContext(req));
+    return this.auth.loginWithFirebase(
+      dto.idToken,
+      res,
+      extractAuditContext(req),
+    );
   }
 
   @Public()

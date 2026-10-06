@@ -63,7 +63,11 @@ describe('AuthService login lockout', () => {
       lockedAt: new Date(),
     });
     await expect(
-      service.login({ email: 'a@test.com', password: 'x' }, resMock, auditCtxMock),
+      service.login(
+        { email: 'a@test.com', password: 'x' },
+        resMock,
+        auditCtxMock,
+      ),
     ).rejects.toMatchObject({
       response: { code: AUTH_ERROR_ACCOUNT_LOCKED },
     });
