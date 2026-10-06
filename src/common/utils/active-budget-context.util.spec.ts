@@ -6,7 +6,7 @@ import {
 import { toReferenceMonthDate } from '../../me/me.mappers';
 
 describe('active-budget-context expense filters', () => {
-  it('calendario: filtra solo el bucket YYYY-MM-01 del mes activo', () => {
+  it('calendario: rango del mes activo (no solo igualdad al día 01)', () => {
     const budget = resolveActiveBudgetContext({
       budgetCycleMode: 'calendar_month',
       budgetCutoffDay: 1,
@@ -15,7 +15,8 @@ describe('active-budget-context expense filters', () => {
       { budgetCycleMode: 'calendar_month', budgetCutoffDay: 1 },
       budget,
     );
-    expect(filter).toEqual(budget.activeMonthDate);
+    const ym = budget.activeReferenceMonth.slice(0, 7);
+    expect(filter).toEqual(calendarMonthReferenceRange(ym));
   });
 
   it('corte: incluye rango periodStart–cutoffDate (legacy 2026-10-01 en periodo sep16–oct15)', () => {
