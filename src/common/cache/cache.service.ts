@@ -209,7 +209,10 @@ export class CacheService implements OnModuleDestroy {
   }
 
   async expireAtEndOfMonth(key: string): Promise<void> {
-    const ttlSeconds = Math.max(1, Math.ceil(this.ttlUntilEndOfMonthMs() / 1000));
+    const ttlSeconds = Math.max(
+      1,
+      Math.ceil(this.ttlUntilEndOfMonthMs() / 1000),
+    );
     if (this.redis) {
       try {
         await this.redis.expire(this.scopedKey(key), ttlSeconds);

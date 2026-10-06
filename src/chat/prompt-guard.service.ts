@@ -41,8 +41,12 @@ export class PromptGuardService {
         return { allowed: false, reason: 'injection_pattern' };
       }
     }
-    const ratioNuevo = (normalizado.match(/[\x00-\x08\x0B\x0C\x0E-\x1F]/g) ?? [])
-      .length;
+    // Sanitizamos caracteres de control no imprimibles; el regex los enumera a propósito.
+    /* eslint-disable no-control-regex */
+    const ratioNuevo = (
+      normalizado.match(/[\x00-\x08\x0B\x0C\x0E-\x1F]/g) ?? []
+    ).length;
+    /* eslint-enable no-control-regex */
     if (ratioNuevo > 3) {
       return { allowed: false, reason: 'control_chars' };
     }

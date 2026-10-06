@@ -2,7 +2,6 @@ import type { InventoryItem, StockMovement, Branch } from '@prisma/client';
 import type {
   InventoryItemResponse,
   StockMovementResponse,
-  StockBalanceResponse,
 } from './entities/inventory-item.response';
 import { MovementType } from './dto/create-movement.dto';
 import {

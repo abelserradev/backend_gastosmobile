@@ -1,0 +1,43 @@
+default_stages: [pre-commit]
+
+# Excluir artefactos generados, dependencias y archivos nativos de Android.
+exclude: >-
+  ^(
+    dist/|node_modules/|coverage/|\.pnpm-store/|android/|prisma/migrations/
+  )
+
+repos:
+  - repo: https://github.com/gitleaks/gitleaks
+    rev: v8.24.2
+    hooks:
+      - id: gitleaks
+        name: gitleaks — detect secrets
+        stages: [pre-commit]
+
+  - repo: local
+    hooks:
+      - id: prettier
+        name: prettier — check TS formatting
+        entry: pnpm exec prettier --check
+        language: system
+        types: [ts]
+        pass_filenames: true
+        stages: [pre-commit]
+
+      - id: eslint
+        name: eslint — lint staged TS files
+        entry: pnpm exec eslint --max-warnings 0
+        language: system
+        types: [ts]
+        pass_filenames: true
+        stages: [pre-commit]
+
+  - repo: local
+    hooks:
+      - id: pre-push-backend
+        name: backend lint + unit tests
+        entry: pnpm run lint:ci && pnpm test
+        language: system
+        stages: [pre-push]
+        pass_filenames: false
+        always_run: true

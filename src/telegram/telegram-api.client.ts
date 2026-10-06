@@ -16,7 +16,9 @@ export class TelegramApiClient {
   constructor(private readonly config: ConfigService) {}
 
   isConfigured(): boolean {
-    const enabled = this.parseEnabled(this.config.get<string>('TELEGRAM_ENABLED'));
+    const enabled = this.parseEnabled(
+      this.config.get<string>('TELEGRAM_ENABLED'),
+    );
     const token = this.config.get<string>('TELEGRAM_BOT_TOKEN')?.trim();
     return enabled && Boolean(token);
   }
@@ -55,11 +57,16 @@ export class TelegramApiClient {
     );
     if (!res.ok) {
       const errText = await res.text();
-      this.logger.warn(`sendMessage falló (${res.status}): ${errText.slice(0, 200)}`);
+      this.logger.warn(
+        `sendMessage falló (${res.status}): ${errText.slice(0, 200)}`,
+      );
     }
   }
 
-  async answerCallbackQuery(callbackQueryId: string, text?: string): Promise<void> {
+  async answerCallbackQuery(
+    callbackQueryId: string,
+    text?: string,
+  ): Promise<void> {
     const token = this.config.get<string>('TELEGRAM_BOT_TOKEN')?.trim();
     if (!token) {
       return;

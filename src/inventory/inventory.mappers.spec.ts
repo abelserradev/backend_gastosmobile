@@ -38,7 +38,7 @@ describe('inventory.mappers (FEAT-004)', () => {
         salePrice: null,
         createdAt: new Date(),
         updatedAt: new Date(),
-      } as never);
+      });
 
       expect(result.salePrice).toBeNull();
     });

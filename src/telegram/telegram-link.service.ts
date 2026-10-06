@@ -39,8 +39,11 @@ export class TelegramLinkService {
       data: { userId, codeHash, expiresAt },
     });
 
-    const botUsername = this.config.get<string>('TELEGRAM_BOT_USERNAME')?.trim()
-      ?.replace(/^@/, '') ?? null;
+    const botUsername =
+      this.config
+        .get<string>('TELEGRAM_BOT_USERNAME')
+        ?.trim()
+        ?.replace(/^@/, '') ?? null;
     const deepLink = botUsername
       ? `https://t.me/${botUsername}?start=${code}`
       : null;

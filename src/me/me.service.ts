@@ -266,7 +266,7 @@ export class MeService {
         : null;
 
     return {
-      preferences: await this.mapPreferencesToResponse(pref, activePeriod),
+      preferences: await this.mapPreferencesToResponse(pref),
       categories: categories.map((c) => ({ id: c.id, name: c.name })),
       profiles: profiles.map((p) => ({
         id: p.id,
@@ -339,13 +339,7 @@ export class MeService {
       }),
     );
 
-    // Recalcular periodo activo con las nuevas preferencias
-    const newPeriod =
-      mode === 'calendar_month'
-        ? getBudgetPeriodForCutoffDay(todayYmd, 1)
-        : getBudgetPeriodForCutoffDay(todayYmd, cutoffDay);
-
-    const mapped = await this.mapPreferencesToResponse(fresh, newPeriod);
+    const mapped = await this.mapPreferencesToResponse(fresh);
     if (!mapped) {
       throw new BadRequestException('No se pudieron leer las preferencias');
     }
@@ -405,15 +399,7 @@ export class MeService {
     );
 
     const fresh = await this.loadUserPreference(uid);
-    const activePeriodAfter = this.budgetPeriodForMode(
-      newMode,
-      newCutoff,
-      todayYmd,
-    );
-    const mapped = await this.mapPreferencesToResponse(
-      fresh,
-      activePeriodAfter,
-    );
+    const mapped = await this.mapPreferencesToResponse(fresh);
     if (!mapped) {
       throw new BadRequestException('No se pudieron leer las preferencias');
     }
@@ -1224,7 +1210,6 @@ export class MeService {
    */
   private async mapPreferencesToResponse(
     pref: UserPreferenceWithRegRate | null,
-    activePeriod?: BudgetPeriod,
   ): Promise<MePreferencesResponse | null> {
     if (!pref) {
       return null;
@@ -1235,8 +1220,7 @@ export class MeService {
     // FEAT-001: Incluir configuración del ciclo presupuestario
     const budgetCycle = {
       mode: (pref.budgetCycleMode ?? 'calendar_month') as
-        | 'calendar_month'
-        | 'monthly_cutoff',
+        'calendar_month' | 'monthly_cutoff',
       cutoffDay: pref.budgetCutoffDay ?? 1,
     };
 
@@ -1641,7 +1625,11 @@ export class MeService {
       const { vesPerUsd, rateDate } =
         await this.bcv.getVesPerUsdForCalendarDay(rateYmd);
       const vesPerUsdNum = Number(vesPerUsd.toString());
-      data.amount = resolveAmountUsd(dto.amount, dto.amountCurrency, vesPerUsdNum);
+      data.amount = resolveAmountUsd(
+        dto.amount,
+        dto.amountCurrency,
+        vesPerUsdNum,
+      );
       data.bcvRateApplied = vesPerUsd;
       data.bcvRateDate = rateDate;
     }
@@ -1652,7 +1640,9 @@ export class MeService {
       data.category = { connect: { id: categoryId } };
     }
     if (Object.keys(data).length === 0) {
-      throw new BadRequestException('Indica qué cambiar (monto, título o categoría)');
+      throw new BadRequestException(
+        'Indica qué cambiar (monto, título o categoría)',
+      );
     }
     const updated = await this.prisma.expense.update({
       where: { id: expenseId },
@@ -1696,7 +1686,11 @@ export class MeService {
       const { vesPerUsd, rateDate } =
         await this.bcv.getVesPerUsdForCalendarDay(rateYmd);
       const vesPerUsdNum = Number(vesPerUsd.toString());
-      data.amount = resolveAmountUsd(dto.amount, dto.amountCurrency, vesPerUsdNum);
+      data.amount = resolveAmountUsd(
+        dto.amount,
+        dto.amountCurrency,
+        vesPerUsdNum,
+      );
       data.bcvRateApplied = vesPerUsd;
       data.bcvRateDate = rateDate;
     }
@@ -1707,7 +1701,9 @@ export class MeService {
       data.source = { connect: { id: sourceId } };
     }
     if (Object.keys(data).length === 0) {
-      throw new BadRequestException('Indica qué cambiar (monto, título o fuente)');
+      throw new BadRequestException(
+        'Indica qué cambiar (monto, título o fuente)',
+      );
     }
     const updated = (await this.incomePrisma.incomeEntry.update({
       where: { id: incomeId },

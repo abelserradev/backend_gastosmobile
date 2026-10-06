@@ -82,7 +82,9 @@ export class GoogleVisionOcrService {
   }
 
   private parseServiceAccount(): ServiceAccountJson | null {
-    const raw = this.config.get<string>('FIREBASE_SERVICE_ACCOUNT_JSON')?.trim();
+    const raw = this.config
+      .get<string>('FIREBASE_SERVICE_ACCOUNT_JSON')
+      ?.trim();
     if (!raw) {
       return null;
     }
@@ -136,7 +138,13 @@ export class GoogleVisionOcrService {
         })
         .catch((err: unknown) => {
           clearTimeout(timer);
-          reject(err);
+          reject(
+            err instanceof Error
+              ? err
+              : new Error(
+                  typeof err === 'string' ? err : 'Vision request failed',
+                ),
+          );
         });
     });
   }

@@ -27,7 +27,8 @@ export const envValidationSchema = Joi.object({
         'string.min': 'SECRET_API_KEY debe tener al menos 32 caracteres',
       }),
       otherwise: Joi.string().trim().min(16).required().messages({
-        'any.required': 'SECRET_API_KEY es obligatorio (compartida con el front vía X-API-KEY)',
+        'any.required':
+          'SECRET_API_KEY es obligatorio (compartida con el front vía X-API-KEY)',
         'string.min': 'SECRET_API_KEY debe tener al menos 16 caracteres',
       }),
     }),
@@ -73,7 +74,11 @@ export const envValidationSchema = Joi.object({
   GOOGLE_VISION_ENABLED: Joi.string()
     .valid('true', 'false', '0', '1', 'off', 'on')
     .optional(),
-  GOOGLE_VISION_MONTHLY_LIMIT: Joi.number().integer().min(1).max(100_000).optional(),
+  GOOGLE_VISION_MONTHLY_LIMIT: Joi.number()
+    .integer()
+    .min(1)
+    .max(100_000)
+    .optional(),
   GOOGLE_VISION_TIMEOUT_MS: Joi.number().integer().min(5_000).optional(),
 
   APP_DISTRIBUTION_PROJECT_NUMBER: Joi.string().allow('').optional(),

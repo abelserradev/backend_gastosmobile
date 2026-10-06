@@ -14,9 +14,7 @@ import { ProfileOwnershipService } from '../services/profile-ownership.service';
  */
 @Injectable()
 export class ProfileOwnerGuard implements CanActivate {
-  constructor(
-    private readonly profileOwnership: ProfileOwnershipService,
-  ) {}
+  constructor(private readonly profileOwnership: ProfileOwnershipService) {}
 
   async canActivate(context: ExecutionContext): Promise<boolean> {
     const request = context.switchToHttp().getRequest<Request>();

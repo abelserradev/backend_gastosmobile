@@ -34,9 +34,7 @@ export class AppDistributionService {
     const projectNumber = this.config.get<string>(
       'APP_DISTRIBUTION_PROJECT_NUMBER',
     );
-    const groupAlias = this.config.get<string>(
-      'APP_DISTRIBUTION_GROUP_ALIAS',
-    );
+    const groupAlias = this.config.get<string>('APP_DISTRIBUTION_GROUP_ALIAS');
 
     const missingConfig =
       !serviceAccountJson?.trim() ||
@@ -82,7 +80,9 @@ export class AppDistributionService {
     const credential = admin.credential.cert(parsed);
     const tokenResponse = await credential.getAccessToken();
     if (!tokenResponse?.access_token) {
-      throw new Error('No se pudo obtener el access token de la cuenta de servicio');
+      throw new Error(
+        'No se pudo obtener el access token de la cuenta de servicio',
+      );
     }
     return tokenResponse.access_token;
   }
@@ -110,7 +110,9 @@ export class AppDistributionService {
 
     if (!response.ok) {
       const body = await response.text();
-      throw new Error(`App Distribution API respondió ${response.status}: ${body}`);
+      throw new Error(
+        `App Distribution API respondió ${response.status}: ${body}`,
+      );
     }
   }
 }

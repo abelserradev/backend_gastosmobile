@@ -3,6 +3,7 @@ import {
   Injectable,
   NotFoundException,
 } from '@nestjs/common';
+import { Prisma } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
 import { CacheService } from '../common/cache/cache.service';
 import { ProfileAccessService } from '../common/services/profile-access.service';
@@ -422,7 +423,7 @@ export class StockMovementService {
    * Actualiza o crea el balance de stock para una sucursal (Fase B).
    */
   private async upsertStockBalance(
-    tx: any,
+    tx: Prisma.TransactionClient,
     itemId: string,
     branchId: string,
     quantityChange: number,

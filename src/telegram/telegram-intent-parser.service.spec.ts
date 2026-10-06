@@ -10,21 +10,33 @@ describe('TelegramIntentParserService', () => {
   });
 
   it('detecta gasto con categoría', () => {
-    const intent = parser.parse('gasté 12.50 en comida almuerzo', categories, sources);
+    const intent = parser.parse(
+      'gasté 12.50 en comida almuerzo',
+      categories,
+      sources,
+    );
     expect(intent.type).toBe('expense');
     expect(intent.amount).toBe(12.5);
     expect(intent.categoryName).toBe('Comida');
   });
 
   it('detecta ingreso con fuente', () => {
-    const intent = parser.parse('recibí 800 de freelance proyecto web', categories, sources);
+    const intent = parser.parse(
+      'recibí 800 de freelance proyecto web',
+      categories,
+      sources,
+    );
     expect(intent.type).toBe('income');
     expect(intent.amount).toBe(800);
     expect(intent.sourceName).toBe('Freelance');
   });
 
   it('detecta consulta de resumen', () => {
-    const intent = parser.parse('cuánto llevo gastado este mes?', categories, sources);
+    const intent = parser.parse(
+      'cuánto llevo gastado este mes?',
+      categories,
+      sources,
+    );
     expect(intent.type).toBe('query_summary');
   });
 
@@ -39,13 +51,21 @@ describe('TelegramIntentParserService', () => {
   });
 
   it('detecta eliminar gasto', () => {
-    const intent = parser.parse('eliminar gasto comida almuerzo', categories, sources);
+    const intent = parser.parse(
+      'eliminar gasto comida almuerzo',
+      categories,
+      sources,
+    );
     expect(intent.type).toBe('delete_expense');
     expect(intent.searchQuery).toMatch(/comida|almuerzo/i);
   });
 
   it('detecta cambiar gasto con nuevo monto', () => {
-    const intent = parser.parse('cambiar gasto comida a 30', categories, sources);
+    const intent = parser.parse(
+      'cambiar gasto comida a 30',
+      categories,
+      sources,
+    );
     expect(intent.type).toBe('update_expense');
     expect(intent.newAmount).toBe(30);
   });
@@ -56,14 +76,22 @@ describe('TelegramIntentParserService', () => {
   });
 
   it('detecta gasto con monto en bs', () => {
-    const intent = parser.parse('gasté 5000 bs en comida almuerzo', categories, sources);
+    const intent = parser.parse(
+      'gasté 5000 bs en comida almuerzo',
+      categories,
+      sources,
+    );
     expect(intent.type).toBe('expense');
     expect(intent.amount).toBe(5000);
     expect(intent.amountCurrency).toBe('BS');
   });
 
   it('detecta ingreso con bolívares', () => {
-    const intent = parser.parse('recibí 120000 bolívares de freelance', categories, sources);
+    const intent = parser.parse(
+      'recibí 120000 bolívares de freelance',
+      categories,
+      sources,
+    );
     expect(intent.type).toBe('income');
     expect(intent.amount).toBe(120000);
     expect(intent.amountCurrency).toBe('BS');
@@ -76,7 +104,11 @@ describe('TelegramIntentParserService', () => {
   });
 
   it('detecta cambiar gasto con monto en bs', () => {
-    const intent = parser.parse('cambiar gasto comida a 6000 bs', categories, sources);
+    const intent = parser.parse(
+      'cambiar gasto comida a 6000 bs',
+      categories,
+      sources,
+    );
     expect(intent.type).toBe('update_expense');
     expect(intent.newAmount).toBe(6000);
     expect(intent.newAmountCurrency).toBe('BS');

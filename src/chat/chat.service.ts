@@ -34,7 +34,10 @@ export class ChatService {
     };
   }
 
-  async health(): Promise<{ ollama: 'ok' | 'unavailable'; chatEnabled: boolean }> {
+  async health(): Promise<{
+    ollama: 'ok' | 'unavailable';
+    chatEnabled: boolean;
+  }> {
     const enabled = this.ollama.isEnabled();
     if (!enabled) {
       return { ollama: 'unavailable', chatEnabled: false };

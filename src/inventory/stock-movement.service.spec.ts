@@ -588,8 +588,14 @@ describe('StockMovementService', () => {
     it('transferBetweenBranches no debe persistir unitPrice (Escenario C)', async () => {
       prisma.stockBalance.findUnique.mockResolvedValue({ quantity: 100 });
       prisma.stockMovement.create
-        .mockResolvedValueOnce({ id: 'mov-out', type: MovementType.TRANSFER_OUT })
-        .mockResolvedValueOnce({ id: 'mov-in', type: MovementType.TRANSFER_IN });
+        .mockResolvedValueOnce({
+          id: 'mov-out',
+          type: MovementType.TRANSFER_OUT,
+        })
+        .mockResolvedValueOnce({
+          id: 'mov-in',
+          type: MovementType.TRANSFER_IN,
+        });
       prisma.stockMovement.findMany.mockResolvedValue([
         {
           id: 'mov-out',
