@@ -42,8 +42,7 @@ export function resolveActiveBudgetContext(
 
 /** Filtro Prisma para gastos del periodo activo (calendario vs corte). */
 export type ExpenseReferenceMonthFilter =
-  | Date
-  | Readonly<{ gte: Date; lte: Date }>;
+  Date | Readonly<{ gte: Date; lte: Date }>;
 
 /**
  * Calendario: bucket único YYYY-MM-01.

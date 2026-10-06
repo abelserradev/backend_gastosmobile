@@ -186,9 +186,7 @@ export class MeService {
         message: 'getState expense visibility',
         data: {
           userId,
-          emailMask: userRow?.email
-            ? enmascararCorreo(userRow.email)
-            : null,
+          emailMask: userRow?.email ? enmascararCorreo(userRow.email) : null,
           userCreatedAt: userRow?.createdAt?.toISOString() ?? null,
           budgetCycleMode: pref?.budgetCycleMode ?? 'calendar_month',
           budgetCutoffDay: pref?.budgetCutoffDay ?? 1,
@@ -302,7 +300,10 @@ export class MeService {
 
     const budget = resolveActiveBudgetContext(pref);
     const { activeReferenceMonth, activeMonthDate, activePeriod } = budget;
-    const expenseReferenceMonth = buildExpenseReferenceMonthFilter(pref, budget);
+    const expenseReferenceMonth = buildExpenseReferenceMonthFilter(
+      pref,
+      budget,
+    );
 
     await this.ensureDefaultIncomeSources(userId);
 
@@ -336,12 +337,7 @@ export class MeService {
       ]);
 
     // #region agent log
-    void this.emitGetStateDataDiag(
-      userId,
-      pref,
-      budget,
-      expenses.length,
-    );
+    void this.emitGetStateDataDiag(userId, pref, budget, expenses.length);
     // #endregion
 
     const needsMonthlyIncomeSetup = !pref || this.incomeMonthNeedsRefresh(pref);
