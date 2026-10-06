@@ -324,31 +324,38 @@ export class MeService {
         ? { profileId: { in: profileIds } }
         : { profileId: { in: ['__none__'] } };
 
-    const [categories, profileRows, expenses, incomeSources, incomes] =
-      await Promise.all([
-        this.prisma.category.findMany({
-          where: { userId },
-          orderBy: { name: 'asc' },
-        }),
-        this.profileCollaborators.listProfilesForUser(userId),
-        this.prisma.expense.findMany({
-          where: {
-            ...expenseProfileScope,
-            referenceMonth: expenseReferenceMonth,
-          },
-          include: { category: true, profile: true },
-          orderBy: { createdAt: 'desc' },
-        }),
-        this.incomePrisma.incomeSource.findMany({
-          where: { userId },
-          orderBy: { name: 'asc' },
-        }) as Promise<IncomeSourceRow[]>,
-        this.incomePrisma.incomeEntry.findMany({
-          where: { userId, referenceMonth: activeMonthDate },
-          include: { source: true },
-          orderBy: { createdAt: 'desc' },
-        }) as Promise<IncomeEntryWithSourceRow[]>,
-      ]);
+    const [
+      categories,
+      profileRows,
+      expenses,
+      totalExpenseCountAllMonths,
+      incomeSources,
+      incomes,
+    ] = await Promise.all([
+      this.prisma.category.findMany({
+        where: { userId },
+        orderBy: { name: 'asc' },
+      }),
+      this.profileCollaborators.listProfilesForUser(userId),
+      this.prisma.expense.findMany({
+        where: {
+          ...expenseProfileScope,
+          referenceMonth: expenseReferenceMonth,
+        },
+        include: { category: true, profile: true },
+        orderBy: { createdAt: 'desc' },
+      }),
+      this.prisma.expense.count({ where: expenseProfileScope }),
+      this.incomePrisma.incomeSource.findMany({
+        where: { userId },
+        orderBy: { name: 'asc' },
+      }) as Promise<IncomeSourceRow[]>,
+      this.incomePrisma.incomeEntry.findMany({
+        where: { userId, referenceMonth: activeMonthDate },
+        include: { source: true },
+        orderBy: { createdAt: 'desc' },
+      }) as Promise<IncomeEntryWithSourceRow[]>,
+    ]);
 
     // #region agent log
     void this.emitGetStateDataDiag(userId, pref, budget, expenses.length);
@@ -371,6 +378,7 @@ export class MeService {
         type: p.type,
       })),
       expenses: expenses.map((e) => mapExpenseToResponse(e)),
+      totalExpenseCountAllMonths,
       incomeSources: incomeSources.map((s) => ({ id: s.id, name: s.name })),
       incomes: incomes.map((i) => mapIncomeToResponse(i)),
       activeReferenceMonth,
