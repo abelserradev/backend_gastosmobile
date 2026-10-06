@@ -52,6 +52,8 @@ import {
 import { enmascararCorreo } from '../common/utils/mask-correo-for-log.util';
 import { ResendEmailService } from '../email/resend-email.service';
 import { ProfileCollaboratorService } from '../profile-collaborators/profile-collaborator.service';
+import { AuditService } from '../audit/audit.service';
+import { AuditEventTypes } from '../audit/audit.types';
 import { resolveActiveBudgetContext } from '../common/utils/active-budget-context.util';
 import { CreateIncomeDto } from './dto/create-income.dto';
 import { DeleteIncomesDto } from './dto/delete-income.dto';
@@ -127,6 +129,7 @@ export class MeService {
     private readonly bcv: BcvRateService,
     private readonly resendEmail: ResendEmailService,
     private readonly profileCollaborators: ProfileCollaboratorService,
+    private readonly audit: AuditService,
   ) {}
 
   /** Delegates de ingreso cuando el analyzer no enlaza el codegen de PrismaService. */
@@ -938,6 +941,20 @@ export class MeService {
       },
       include: { category: true, profile: true },
     });
+
+    this.recordExpenseEvent(
+      AuditEventTypes.expense.created,
+      userId,
+      row.id,
+      profileId,
+      {
+        title: row.title,
+        amount: amountUsd,
+        amountCurrency: dto.amountCurrency,
+        categoryName: row.category?.name,
+      },
+    );
+
     return mapExpenseToResponse(row);
   }
 
@@ -989,6 +1006,20 @@ export class MeService {
       },
       include: { category: true, profile: true },
     });
+    this.recordExpenseEvent(
+      AuditEventTypes.expense.created,
+      userId,
+      row.id,
+      profileId,
+      {
+        title: row.title,
+        amount: amountUsd,
+        amountCurrency: dto.amountCurrency,
+        categoryName: row.category?.name,
+        hasReceipt: true,
+      },
+    );
+
     return mapExpenseToResponse(row);
   }
 
@@ -1159,6 +1190,17 @@ export class MeService {
     await this.prisma.expense.deleteMany({
       where: { id: { in: [...allowed] } },
     });
+
+    for (const id of allowed) {
+      this.recordExpenseEvent(
+        AuditEventTypes.expense.deleted,
+        userId,
+        id,
+        undefined,
+        {},
+      );
+    }
+
     return { deleted: allowed.size };
   }
 
@@ -1607,6 +1649,20 @@ export class MeService {
       data,
       include: { category: true, profile: true },
     });
+
+    this.recordExpenseEvent(
+      AuditEventTypes.expense.updated,
+      user.userId,
+      expenseId,
+      updated.profileId,
+      {
+        title: data.title,
+        amount: data.amount ? Number(data.amount) : undefined,
+        amountCurrency: dto.amountCurrency,
+        categoryName: updated.category?.name,
+      },
+    );
+
     return mapExpenseToResponse(updated);
   }
 
@@ -1655,5 +1711,26 @@ export class MeService {
       include: { source: true },
     })) as IncomeEntryWithSourceRow;
     return mapIncomeToResponse(updated);
+  }
+
+  private recordExpenseEvent(
+    eventType: string,
+    userId: string,
+    expenseId: string,
+    profileId: string | undefined,
+    payload: Record<string, unknown>,
+  ): void {
+    void this.audit
+      .recordDomainEvent({
+        stream: 'expense',
+        eventType,
+        entityId: expenseId,
+        profileId,
+        userId,
+        payload,
+      })
+      .catch(() => {
+        // Fail-open: la auditoría no debe fallar la operación principal.
+      });
   }
 }

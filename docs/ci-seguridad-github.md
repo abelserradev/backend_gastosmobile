@@ -34,6 +34,7 @@ Cuando Dependabot no puede actualizar una dependencia transitiva (p. ej. *"canno
 | `@hono/node-server` | `>=1.19.10` | idem |
 | `lodash` | `>=4.17.24` | chevrotain vía `@mrleebo/prisma-ast` (CLI) |
 | `body-parser` | `>=2.3.0` | Express vía `@nestjs/platform-express` |
+| `proxy-addr` | `>=2.0.8` | Express vía `@nestjs/platform-express` (GHSA-jqcg-44mw-7w3h) |
 | `protobufjs` | `>=7.6.3` | Firebase / Google Cloud |
 | `@babel/core` | `>=7.29.6` | Jest (dev) |
 

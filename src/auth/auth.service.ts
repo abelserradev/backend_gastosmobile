@@ -31,6 +31,11 @@ import { UnlockAccountRequestDto } from './dto/unlock-account-request.dto';
 import { UnlockAccountVerifyDto } from './dto/unlock-account-verify.dto';
 import { enmascararCorreo } from '../common/utils/mask-correo-for-log.util';
 import { ResendEmailService } from '../email/resend-email.service';
+import { AuditService } from '../audit/audit.service';
+import {
+  AuditEventTypes,
+  type AuditRequestContext,
+} from '../audit/audit.types';
 
 export interface AuthResponseUser {
   id: string;
@@ -65,15 +70,26 @@ export class AuthService {
     private readonly firebaseAdmin: FirebaseAdminService,
     private readonly resendEmail: ResendEmailService,
     private readonly appDistribution: AppDistributionService,
+    private readonly audit: AuditService,
   ) {}
 
-  async register(dto: RegisterDto, res: Response): Promise<AuthSessionBody> {
+  async register(
+    dto: RegisterDto,
+    res: Response,
+    ctx: AuditRequestContext,
+  ): Promise<AuthSessionBody> {
     const email = dto.email.trim().toLowerCase();
     const correoLog = enmascararCorreo(email);
     this.logger.log(`[Registro] Llegó pedido de alta para ${correoLog}`);
     const existing = await this.prisma.user.findUnique({ where: { email } });
     if (existing) {
       this.logger.warn(`[Registro] Frenamos: ya hay cuenta con ${correoLog}`);
+      this.recordAuthFailure(
+        AuditEventTypes.system.authLoginFailed,
+        existing.id,
+        ctx,
+        'register_conflict',
+      );
       throw new ConflictException('Ya existe una cuenta con este correo');
     }
     this.logger.log(`[Registro] Creando usuario en BD para ${correoLog}`);
@@ -87,6 +103,9 @@ export class AuthService {
       },
     });
     const body = this.buildSessionPayload(user.id, email, name, true);
+    this.recordAuthEvent(AuditEventTypes.system.authRegister, user.id, ctx, {
+      method: 'password',
+    });
     this.logger.log(
       `[Registro] Listo: sesión montada (userId=${user.id}), mandando bienvenida en segundo plano`,
     );
@@ -105,18 +124,31 @@ export class AuthService {
   async loginWithFirebase(
     idToken: string,
     res: Response,
+    ctx: AuditRequestContext,
   ): Promise<AuthSessionBody> {
     this.logger.log('[Ingreso Google] Validando token con Firebase…');
     let decoded;
     try {
       decoded = await this.firebaseAdmin.verifyIdToken(idToken);
     } catch {
+      this.recordAuthFailure(
+        AuditEventTypes.system.authLoginFailed,
+        undefined,
+        ctx,
+        'invalid_firebase_token',
+      );
       throw new UnauthorizedException('Token de Firebase inválido o expirado');
     }
     const emailRaw = decoded.email?.trim().toLowerCase();
     if (!emailRaw || decoded.email_verified !== true) {
       this.logger.warn(
         '[Ingreso Google] Google no mandó correo verificado, no seguimos',
+      );
+      this.recordAuthFailure(
+        AuditEventTypes.system.authLoginFailed,
+        undefined,
+        ctx,
+        'unverified_google_email',
       );
       throw new UnauthorizedException(
         'Google no devolvió un correo verificado',
@@ -146,6 +178,12 @@ export class AuthService {
       createdWithFirebase = true;
     } else if (user.lockedAt) {
       this.logger.warn(`[Ingreso Google] Cuenta bloqueada: ${correoLog}`);
+      this.recordAuthFailure(
+        AuditEventTypes.system.authLoginFailed,
+        user.id,
+        ctx,
+        AUTH_ERROR_ACCOUNT_LOCKED,
+      );
       throw this.buildAccountLockedException();
     } else if (!user.name?.trim() && displayName) {
       user = await this.prisma.user.update({
@@ -156,6 +194,10 @@ export class AuthService {
     const name = user.name?.trim() ? user.name : '';
     const hasPassword = Boolean(user.passwordHash);
     const body = this.buildSessionPayload(user.id, emailRaw, name, hasPassword);
+    this.recordAuthEvent(AuditEventTypes.system.authFirebase, user.id, ctx, {
+      method: 'firebase',
+      isNewUser: createdWithFirebase,
+    });
     if (createdWithFirebase) {
       this.logger.log(
         `[Ingreso Google] Sesión lista; bienvenida en segundo plano pa' ${correoLog}`,
@@ -173,23 +215,43 @@ export class AuthService {
     return this.commitSession(res, body);
   }
 
-  async login(dto: LoginDto, res: Response): Promise<AuthSessionBody> {
+  async login(
+    dto: LoginDto,
+    res: Response,
+    ctx: AuditRequestContext,
+  ): Promise<AuthSessionBody> {
     const email = dto.email.trim().toLowerCase();
     const correoLog = enmascararCorreo(email);
     this.logger.log(`[Ingreso] Intento con correo/clave para ${correoLog}`);
+
     const user = await this.prisma.user.findUnique({ where: { email } });
+
     if (user?.lockedAt) {
       this.logger.warn(`[Ingreso] Cuenta bloqueada: ${correoLog}`);
+      this.recordAuthFailure(
+        AuditEventTypes.system.authLoginFailed,
+        user.id,
+        ctx,
+        AUTH_ERROR_ACCOUNT_LOCKED,
+      );
       throw this.buildAccountLockedException();
     }
+
     const hashForCompare = user?.passwordHash ?? this.getTimingDummyHash();
     const passwordOk = await bcrypt.compare(dto.password, hashForCompare);
+
     if (!user?.passwordHash || !passwordOk) {
       if (user?.passwordHash) {
         const justLocked = await this.recordFailedPasswordLogin(user.id);
         if (justLocked) {
           this.logger.warn(
             `[Ingreso] Se bloqueó la cuenta por intentos: ${correoLog}`,
+          );
+          this.recordAuthFailure(
+            AuditEventTypes.system.authLoginFailed,
+            user.id,
+            ctx,
+            AUTH_ERROR_ACCOUNT_LOCKED,
           );
           throw this.buildAccountLockedException();
         }
@@ -199,16 +261,30 @@ export class AuthService {
           `[Ingreso] No hay cuenta o no tiene clave: ${correoLog}`,
         );
       }
+      this.recordAuthFailure(
+        AuditEventTypes.system.authLoginFailed,
+        user?.id,
+        ctx,
+        'invalid_credentials',
+      );
       throw new UnauthorizedException('Credenciales inválidas');
     }
+
     if (user.failedLoginAttempts > 0) {
       await this.prisma.user.update({
         where: { id: user.id },
         data: { failedLoginAttempts: 0 },
       });
     }
+
     const displayName = user.name?.trim() ? user.name : '';
     const body = this.buildSessionPayload(user.id, email, displayName, true);
+    this.recordAuthEvent(
+      AuditEventTypes.system.authLoginSuccess,
+      user.id,
+      ctx,
+      { method: 'password' },
+    );
     this.logger.log(`[Ingreso] Todo fino, sesión montada para ${correoLog}`);
     return this.commitSession(res, body);
   }
@@ -497,5 +573,68 @@ export class AuthService {
       user: { id: userId, email, name, hasPassword },
       token,
     };
+  }
+
+  private recordAuthEvent(
+    eventType: string,
+    userId: string | undefined,
+    ctx: AuditRequestContext,
+    extra: Record<string, unknown> = {},
+  ): void {
+    void this.audit
+      .logBackend({
+        level: 'info',
+        message: eventType,
+        requestId: ctx.requestId,
+        userId,
+        context: {
+          channel: ctx.channel,
+          ip: ctx.ip,
+          userAgent: ctx.userAgent,
+          ...extra,
+        },
+      })
+      .catch(() => {
+        // Fail-open: el log del servidor ya registró el evento.
+      });
+
+    void this.audit
+      .recordDomainEvent({
+        stream: 'system',
+        eventType,
+        userId,
+        payload: {
+          channel: ctx.channel,
+          ip: ctx.ip,
+          ...extra,
+        },
+      })
+      .catch(() => {
+        // Fail-open.
+      });
+  }
+
+  private recordAuthFailure(
+    eventType: string,
+    userId: string | undefined,
+    ctx: AuditRequestContext,
+    reason: string,
+  ): void {
+    void this.audit
+      .logBackend({
+        level: 'warn',
+        message: eventType,
+        requestId: ctx.requestId,
+        userId,
+        context: {
+          channel: ctx.channel,
+          ip: ctx.ip,
+          userAgent: ctx.userAgent,
+          reason,
+        },
+      })
+      .catch(() => {
+        // Fail-open.
+      });
   }
 }

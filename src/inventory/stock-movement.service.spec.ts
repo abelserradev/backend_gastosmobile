@@ -13,6 +13,7 @@ import { AdjustStockDto } from './dto/create-movement.dto';
 describe('StockMovementService', () => {
   let service: StockMovementService;
   let cache: { del: jest.Mock };
+  let audit: { recordDomainEvent: jest.Mock };
   let profileAccess: {
     assertInventoryAccess: jest.Mock;
   };
@@ -41,6 +42,7 @@ describe('StockMovementService', () => {
 
   beforeEach(() => {
     cache = { del: jest.fn().mockResolvedValue(undefined) };
+    audit = { recordDomainEvent: jest.fn().mockResolvedValue(undefined) };
     profileAccess = {
       assertInventoryAccess: jest.fn().mockResolvedValue({
         access: 'owner',
@@ -68,6 +70,7 @@ describe('StockMovementService', () => {
       prisma as never,
       cache as never,
       profileAccess as never,
+      audit as never,
     );
   });
 

@@ -7,6 +7,8 @@ import { Prisma } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
 import { CacheService } from '../common/cache/cache.service';
 import { ProfileAccessService } from '../common/services/profile-access.service';
+import { AuditService } from '../audit/audit.service';
+import { AuditEventTypes } from '../audit/audit.types';
 import { invalidateInventorySummary } from './inventory-cache.util';
 import {
   AdjustStockDto,
@@ -38,6 +40,7 @@ export class StockMovementService {
     private readonly prisma: PrismaService,
     private readonly cache: CacheService,
     private readonly profileAccess: ProfileAccessService,
+    private readonly audit: AuditService,
   ) {}
 
   /**
@@ -138,6 +141,18 @@ export class StockMovementService {
     });
 
     await invalidateInventorySummary(this.cache, profileId);
+    this.recordInventoryEvent(
+      this.movementEventType(dto.type),
+      userId,
+      result.id,
+      profileId,
+      {
+        itemId: dto.itemId,
+        movementType: dto.type,
+        quantity: signedQuantity,
+        branchId: dto.branchId,
+      },
+    );
     return mapStockMovementToResponse(result);
   }
 
@@ -186,6 +201,16 @@ export class StockMovementService {
     });
 
     await invalidateInventorySummary(this.cache, profileId);
+    this.recordInventoryEvent(
+      AuditEventTypes.inventory.adjustment,
+      userId,
+      result.id,
+      profileId,
+      {
+        itemId: dto.itemId,
+        adjustmentQty: dto.adjustmentQty,
+      },
+    );
     return mapStockMovementToResponse(result);
   }
 
@@ -276,6 +301,18 @@ export class StockMovementService {
     });
 
     await invalidateInventorySummary(this.cache, profileId);
+    this.recordInventoryEvent(
+      AuditEventTypes.inventory.transfer,
+      userId,
+      movements.map((m) => m.id).join(','),
+      profileId,
+      {
+        itemId,
+        sourceBranchId,
+        targetBranchId,
+        quantity,
+      },
+    );
     return movements.map(mapStockMovementToResponse);
   }
 
@@ -353,6 +390,33 @@ export class StockMovementService {
           `resultado proyectado: ${projectedStock}`,
       );
     }
+  }
+
+  private recordInventoryEvent(
+    eventType: string,
+    userId: string,
+    entityId: string,
+    profileId: string,
+    payload: Record<string, unknown>,
+  ): void {
+    void this.audit
+      .recordDomainEvent({
+        stream: 'inventory',
+        eventType,
+        entityId,
+        profileId,
+        userId,
+        payload,
+      })
+      .catch(() => {
+        // Fail-open.
+      });
+  }
+
+  private movementEventType(type: MovementType): string {
+    return type === MovementType.ADJUSTMENT
+      ? AuditEventTypes.inventory.adjustment
+      : AuditEventTypes.inventory.movement;
   }
 
   /**
