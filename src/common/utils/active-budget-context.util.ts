@@ -1,6 +1,7 @@
 import {
   formatYmdInCaracas,
   getBudgetPeriodForCutoffDay,
+  parseYmdToUtcNoon,
   startOfMonthYmdInCaracas,
   type BudgetPeriod,
 } from './caracas-date';
@@ -23,32 +24,69 @@ export interface ActiveBudgetContext {
   activePeriod: BudgetPeriod;
 }
 
+export type BudgetCyclePref = {
+  budgetCycleMode?: string | null;
+  budgetCutoffDay?: number | null;
+};
+
 /** Una sola fuente de verdad para listar/crear movimientos del periodo vigente. */
 export function resolveActiveBudgetContext(
-  pref: {
-    budgetCycleMode?: string | null;
-    budgetCutoffDay?: number | null;
-  } | null,
+  pref: BudgetCyclePref | null,
+  asOfYmd: string = formatYmdInCaracas(),
 ): ActiveBudgetContext {
-  const todayYmd = formatYmdInCaracas();
   const mode = pref?.budgetCycleMode ?? 'calendar_month';
   const cutoffDay = pref?.budgetCutoffDay ?? 1;
 
   if (mode === 'calendar_month') {
-    const activeReferenceMonth = startOfMonthYmdInCaracas();
+    const anchor = parseYmdToUtcNoon(asOfYmd);
+    const activeReferenceMonth = startOfMonthYmdInCaracas(anchor);
     return {
       activeReferenceMonth,
       activeMonthDate: toReferenceMonthDate(activeReferenceMonth),
-      activePeriod: getBudgetPeriodForCutoffDay(todayYmd, 1),
+      activePeriod: getBudgetPeriodForCutoffDay(asOfYmd, 1),
     };
   }
 
-  const activePeriod = getBudgetPeriodForCutoffDay(todayYmd, cutoffDay);
+  const activePeriod = getBudgetPeriodForCutoffDay(asOfYmd, cutoffDay);
   return {
     activeReferenceMonth: activePeriod.periodStart,
     activeMonthDate: toReferenceMonthDate(activePeriod.periodStart),
     activePeriod,
   };
+}
+
+/** REQ-REG-001/002: periodo al registrar; paymentDate no altera el bucket. */
+export class ReferenceMonthMismatchError extends Error {
+  constructor(
+    readonly expectedYmd: string,
+    readonly receivedYmd: string,
+  ) {
+    super(
+      `referenceMonth debe ser ${expectedYmd} (periodo activo al registrar), recibido ${receivedYmd}`,
+    );
+    this.name = 'ReferenceMonthMismatchError';
+  }
+}
+
+export function resolveExpenseReferenceMonthForRegistration(
+  pref: BudgetCyclePref | null,
+  registrationYmd: string,
+  clientReferenceMonth?: string,
+): string {
+  const { activeReferenceMonth } = resolveActiveBudgetContext(
+    pref,
+    registrationYmd,
+  );
+  if (
+    clientReferenceMonth !== undefined &&
+    clientReferenceMonth !== activeReferenceMonth
+  ) {
+    throw new ReferenceMonthMismatchError(
+      activeReferenceMonth,
+      clientReferenceMonth,
+    );
+  }
+  return activeReferenceMonth;
 }
 
 /** Filtro Prisma para gastos del periodo activo (calendario vs corte). */
@@ -59,10 +97,7 @@ export type ExpenseReferenceMonthFilter = Readonly<{ gte: Date; lt: Date }>;
  * Corte: cualquier referenceMonth entre inicio y fin del periodo (incluye legacy en -01).
  */
 export function buildExpenseReferenceMonthFilter(
-  pref: {
-    budgetCycleMode?: string | null;
-    budgetCutoffDay?: number | null;
-  } | null,
+  pref: BudgetCyclePref | null,
   budget: ActiveBudgetContext,
 ): ExpenseReferenceMonthFilter {
   const mode = pref?.budgetCycleMode ?? 'calendar_month';
