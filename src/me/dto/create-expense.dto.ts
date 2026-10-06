@@ -47,12 +47,12 @@ export class CreateExpenseDto {
   @MaxLength(80)
   categoryName?: string;
 
-  /** YYYY-MM-DD del primer día del mes; si omites, mes calendario actual (Caracas). */
+  /** Debe coincidir con el periodStart activo al registrar; si omites, el backend lo asigna. */
   @IsOptional()
   @Matches(/^\d{4}-\d{2}-\d{2}$/)
   referenceMonth?: string;
 
-  /** Día del pago (Caracas) para fijar tasa BCV; si omites, hoy en Caracas. */
+  /** Día del pago (Caracas) para tasa BCV; no define el periodo presupuestario. */
   @IsOptional()
   @Matches(/^\d{4}-\d{2}-\d{2}$/)
   paymentDate?: string;

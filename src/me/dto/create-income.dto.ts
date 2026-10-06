@@ -42,12 +42,12 @@ export class CreateIncomeDto {
   @MaxLength(80)
   sourceName?: string;
 
-  /** YYYY-MM-DD; si omites, periodo activo (Caracas + corte). */
+  /** Debe coincidir con el periodStart activo al registrar; si omites, el backend lo asigna. */
   @IsOptional()
   @Matches(/^\d{4}-\d{2}-\d{2}$/)
   referenceMonth?: string;
 
-  /** Día del ingreso para tasa BCV. */
+  /** Día del ingreso para tasa BCV; no define el periodo presupuestario. */
   @IsOptional()
   @Matches(/^\d{4}-\d{2}-\d{2}$/)
   receivedDate?: string;

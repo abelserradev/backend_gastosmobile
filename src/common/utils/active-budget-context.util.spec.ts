@@ -1,8 +1,11 @@
 import {
   buildExpenseReferenceMonthFilter,
   calendarMonthReferenceRange,
+  ReferenceMonthMismatchError,
   resolveActiveBudgetContext,
+  resolveExpenseReferenceMonthForRegistration,
 } from './active-budget-context.util';
+import { getBudgetPeriodForCutoffDay } from './caracas-date';
 
 describe('active-budget-context expense filters', () => {
   it('calendario: rango semiabierto del mes activo', () => {
@@ -51,5 +54,43 @@ describe('active-budget-context expense filters', () => {
     const cutoffBucket = new Date('2026-09-16T00:00:00.000Z');
     expect(cutoffBucket.getTime()).toBeGreaterThanOrEqual(range.gte.getTime());
     expect(cutoffBucket.getTime()).toBeLessThan(range.lt.getTime());
+  });
+});
+
+describe('resolveExpenseReferenceMonthForRegistration (REQ-REG)', () => {
+  const cutoffPref = {
+    budgetCycleMode: 'monthly_cutoff' as const,
+    budgetCutoffDay: 5,
+  };
+
+  it('corte 5, registro 2026-10-06 → referenceMonth 2026-10-06 aunque pago fuera del periodo', () => {
+    const period = getBudgetPeriodForCutoffDay('2026-10-06', 5);
+    expect(period.periodStart).toBe('2026-10-06');
+    expect(period.cutoffDate).toBe('2026-11-05');
+
+    const ref = resolveExpenseReferenceMonthForRegistration(
+      cutoffPref,
+      '2026-10-06',
+    );
+    expect(ref).toBe('2026-10-06');
+  });
+
+  it('rechaza referenceMonth cliente distinto al periodStart activo', () => {
+    expect(() =>
+      resolveExpenseReferenceMonthForRegistration(
+        cutoffPref,
+        '2026-10-06',
+        '2026-09-06',
+      ),
+    ).toThrow(ReferenceMonthMismatchError);
+  });
+
+  it('acepta referenceMonth omitido o igual al activo', () => {
+    const ref = resolveExpenseReferenceMonthForRegistration(
+      cutoffPref,
+      '2026-10-06',
+      '2026-10-06',
+    );
+    expect(ref).toBe('2026-10-06');
   });
 });

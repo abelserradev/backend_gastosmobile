@@ -57,7 +57,9 @@ import { AuditEventTypes } from '../audit/audit.types';
 import {
   buildExpenseReferenceMonthFilter,
   calendarMonthReferenceRange,
+  ReferenceMonthMismatchError,
   resolveActiveBudgetContext,
+  resolveExpenseReferenceMonthForRegistration,
 } from '../common/utils/active-budget-context.util';
 import { CreateIncomeDto } from './dto/create-income.dto';
 import { DeleteIncomesDto } from './dto/delete-income.dto';
@@ -280,10 +282,6 @@ export class MeService {
         orderBy: { createdAt: 'desc' },
       }) as Promise<IncomeEntryWithSourceRow[]>,
     ]);
-
-    // #region agent log
-    void this.emitGetStateDataDiag(userId, pref, budget, expenses.length);
-    // #endregion
 
     const needsMonthlyIncomeSetup = !pref || this.incomeMonthNeedsRefresh(pref);
 
@@ -955,8 +953,11 @@ export class MeService {
       name: dto.categoryName,
     });
     const profileId = await this.resolveProfileId(userId, dto.profileId);
-    const budget = await this.getActiveBudgetContextForUser(userId);
-    const refStr = dto.referenceMonth ?? budget.activeReferenceMonth;
+    const pref = await this.getBudgetCyclePrefForUser(userId);
+    const refStr = this.resolveMovementReferenceMonthYmd(
+      pref,
+      dto.referenceMonth,
+    );
     const rateYmd = dto.paymentDate ?? formatYmdInCaracas();
     const { vesPerUsd, rateDate } =
       await this.bcv.getVesPerUsdForCalendarDay(rateYmd);
@@ -1017,8 +1018,8 @@ export class MeService {
     const { vesPerUsd, rateDate } =
       await this.bcv.getVesPerUsdForCalendarDay(rateYmd);
     const paymentDate = parseYmdToUtcNoon(rateYmd);
-    const budget = await this.getActiveBudgetContextForUser(userId);
-    const refStr = budget.activeReferenceMonth;
+    const pref = await this.getBudgetCyclePrefForUser(userId);
+    const refStr = this.resolveMovementReferenceMonthYmd(pref);
 
     const vesPerUsdNum = Number(vesPerUsd.toString());
     const amountUsd = resolveAmountUsd(
@@ -1579,13 +1580,38 @@ export class MeService {
     return row.id;
   }
 
-  private async getActiveBudgetContextForUser(userId: string) {
-    const pref = await this.preferenceReadPrisma.findUnique({
+  private async getBudgetCyclePrefForUser(userId: string) {
+    return this.preferenceReadPrisma.findUnique({
       where: { userId },
       select: { budgetCycleMode: true, budgetCutoffDay: true },
     });
+  }
+
+  private async getActiveBudgetContextForUser(userId: string) {
+    const pref = await this.getBudgetCyclePrefForUser(userId);
     return resolveActiveBudgetContext(pref);
   }
+
+  /** REQ-REG-001/003: periodo al registrar; rechaza referenceMonth ajeno al activo. */
+  private resolveMovementReferenceMonthYmd(
+    pref: Awaited<ReturnType<MeService['getBudgetCyclePrefForUser']>>,
+    clientReferenceMonth?: string,
+  ): string {
+    const registrationYmd = formatYmdInCaracas();
+    try {
+      return resolveExpenseReferenceMonthForRegistration(
+        pref,
+        registrationYmd,
+        clientReferenceMonth,
+      );
+    } catch (err) {
+      if (err instanceof ReferenceMonthMismatchError) {
+        throw new BadRequestException(err.message);
+      }
+      throw err;
+    }
+  }
+
   async listIncomeSources(user: AuthUserPayload) {
     await this.ensureDefaultIncomeSources(user.userId);
     const rows = (await this.incomePrisma.incomeSource.findMany({
@@ -1611,8 +1637,11 @@ export class MeService {
       id: dto.sourceId,
       name: dto.sourceName,
     });
-    const budget = await this.getActiveBudgetContextForUser(userId);
-    const refStr = dto.referenceMonth ?? budget.activeReferenceMonth;
+    const pref = await this.getBudgetCyclePrefForUser(userId);
+    const refStr = this.resolveMovementReferenceMonthYmd(
+      pref,
+      dto.referenceMonth,
+    );
     const rateYmd = dto.receivedDate ?? formatYmdInCaracas();
     const { vesPerUsd, rateDate } =
       await this.bcv.getVesPerUsdForCalendarDay(rateYmd);
