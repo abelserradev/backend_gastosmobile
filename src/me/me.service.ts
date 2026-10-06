@@ -54,7 +54,11 @@ import { ResendEmailService } from '../email/resend-email.service';
 import { ProfileCollaboratorService } from '../profile-collaborators/profile-collaborator.service';
 import { AuditService } from '../audit/audit.service';
 import { AuditEventTypes } from '../audit/audit.types';
-import { resolveActiveBudgetContext } from '../common/utils/active-budget-context.util';
+import {
+  buildExpenseReferenceMonthFilter,
+  calendarMonthReferenceRange,
+  resolveActiveBudgetContext,
+} from '../common/utils/active-budget-context.util';
 import { CreateIncomeDto } from './dto/create-income.dto';
 import { DeleteIncomesDto } from './dto/delete-income.dto';
 import { UpdateExpenseFieldsDto } from './dto/update-expense-fields.dto';
@@ -149,6 +153,79 @@ export class MeService {
     return expenseReceiptDb(this.prisma);
   }
 
+  /** Diagnóstico incidente prod: activar con GASTOS_DATA_DIAG=1 en Coolify. */
+  private async emitGetStateDataDiag(
+    userId: string,
+    pref: UserPreferenceWithRegRate | null,
+    budget: ReturnType<typeof resolveActiveBudgetContext>,
+    visibleExpenseCount: number,
+  ): Promise<void> {
+    if (process.env.GASTOS_DATA_DIAG !== '1') {
+      return;
+    }
+    try {
+      const [totalExpenseCount, refGroups, userRow] = await Promise.all([
+        this.prisma.expense.count({
+          where: { profile: { userId } },
+        }),
+        this.prisma.expense.groupBy({
+          by: ['referenceMonth'],
+          where: { profile: { userId } },
+          _count: { _all: true },
+        }),
+        this.prisma.user.findUnique({
+          where: { id: userId },
+          select: { email: true, createdAt: true },
+        }),
+      ]);
+      const payload = {
+        sessionId: 'be21a4',
+        runId: process.env.GASTOS_DATA_DIAG_RUN ?? 'pre-fix',
+        hypothesisId: 'H2-H5',
+        location: 'me.service.ts:emitGetStateDataDiag',
+        message: 'getState expense visibility',
+        data: {
+          userId,
+          emailMask: userRow?.email
+            ? enmascararCorreo(userRow.email)
+            : null,
+          userCreatedAt: userRow?.createdAt?.toISOString() ?? null,
+          budgetCycleMode: pref?.budgetCycleMode ?? 'calendar_month',
+          budgetCutoffDay: pref?.budgetCutoffDay ?? 1,
+          activeReferenceMonth: budget.activeReferenceMonth,
+          activeMonthDateIso: budget.activeMonthDate.toISOString(),
+          expenseReferenceFilter: buildExpenseReferenceMonthFilter(
+            pref,
+            budget,
+          ),
+          visibleExpenseCount,
+          totalExpenseCount,
+          referenceMonthBuckets: refGroups.map((g) => ({
+            ref: g.referenceMonth.toISOString().slice(0, 10),
+            count: g._count._all,
+          })),
+        },
+        timestamp: Date.now(),
+      };
+      this.logger.warn(`[GASTOS_DATA_DIAG] ${JSON.stringify(payload.data)}`);
+      fetch(
+        'http://127.0.0.1:7866/ingest/8b0fb9de-b03b-491d-ab2b-45c8cf9bfd63',
+        {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'X-Debug-Session-Id': 'be21a4',
+          },
+          body: JSON.stringify(payload),
+        },
+      ).catch(() => {});
+    } catch (err: unknown) {
+      this.logger.warn(
+        `[GASTOS_DATA_DIAG] falló: ${err instanceof Error ? err.message : String(err)}`,
+      );
+    }
+  }
+
   /**
    * Determina si el periodo de ingreso necesita renovación.
    * FEAT-001: Soporta ciclos calendario o corte configurable.
@@ -225,6 +302,7 @@ export class MeService {
 
     const budget = resolveActiveBudgetContext(pref);
     const { activeReferenceMonth, activeMonthDate, activePeriod } = budget;
+    const expenseReferenceMonth = buildExpenseReferenceMonthFilter(pref, budget);
 
     await this.ensureDefaultIncomeSources(userId);
 
@@ -241,7 +319,7 @@ export class MeService {
         this.prisma.expense.findMany({
           where: {
             profile: { userId },
-            referenceMonth: activeMonthDate,
+            referenceMonth: expenseReferenceMonth,
           },
           include: { category: true, profile: true },
           orderBy: { createdAt: 'desc' },
@@ -256,6 +334,15 @@ export class MeService {
           orderBy: { createdAt: 'desc' },
         }) as Promise<IncomeEntryWithSourceRow[]>,
       ]);
+
+    // #region agent log
+    void this.emitGetStateDataDiag(
+      userId,
+      pref,
+      budget,
+      expenses.length,
+    );
+    // #endregion
 
     const needsMonthlyIncomeSetup = !pref || this.incomeMonthNeedsRefresh(pref);
 
@@ -865,13 +952,16 @@ export class MeService {
   }
 
   async listExpenses(user: AuthUserPayload) {
-    const { activeMonthDate } = await this.getActiveBudgetContextForUser(
-      user.userId,
-    );
+    const pref = await this.preferenceReadPrisma.findUnique({
+      where: { userId: user.userId },
+      select: { budgetCycleMode: true, budgetCutoffDay: true },
+    });
+    const budget = resolveActiveBudgetContext(pref);
+    const referenceMonth = buildExpenseReferenceMonthFilter(pref, budget);
     const rows = await this.prisma.expense.findMany({
       where: {
         profile: { userId: user.userId },
-        referenceMonth: activeMonthDate,
+        referenceMonth,
       },
       include: { category: true, profile: true },
       orderBy: { createdAt: 'desc' },
@@ -899,9 +989,12 @@ export class MeService {
     if (!/^\d{4}-\d{2}$/.test(ym)) {
       throw new BadRequestException('Mes inválido (formato YYYY-MM)');
     }
-    const ref = toReferenceMonthDate(`${ym}-01`);
+    const refRange = calendarMonthReferenceRange(ym);
     const rows = await this.prisma.expense.findMany({
-      where: { profile: { userId: user.userId }, referenceMonth: ref },
+      where: {
+        profile: { userId: user.userId },
+        referenceMonth: refRange,
+      },
       include: { category: true, profile: true },
       orderBy: { createdAt: 'desc' },
     });

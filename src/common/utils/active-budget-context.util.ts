@@ -39,3 +39,44 @@ export function resolveActiveBudgetContext(
     activePeriod,
   };
 }
+
+/** Filtro Prisma para gastos del periodo activo (calendario vs corte). */
+export type ExpenseReferenceMonthFilter =
+  | Date
+  | Readonly<{ gte: Date; lte: Date }>;
+
+/**
+ * Calendario: bucket único YYYY-MM-01.
+ * Corte: cualquier referenceMonth entre inicio y fin del periodo (incluye legacy en -01).
+ */
+export function buildExpenseReferenceMonthFilter(
+  pref: {
+    budgetCycleMode?: string | null;
+    budgetCutoffDay?: number | null;
+  } | null,
+  budget: ActiveBudgetContext,
+): ExpenseReferenceMonthFilter {
+  const mode = pref?.budgetCycleMode ?? 'calendar_month';
+  if (mode === 'calendar_month') {
+    return budget.activeMonthDate;
+  }
+  return {
+    gte: toReferenceMonthDate(budget.activePeriod.periodStart),
+    lte: toReferenceMonthDate(budget.activePeriod.cutoffDate),
+  };
+}
+
+/** Rango [primer día, último día] de un mes calendario YYYY-MM (historial). */
+export function calendarMonthReferenceRange(
+  ym: string,
+): Readonly<{ gte: Date; lte: Date }> {
+  const [yStr, mStr] = ym.split('-');
+  const y = Number(yStr);
+  const mo = Number(mStr);
+  const lastDay = new Date(Date.UTC(y, mo, 0)).getUTCDate();
+  const dayPad = String(lastDay).padStart(2, '0');
+  return {
+    gte: toReferenceMonthDate(`${ym}-01`),
+    lte: toReferenceMonthDate(`${ym}-${dayPad}`),
+  };
+}
