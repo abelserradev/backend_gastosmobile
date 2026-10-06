@@ -15,6 +15,10 @@ import { ResetPasswordDto } from './dto/reset-password.dto';
 import { SetupPasswordDto } from './dto/setup-password.dto';
 import { UnlockAccountRequestDto } from './dto/unlock-account-request.dto';
 import { UnlockAccountVerifyDto } from './dto/unlock-account-verify.dto';
+import {
+  APP_VERSION,
+  EXPENSE_REFERENCE_FILTER_ID,
+} from '../common/constants/deploy-capabilities.const';
 
 @Controller('auth')
 export class AuthController {
@@ -122,11 +126,22 @@ export class AuthController {
   @Public()
   @SkipThrottle()
   @Get('health')
-  async health(): Promise<{ ok: boolean; redis: 'up' | 'down' | 'disabled' }> {
+  async health(): Promise<{
+    ok: boolean;
+    redis: 'up' | 'down' | 'disabled';
+    version: string;
+    expenseReferenceFilter: typeof EXPENSE_REFERENCE_FILTER_ID;
+  }> {
+    const version = process.env.APP_VERSION ?? APP_VERSION;
+    const base = {
+      ok: true as const,
+      version,
+      expenseReferenceFilter: EXPENSE_REFERENCE_FILTER_ID,
+    };
     if (!this.cache.isUsingRedis()) {
-      return { ok: true, redis: 'disabled' };
+      return { ...base, redis: 'disabled' };
     }
     const redisUp = await this.cache.ping();
-    return { ok: true, redis: redisUp ? 'up' : 'down' };
+    return { ...base, redis: redisUp ? 'up' : 'down' };
   }
 }
