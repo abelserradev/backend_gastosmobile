@@ -6,6 +6,17 @@ import {
 } from './caracas-date';
 import { toReferenceMonthDate } from '../../me/me.mappers';
 
+/** Prisma devuelve @db.Date como medianoche UTC; rangos con T12:00 excluían filas. */
+function referenceDateInclusiveRange(
+  startYmd: string,
+  endYmd: string,
+): Readonly<{ gte: Date; lte: Date }> {
+  return {
+    gte: new Date(`${startYmd}T00:00:00.000Z`),
+    lte: new Date(`${endYmd}T23:59:59.999Z`),
+  };
+}
+
 export interface ActiveBudgetContext {
   activeReferenceMonth: string;
   activeMonthDate: Date;
@@ -60,10 +71,10 @@ export function buildExpenseReferenceMonthFilter(
     const ym = budget.activeReferenceMonth.slice(0, 7);
     return calendarMonthReferenceRange(ym);
   }
-  return {
-    gte: toReferenceMonthDate(budget.activePeriod.periodStart),
-    lte: toReferenceMonthDate(budget.activePeriod.cutoffDate),
-  };
+  return referenceDateInclusiveRange(
+    budget.activePeriod.periodStart,
+    budget.activePeriod.cutoffDate,
+  );
 }
 
 /** Rango [primer día, último día] de un mes calendario YYYY-MM (historial). */
@@ -75,8 +86,5 @@ export function calendarMonthReferenceRange(
   const mo = Number(mStr);
   const lastDay = new Date(Date.UTC(y, mo, 0)).getUTCDate();
   const dayPad = String(lastDay).padStart(2, '0');
-  return {
-    gte: toReferenceMonthDate(`${ym}-01`),
-    lte: toReferenceMonthDate(`${ym}-${dayPad}`),
-  };
+  return referenceDateInclusiveRange(`${ym}-01`, `${ym}-${dayPad}`);
 }
