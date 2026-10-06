@@ -3,8 +3,6 @@ import {
   calendarMonthReferenceRange,
   resolveActiveBudgetContext,
 } from './active-budget-context.util';
-import { toReferenceMonthDate } from '../../me/me.mappers';
-
 describe('active-budget-context expense filters', () => {
   it('calendario: rango del mes activo (no solo igualdad al día 01)', () => {
     const budget = resolveActiveBudgetContext({
@@ -23,22 +21,36 @@ describe('active-budget-context expense filters', () => {
     const pref = { budgetCycleMode: 'monthly_cutoff', budgetCutoffDay: 15 };
     const budget = resolveActiveBudgetContext(pref);
     const filter = buildExpenseReferenceMonthFilter(pref, budget);
-    expect(filter).toEqual({
-      gte: toReferenceMonthDate(budget.activePeriod.periodStart),
-      lte: toReferenceMonthDate(budget.activePeriod.cutoffDate),
-    });
-    const legacyOct = toReferenceMonthDate('2026-10-01');
+    if (typeof filter !== 'object' || !('gte' in filter)) {
+      throw new Error('expected range filter');
+    }
+    expect(filter.gte).toEqual(
+      new Date(`${budget.activePeriod.periodStart}T00:00:00.000Z`),
+    );
+    expect(filter.lte).toEqual(
+      new Date(`${budget.activePeriod.cutoffDate}T23:59:59.999Z`),
+    );
+    const legacyOct = new Date('2026-10-01T00:00:00.000Z');
     if (typeof filter === 'object' && 'gte' in filter) {
       expect(legacyOct.getTime()).toBeGreaterThanOrEqual(filter.gte.getTime());
       expect(legacyOct.getTime()).toBeLessThanOrEqual(filter.lte.getTime());
     }
   });
 
+  it('rango calendario incluye referenceMonth persistido como medianoche UTC', () => {
+    const range = calendarMonthReferenceRange('2026-10');
+    const midnightFromDb = new Date('2026-10-01T00:00:00.000Z');
+    expect(midnightFromDb.getTime()).toBeGreaterThanOrEqual(
+      range.gte.getTime(),
+    );
+    expect(midnightFromDb.getTime()).toBeLessThanOrEqual(range.lte.getTime());
+  });
+
   it('historial YYYY-MM: rango cubre día 01 y buckets de corte (ej. 2026-09-16)', () => {
     const range = calendarMonthReferenceRange('2026-09');
-    expect(range.gte).toEqual(toReferenceMonthDate('2026-09-01'));
-    expect(range.lte).toEqual(toReferenceMonthDate('2026-09-30'));
-    const cutoffBucket = toReferenceMonthDate('2026-09-16');
+    expect(range.gte).toEqual(new Date('2026-09-01T00:00:00.000Z'));
+    expect(range.lte).toEqual(new Date('2026-09-30T23:59:59.999Z'));
+    const cutoffBucket = new Date('2026-09-16T00:00:00.000Z');
     expect(cutoffBucket.getTime()).toBeGreaterThanOrEqual(range.gte.getTime());
     expect(cutoffBucket.getTime()).toBeLessThanOrEqual(range.lte.getTime());
   });
