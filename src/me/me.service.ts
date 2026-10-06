@@ -153,6 +153,12 @@ export class MeService {
     return expenseReceiptDb(this.prisma);
   }
 
+  /** Perfiles propios + comercio compartido (FEAT-003); alinea gastos con listProfiles. */
+  private async accessibleProfileIdsForUser(userId: string): Promise<string[]> {
+    const rows = await this.profileCollaborators.listProfilesForUser(userId);
+    return rows.map((p) => p.id);
+  }
+
   /** Diagnóstico incidente prod: activar con GASTOS_DATA_DIAG=1 en Coolify. */
   private async emitGetStateDataDiag(
     userId: string,
@@ -164,13 +170,18 @@ export class MeService {
       return;
     }
     try {
+      const profileIds = await this.accessibleProfileIdsForUser(userId);
+      const profileScope =
+        profileIds.length > 0
+          ? { profileId: { in: profileIds } }
+          : { profileId: { in: ['__none__'] } };
       const [totalExpenseCount, refGroups, userRow] = await Promise.all([
         this.prisma.expense.count({
-          where: { profile: { userId } },
+          where: profileScope,
         }),
         this.prisma.expense.groupBy({
           by: ['referenceMonth'],
-          where: { profile: { userId } },
+          where: profileScope,
           _count: { _all: true },
         }),
         this.prisma.user.findUnique({
@@ -307,19 +318,22 @@ export class MeService {
 
     await this.ensureDefaultIncomeSources(userId);
 
-    const [categories, profiles, expenses, incomeSources, incomes] =
+    const profileIds = await this.accessibleProfileIdsForUser(userId);
+    const expenseProfileScope =
+      profileIds.length > 0
+        ? { profileId: { in: profileIds } }
+        : { profileId: { in: ['__none__'] } };
+
+    const [categories, profileRows, expenses, incomeSources, incomes] =
       await Promise.all([
         this.prisma.category.findMany({
           where: { userId },
           orderBy: { name: 'asc' },
         }),
-        this.prisma.profile.findMany({
-          where: { userId },
-          orderBy: { createdAt: 'asc' },
-        }),
+        this.profileCollaborators.listProfilesForUser(userId),
         this.prisma.expense.findMany({
           where: {
-            profile: { userId },
+            ...expenseProfileScope,
             referenceMonth: expenseReferenceMonth,
           },
           include: { category: true, profile: true },
@@ -351,7 +365,7 @@ export class MeService {
     return {
       preferences: await this.mapPreferencesToResponse(pref),
       categories: categories.map((c) => ({ id: c.id, name: c.name })),
-      profiles: profiles.map((p) => ({
+      profiles: profileRows.map((p) => ({
         id: p.id,
         name: p.name,
         type: p.type,
@@ -954,9 +968,10 @@ export class MeService {
     });
     const budget = resolveActiveBudgetContext(pref);
     const referenceMonth = buildExpenseReferenceMonthFilter(pref, budget);
+    const profileIds = await this.accessibleProfileIdsForUser(user.userId);
     const rows = await this.prisma.expense.findMany({
       where: {
-        profile: { userId: user.userId },
+        profileId: { in: profileIds.length > 0 ? profileIds : ['__none__'] },
         referenceMonth,
       },
       include: { category: true, profile: true },
@@ -967,9 +982,12 @@ export class MeService {
 
   async listExpenseHistoryMonths(user: AuthUserPayload) {
     const userId = user.userId;
+    const profileIds = await this.accessibleProfileIdsForUser(userId);
     const groups = await this.prisma.expense.groupBy({
       by: ['referenceMonth'],
-      where: { profile: { userId } },
+      where: {
+        profileId: { in: profileIds.length > 0 ? profileIds : ['__none__'] },
+      },
       _count: { _all: true },
       _sum: { amount: true },
       orderBy: { referenceMonth: 'desc' },
@@ -986,9 +1004,10 @@ export class MeService {
       throw new BadRequestException('Mes inválido (formato YYYY-MM)');
     }
     const refRange = calendarMonthReferenceRange(ym);
+    const profileIds = await this.accessibleProfileIdsForUser(user.userId);
     const rows = await this.prisma.expense.findMany({
       where: {
-        profile: { userId: user.userId },
+        profileId: { in: profileIds.length > 0 ? profileIds : ['__none__'] },
         referenceMonth: refRange,
       },
       include: { category: true, profile: true },

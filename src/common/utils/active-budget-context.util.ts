@@ -45,7 +45,7 @@ export type ExpenseReferenceMonthFilter =
   Date | Readonly<{ gte: Date; lte: Date }>;
 
 /**
- * Calendario: bucket único YYYY-MM-01.
+ * Calendario: todo el mes activo (cualquier día en referenceMonth).
  * Corte: cualquier referenceMonth entre inicio y fin del periodo (incluye legacy en -01).
  */
 export function buildExpenseReferenceMonthFilter(
@@ -57,7 +57,8 @@ export function buildExpenseReferenceMonthFilter(
 ): ExpenseReferenceMonthFilter {
   const mode = pref?.budgetCycleMode ?? 'calendar_month';
   if (mode === 'calendar_month') {
-    return budget.activeMonthDate;
+    const ym = budget.activeReferenceMonth.slice(0, 7);
+    return calendarMonthReferenceRange(ym);
   }
   return {
     gte: toReferenceMonthDate(budget.activePeriod.periodStart),
