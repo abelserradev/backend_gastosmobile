@@ -409,11 +409,7 @@ export class MeService {
       newCutoff,
       todayYmd,
     );
-    const incomeRefYmd = this.incomeRefYmdForMode(
-      newMode,
-      newCutoff,
-      todayYmd,
-    );
+    const incomeRefYmd = this.incomeRefYmdForMode(newMode, newCutoff, todayYmd);
     const incomeRef = toReferenceMonthDate(incomeRefYmd);
     const cutoffChanged =
       newMode !== currentMode || newCutoff !== currentCutoff;
