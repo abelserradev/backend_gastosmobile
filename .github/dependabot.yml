@@ -1,4 +1,6 @@
 version: 2
+# Fuente de verdad: pnpm-lock.yaml + overrides en pnpm-workspace.yaml.
+# No commitear package-lock.json (gitignore); Dependabot actualiza el lock pnpm.
 updates:
   - package-ecosystem: npm
     directory: /
