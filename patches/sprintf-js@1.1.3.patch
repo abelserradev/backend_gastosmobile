@@ -1,0 +1,33 @@
+diff --git a/src/sprintf.js b/src/sprintf.js
+index 65d6324645ef1d0133614a71497751009dc5c912..32b3203d5e1cb99c7979077fc0fbc9f5f0c94bdf 100644
+--- a/src/sprintf.js
++++ b/src/sprintf.js
+@@ -21,6 +21,19 @@
+         sign: /^[+-]/
+     }
+ 
++    // GHSA-hp3w-g68c-fv3c: evita precisiones enormes en specs de test (Jest → js-yaml → argparse)
++    var MAX_PRECISION = 100
++    function boundedPrecision(raw) {
++        if (raw == null || raw === '') {
++            return raw
++        }
++        var n = parseInt(raw, 10)
++        if (isNaN(n) || n < 0) {
++            return raw
++        }
++        return n > MAX_PRECISION ? String(MAX_PRECISION) : raw
++    }
++
+     function sprintf(key) {
+         // `arguments` is not an array, but should be fine for this call
+         return sprintf_format(sprintf_parse(key), arguments)
+@@ -193,7 +206,7 @@
+                         pad_char:    match[4],
+                         align:       match[5],
+                         width:       match[6],
+-                        precision:   match[7],
++                        precision:   boundedPrecision(match[7]),
+                         type:        match[8]
+                     }
+                 )
