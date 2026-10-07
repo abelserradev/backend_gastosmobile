@@ -39,7 +39,17 @@ jobs:
       - name: Instalar dependencias (lockfile estricto)
         run: pnpm install --frozen-lockfile
 
-      - name: pnpm audit — bloquea high/critical
+      - name: Guardia — no commitear package-lock.json (pnpm único)
+        run: |
+          if git ls-files --error-unmatch package-lock.json >/dev/null 2>&1; then
+            echo "package-lock.json está trackeado; usar solo pnpm-lock.yaml"
+            exit 1
+          fi
+
+      - name: pnpm audit prod — bloquea high/critical en runtime
+        run: pnpm audit --prod --audit-level=high
+
+      - name: pnpm audit — bloquea high/critical (árbol completo)
         run: pnpm audit --audit-level=high
 
       - name: pnpm audit — moderate (informativo en cron/PR)
