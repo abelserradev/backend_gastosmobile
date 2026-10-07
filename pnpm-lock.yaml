@@ -30,10 +30,14 @@ overrides:
   protobufjs: ^7.6.3
   qs: '>=6.16.0'
   proxy-addr: '>=2.0.8'
+  sprintf-js: 1.1.3
   teeny-request: ^9.0.0
   uuid: '>=11.1.1'
   valibot: '>=1.4.2'
   websocket-driver: '>=0.7.5'
+
+patchedDependencies:
+  sprintf-js@1.1.3: 258909d927909945783feb98349802d16fc6ddece789859bb178c9288ed852a8
 
 importers:
 
@@ -4125,8 +4129,8 @@ packages:
     resolution: {integrity: sha512-UcjcJOWknrNkF6PLX83qcHM6KHgVKNkV62Y8a5uYDVv9ydGQVwAHMKqHdJje1VTWpljG0WYpCDhrCdAOYH4TWg==}
     engines: {node: '>= 10.x'}
 
-  sprintf-js@1.0.3:
-    resolution: {integrity: sha512-D9cPgkvLlV3t3IzL0D0YLvGA9Ahk4PcvVwUbN0dSGr1aP0Nrt4AEnTUbuGvquEC0mA64Gqt1fzirlRs5ibXx8g==}
+  sprintf-js@1.1.3:
+    resolution: {integrity: sha512-Oo+0REFV59/rz3gfJNKQiBlwfHaSESl1pcGyABQsnnIfWOFt6JNj5gCog2U6MLZ//IGYD+nA8nI+mTShREReaA==}
 
   sql-escaper@1.5.2:
     resolution: {integrity: sha512-6CKD38c31SENivxOADeMNLdukOnUxUcflKtzVWzace7Riv1v7cAEym5Cx9Q7gYZ3ezIJI7ZpqecQq8cqNeSSFg==}
@@ -6780,7 +6784,7 @@ snapshots:
 
   argparse@1.0.10:
     dependencies:
-      sprintf-js: 1.0.3
+      sprintf-js: 1.1.3(patch_hash=258909d927909945783feb98349802d16fc6ddece789859bb178c9288ed852a8)
 
   argparse@2.0.1: {}
 
@@ -9314,7 +9318,7 @@ snapshots:
 
   split2@4.2.0: {}
 
-  sprintf-js@1.0.3: {}
+  sprintf-js@1.1.3(patch_hash=258909d927909945783feb98349802d16fc6ddece789859bb178c9288ed852a8): {}
 
   sql-escaper@1.5.2: {}
 
