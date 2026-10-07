@@ -404,9 +404,20 @@ export class MeService {
 
     this.assertApplySurplusProvidedWhenRequired(renewal, dto.applySurplus);
 
-    const incomeRef = toReferenceMonthDate(
-      this.incomeRefYmdForMode(newMode, newCutoff, todayYmd),
+    const activePeriodAfter = this.budgetPeriodForMode(
+      newMode,
+      newCutoff,
+      todayYmd,
     );
+    const incomeRefYmd = this.incomeRefYmdForMode(
+      newMode,
+      newCutoff,
+      todayYmd,
+    );
+    const incomeRef = toReferenceMonthDate(incomeRefYmd);
+    const cutoffChanged =
+      newMode !== currentMode || newCutoff !== currentCutoff;
+
     const carryoverUsd = this.resolveCarryoverUsdOnPreferenceUpdate(
       renewal,
       monthStale,
@@ -416,6 +427,19 @@ export class MeService {
     const budgetCycle = dto.budgetCycle
       ? { mode: dto.budgetCycle.mode, cutoffDay: dto.budgetCycle.cutoffDay }
       : undefined;
+
+    // Periodo aún abierto: el ingreso se re-ancla al nuevo periodStart pero los gastos
+    // seguían con referenceMonth del corte anterior → desaparecían del tablero.
+    if (cutoffChanged && !monthStale) {
+      await this.reanchorExpensesForBudgetCycleChange(
+        uid,
+        currentMode,
+        currentCutoff,
+        newMode,
+        newCutoff,
+        todayYmd,
+      );
+    }
 
     await this.persistPreferenceByCurrency(
       uid,
@@ -442,6 +466,49 @@ export class MeService {
         include: { incomeRegisteredBcvRate: true },
       }),
     );
+  }
+
+  /**
+   * Al cambiar corte/modo sin renovación, mueve gastos del periodo vigente (filtro viejo)
+   * al periodStart del nuevo ciclo para que sigan en el tablero activo.
+   */
+  private async reanchorExpensesForBudgetCycleChange(
+    userId: string,
+    currentMode: string,
+    currentCutoff: number,
+    newMode: string,
+    newCutoff: number,
+    todayYmd: string,
+  ): Promise<number> {
+    const profileIds = await this.accessibleProfileIdsForUser(userId);
+    const scope =
+      profileIds.length > 0
+        ? { profileId: { in: profileIds } }
+        : { profileId: { in: ['__none__'] } };
+    const oldBudget = resolveActiveBudgetContext(
+      {
+        budgetCycleMode: currentMode,
+        budgetCutoffDay: currentCutoff,
+      },
+      todayYmd,
+    );
+    const newBudget = resolveActiveBudgetContext(
+      { budgetCycleMode: newMode, budgetCutoffDay: newCutoff },
+      todayYmd,
+    );
+    const oldFilter = buildExpenseReferenceMonthFilter(
+      {
+        budgetCycleMode: currentMode,
+        budgetCutoffDay: currentCutoff,
+      },
+      oldBudget,
+    );
+    const newAnchor = toReferenceMonthDate(newBudget.activeReferenceMonth);
+    const { count } = await this.prisma.expense.updateMany({
+      where: { ...scope, referenceMonth: oldFilter },
+      data: { referenceMonth: newAnchor },
+    });
+    return count;
   }
 
   private budgetPeriodForMode(
