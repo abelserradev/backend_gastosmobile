@@ -1,0 +1,30 @@
+┌─────────────────────┬────────────────────────────────────────────────────────┐
+│ moderate            │ sprintf-js vulnerable to denial of service through     │
+│                     │ unbounded precision specifiers                         │
+├─────────────────────┼────────────────────────────────────────────────────────┤
+│ Package             │ sprintf-js                                             │
+├─────────────────────┼────────────────────────────────────────────────────────┤
+│ Vulnerable versions │ <=1.1.3                                                │
+├─────────────────────┼────────────────────────────────────────────────────────┤
+│ Patched versions    │ >=1.1.4                                                │
+├─────────────────────┼────────────────────────────────────────────────────────┤
+│ Paths               │ .>jest>@jest/core>@jest/reporters>@jest/               │
+│                     │ transform>babel-plugin-istanbul>@istanbuljs/load-nyc-  │
+│                     │ config>js-yaml>argparse>sprintf-js                     │
+│                     │                                                        │
+│                     │ .>jest>@jest/core>@jest/transform>babel-plugin-        │
+│                     │ istanbul>@istanbuljs/load-nyc-config>js-               │
+│                     │ yaml>argparse>sprintf-js                               │
+│                     │                                                        │
+│                     │ .>jest>@jest/core>jest-config>babel-jest>@jest/        │
+│                     │ transform>babel-plugin-istanbul>@istanbuljs/load-nyc-  │
+│                     │ config>js-yaml>argparse>sprintf-js                     │
+│                     │                                                        │
+│                     │ ... Found 100 paths, run `pnpm why sprintf-js` for     │
+│                     │ more information                                       │
+├─────────────────────┼────────────────────────────────────────────────────────┤
+│ More info           │ https://github.com/advisories/GHSA-hp3w-g68c-fv3c      │
+└─────────────────────┴────────────────────────────────────────────────────────┘
+1 vulnerabilities found
+Severity: 1 moderate
+--- package-lock removed 2026-10-07 ---

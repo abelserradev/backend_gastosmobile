@@ -5,7 +5,7 @@
 | Workflow | Cuándo corre | Qué hace |
 |----------|--------------|----------|
 | **CI** | Push y PR a `develop`, `main`, `master`, `backend` | `pnpm install --frozen-lockfile`, Prettier check, ESLint (`--max-warnings 0`), audit (high+), Prisma validate, tests, build |
-| **Security audit** | Mismo + lunes 06:00 UTC + manual | `pnpm install --frozen-lockfile`, audit, listado de dependencias |
+| **Security audit** | Mismo + lunes 06:00 UTC + manual | `pnpm install --frozen-lockfile`, guardia anti `package-lock.json`, `pnpm audit --prod --audit-level=high`, audit árbol completo, listado de dependencias |
 | **Dependabot auto-merge** | PR de Dependabot hacia `develop` | Auto-merge squash si es patch o security y CI pasa |
 | **Dependabot batch merge** | Lunes 10:00 UTC + manual | Merge de respaldo de PRs Dependabot con checks verdes hacia `develop` |
 | **Deploy Coolify** | Solo manual | Webhook de deploy (no sustituye CI) |
@@ -43,6 +43,7 @@ Notas:
 - `hono` / `@hono/node-server` / `lodash` en cadena `@prisma/composer-cli` → `@prisma/dev`: overrides de toolchain CLI (no runtime Docker tras `pnpm prune --prod`).
 - `deepmerge-ts@8` es un major forzado sobre lo que declara `@prisma/config`: validado con `prisma validate`, `prisma generate`, tests y build. Si Prisma actualiza su rango, retirar el override.
 - Evidencia post-remediación: [`code-audit/analysis/pnpm-audit-post-fix.txt`](code-audit/analysis/pnpm-audit-post-fix.txt) (`pnpm audit` → 0 vulnerabilidades, 2026-08-21).
+- **Lockfile único (2026-10-07):** no commitear `package-lock.json` (gitignore). Dependabot y CI usan `pnpm-lock.yaml`. Detalle: [`code-audit/SCA-2026-10-07-package-lock-removal.md`](code-audit/SCA-2026-10-07-package-lock-removal.md).
 
 Tras cambiar overrides: `pnpm install`, `pnpm audit --audit-level=moderate`, y validar build/tests antes de mergear.
 
