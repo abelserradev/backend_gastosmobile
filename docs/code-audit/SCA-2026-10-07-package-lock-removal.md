@@ -17,7 +17,7 @@
 - **Alcance:** solo **Development**; no va al contenedor prod (`pnpm prune --prod`).
 - **Mitigación:** override `1.1.3` + parche pnpm [`patches/sprintf-js@1.1.3.patch`](../../patches/sprintf-js@1.1.3.patch) (tope de precision en specs).
 - **npm:** no existe `1.1.4`; `pnpm-workspace.yaml` → `auditConfig.ignoreGhsas` excluye GHSA en `pnpm audit` local/CI.
-- **Search Console / Dependabot:** si la alerta persiste tras merge, cerrar manualmente: *Dismiss* → «Fix not available» / dev-only, enlace a este doc.
+- **Dependabot:** si la alerta persiste tras merge, cerrar manualmente: *Dismiss* → «Fix not available» / dev-only, enlace a este doc.
 
 ## Riesgo aceptado (temporal)
 
