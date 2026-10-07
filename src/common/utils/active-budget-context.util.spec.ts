@@ -57,6 +57,31 @@ describe('active-budget-context expense filters', () => {
   });
 });
 
+describe('cambio de corte mid-periodo (bug tablero vacío)', () => {
+  it('gasto anclado al periodStart viejo queda fuera del filtro nuevo', () => {
+    const today = '2026-10-07';
+    const oldPref = {
+      budgetCycleMode: 'monthly_cutoff' as const,
+      budgetCutoffDay: 15,
+    };
+    const newPref = {
+      budgetCycleMode: 'monthly_cutoff' as const,
+      budgetCutoffDay: 20,
+    };
+    const oldBudget = resolveActiveBudgetContext(oldPref, today);
+    const newBudget = resolveActiveBudgetContext(newPref, today);
+    const newFilter = buildExpenseReferenceMonthFilter(newPref, newBudget);
+    const expenseRef = oldBudget.activeReferenceMonth;
+    expect(expenseRef).toBe('2026-09-16');
+    expect(newBudget.activeReferenceMonth).toBe('2026-09-21');
+    const refDate = new Date(`${expenseRef}T00:00:00.000Z`);
+    const inNewFilter =
+      refDate.getTime() >= newFilter.gte.getTime() &&
+      refDate.getTime() < newFilter.lt.getTime();
+    expect(inNewFilter).toBe(false);
+  });
+});
+
 describe('resolveExpenseReferenceMonthForRegistration (REQ-REG)', () => {
   const cutoffPref = {
     budgetCycleMode: 'monthly_cutoff' as const,
