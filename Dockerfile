@@ -12,6 +12,7 @@ ENV DATABASE_URL=${DATABASE_URL}
 RUN corepack enable
 
 COPY package.json pnpm-lock.yaml pnpm-workspace.yaml ./
+COPY patches ./patches/
 COPY prisma ./prisma/
 COPY prisma.config.ts ./prisma.config.ts
 # Coolify inyecta NODE_ENV=production en build-time: con --frozen-lockfile pnpm falla si
