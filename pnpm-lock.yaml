@@ -122,8 +122,8 @@ importers:
         specifier: ^0.2.2
         version: 0.2.2
       resend:
-        specifier: ^6.32.0
-        version: 6.32.0
+        specifier: ^6.32.1
+        version: 6.32.1
       rxjs:
         specifier: ^7.8.1
         version: 7.8.2
@@ -289,8 +289,8 @@ packages:
     resolution: {integrity: sha512-wem6WaBj4NaVYVdNhLPPVacES6ZJ+KBBfSkTMD3YZxbP3rm3Di85tJU5ljaUNhaOynt+Aj0xruhYuzQBt8n71g==}
     engines: {node: '>=6.9.0'}
 
-  '@babel/helper-compilation-targets@8.0.6':
-    resolution: {integrity: sha512-HTrtZ4+iA0+kzdbCgvdSk1U4pEl3BvpGnlUbualCGNbrVhhQvhgBzurTUmqpWyvyHbWYWaIfdx2mOlL9LJjsew==}
+  '@babel/helper-compilation-targets@8.0.7':
+    resolution: {integrity: sha512-ilAZCdOOlOVA7dQbaFNw2f/59p6GW33NxTopc3DvEE3efp3ZXTrGX/yZScaKw8/vd9bq31Ag0EcXiLw32bAgJg==}
     engines: {node: ^22.18.0 || >=24.11.0}
 
   '@babel/helper-globals@7.29.7':
@@ -347,8 +347,8 @@ packages:
     resolution: {integrity: sha512-1k2lAGRMfHTcwuNYcCNUmaUffmQv8KWMfh2iJUUeRlwlwH4FdNG7mfPI10NPfLHJFThE4Tyr4mv7kTNZOiPuBg==}
     engines: {node: '>=6.9.0'}
 
-  '@babel/helpers@8.0.5':
-    resolution: {integrity: sha512-fQtPOXjYOYv85PIdwotp2TJGVYOycX0PQq+l844fFAxOULtBy8BVF35GyeueX0r4KvDthqPH5xAI1clQPk/2uA==}
+  '@babel/helpers@8.0.7':
+    resolution: {integrity: sha512-5dMj5kFwS2AY7Dt4PZp4px3c5ThMbbEa7tZfuHTncCGSFYq8uoA1ufDE1IS/lYpQedE+3+GQ3cPZUiplIu195w==}
     engines: {node: ^22.18.0 || >=24.11.0}
 
   '@babel/parser@7.29.7':
@@ -356,8 +356,8 @@ packages:
     engines: {node: '>=6.0.0'}
     hasBin: true
 
-  '@babel/parser@8.0.6':
-    resolution: {integrity: sha512-LpGDIYJAzc3Y3PT9x+FxBrGYu2PlWxLmyN7SwPTzaX0LSwEmFJBsRnPBqmaXF2r1v+Zhz6lNiEJ+7yKtM5+Ugg==}
+  '@babel/parser@8.0.7':
+    resolution: {integrity: sha512-UkDwEbPO1px2JQSrdh4qIgaH1JgG7GO/pFeJkpxhDxIETkT/QvGpnigXIw75ViHYPtIgKITmVUJqLjiO+JuWjA==}
     engines: {node: ^22.18.0 || >=24.11.0}
     hasBin: true
 
@@ -464,8 +464,8 @@ packages:
     resolution: {integrity: sha512-EhlfNQtZ+NK22w5BM61ciuiq1m58ed33Wr1Xan//ZRTy6hgjnwyCffRYwzsGXdASJSUJ1guZILsErh1eQcl+zw==}
     engines: {node: '>=6.9.0'}
 
-  '@babel/traverse@8.0.6':
-    resolution: {integrity: sha512-ilYV+qLStGzSKLipJlETdvdtpK3rAuwfCmCoGKv15MU4EoeIuLkespSNoNLFGOPSciEHx9TLWtN5mv0fz5w5mQ==}
+  '@babel/traverse@8.0.7':
+    resolution: {integrity: sha512-bVV0brinsTWgc6ptSIoQo3GbITtl0VZAqEUJbHHcyfDPEu+q/fEvlYEa+6H85HoK8IdksKBFtKJbJFZ6Kff+zg==}
     engines: {node: ^22.18.0 || >=24.11.0}
 
   '@babel/types@7.29.7':
@@ -2748,8 +2748,8 @@ packages:
     resolution: {integrity: sha512-kWyh8ADvHBFz6ua5xYOPnUroZTT/bwWfrCeL0Wj1dzG4/YOmOcfJ99W8dOVyyynJN35rZ9aCOtHChqQovV7yog==}
     engines: {node: '>=6'}
 
-  follow-redirects@1.16.0:
-    resolution: {integrity: sha512-y5rN/uOsadFT/JfYwhxRS5R7Qce+g3zG97+JrtFZlC9klX/W5hD7iiLzScI4nZqUS7DNUdhPgw4xI8W2LuXlUw==}
+  follow-redirects@1.16.1:
+    resolution: {integrity: sha512-FNvFGzoMLWmE6Yj9spb/zjd7yiNCHiAW9/Tg9CXrQ8wuu32HtlJOwWO11OJafl5FfY3DxTdQ0vj42zU1kvv5jg==}
     engines: {node: '>=4.0'}
     peerDependencies:
       debug: '*'
@@ -3620,6 +3620,10 @@ packages:
     resolution: {integrity: sha512-XrsrhT5sybtKI6wakr2SPOlGZWWYbUXZ7a0jT8/QOeAPau+1X/bSegNe5YR75oJmEZQbKningirmGOEJCIk61Q==}
     engines: {node: '>=12.20.0'}
 
+  obug@3.0.0:
+    resolution: {integrity: sha512-5vvB5+W7ePv+p3uqxi+RcW1XAzLW0/hxt3/4X4Lc4qHudzOhmBiBwOY6DRob4WnanAEGvNcLjF+KNOufrUoEQw==}
+    engines: {node: '>=12.20.0'}
+
   ohash@2.0.12:
     resolution: {integrity: sha512-65S/5gk9YSsaRjcyf7Nfa6h/d3E8/1gslpXfI4W7Dxn/oap8IKRuNT5VXkLQ1YFKIEg4apRY4Pj6aiwFzrDdmw==}
 
@@ -3975,8 +3979,8 @@ packages:
     resolution: {integrity: sha512-Xf0nWe6RseziFMu+Ap9biiUbmplq6S9/p+7w7YXP/JBHhrUDDUhwa+vANyubuqfZWTveU//DYVGsDG7RKL/vEw==}
     engines: {node: '>=0.10.0'}
 
-  resend@6.32.0:
-    resolution: {integrity: sha512-bZZUeKlpKINFT+zGG2iIzfDewkyEHRaE7Xk1haseVz3Gfw6ekkizN6KdKgZSMjt5ywE8vMwr3wTdenlF8P475Q==}
+  resend@6.32.1:
+    resolution: {integrity: sha512-Z9DxkIZt5uvVNkjxjc+r4rCPI0MdDIJ7H+GvU50o9GkhrD0tVTwP6caE8KYEco90sos312l6R72jAEMCBFBiFQ==}
     engines: {node: '>=20'}
     peerDependencies:
       '@react-email/render': '*'
@@ -4484,8 +4488,8 @@ packages:
     resolution: {integrity: sha512-BNGbWLfd0eUPabhkXUVm0j8uuvREyTh5ovRa/dyow/BqAbZJyC+5fU+IzQOzmAKzYqYRAISoRhdQr3eIZ/PXqg==}
     engines: {node: '>= 0.8'}
 
-  verkit@0.3.2:
-    resolution: {integrity: sha512-zj/ob3UsvJGN0whEAKFp53REA5X66hvffVqoCtVQAakJKnKlH+/PcOfMoFwIG/o4rElqLv/ycAFlx8ZlXUorCg==}
+  verkit@0.5.0:
+    resolution: {integrity: sha512-u4J1hr6Y+C/hit34GwL3eIcUf3wngT8TlYUjK7tk0jxydKLAq3sYvifjdTDA6U3KCKRcQCQDGf/srjxfZF3l7g==}
     engines: {node: '>=18.12.0'}
 
   wasm-feature-detect@1.8.0:
@@ -4712,11 +4716,11 @@ snapshots:
     dependencies:
       '@babel/code-frame': 8.0.6
       '@babel/generator': 8.0.6
-      '@babel/helper-compilation-targets': 8.0.6
-      '@babel/helpers': 8.0.5
-      '@babel/parser': 8.0.6
+      '@babel/helper-compilation-targets': 8.0.7
+      '@babel/helpers': 8.0.7
+      '@babel/parser': 8.0.7
       '@babel/template': 8.0.0
-      '@babel/traverse': 8.0.6
+      '@babel/traverse': 8.0.7
       '@babel/types': 8.0.6
       '@types/gensync': 1.0.5
       convert-source-map: 2.0.0
@@ -4738,7 +4742,7 @@ snapshots:
 
   '@babel/generator@8.0.6':
     dependencies:
-      '@babel/parser': 8.0.6
+      '@babel/parser': 8.0.7
       '@babel/types': 8.0.6
       '@jridgewell/gen-mapping': 0.4.0-beta.0
       '@jridgewell/trace-mapping': 0.3.31
@@ -4754,13 +4758,13 @@ snapshots:
       lru-cache: 5.1.1
       semver: 6.3.1
 
-  '@babel/helper-compilation-targets@8.0.6':
+  '@babel/helper-compilation-targets@8.0.7':
     dependencies:
       '@babel/compat-data': 8.0.5
       '@babel/helper-validator-option': 8.0.0
       browserslist: 4.28.9
       flru: 1.0.2
-      verkit: 0.3.2
+      verkit: 0.5.0
     optional: true
 
   '@babel/helper-globals@7.29.7': {}
@@ -4808,7 +4812,7 @@ snapshots:
       '@babel/template': 7.29.7
       '@babel/types': 7.29.7
 
-  '@babel/helpers@8.0.5':
+  '@babel/helpers@8.0.7':
     dependencies:
       '@babel/template': 8.0.0
       '@babel/types': 8.0.6
@@ -4818,7 +4822,7 @@ snapshots:
     dependencies:
       '@babel/types': 7.29.7
 
-  '@babel/parser@8.0.6':
+  '@babel/parser@8.0.7':
     dependencies:
       '@babel/types': 8.0.6
     optional: true
@@ -5007,7 +5011,7 @@ snapshots:
   '@babel/template@8.0.0':
     dependencies:
       '@babel/code-frame': 8.0.6
-      '@babel/parser': 8.0.6
+      '@babel/parser': 8.0.7
       '@babel/types': 8.0.6
     optional: true
 
@@ -5023,15 +5027,15 @@ snapshots:
     transitivePeerDependencies:
       - supports-color
 
-  '@babel/traverse@8.0.6':
+  '@babel/traverse@8.0.7':
     dependencies:
       '@babel/code-frame': 8.0.6
       '@babel/generator': 8.0.6
       '@babel/helper-globals': 8.0.6
-      '@babel/parser': 8.0.6
+      '@babel/parser': 8.0.7
       '@babel/template': 8.0.0
       '@babel/types': 8.0.6
-      obug: 2.2.1
+      obug: 3.0.0
     optional: true
 
   '@babel/types@7.29.7':
@@ -6806,7 +6810,7 @@ snapshots:
 
   axios@1.20.0:
     dependencies:
-      follow-redirects: 1.16.0
+      follow-redirects: 1.16.1
       form-data: 4.0.6
       https-proxy-agent: 5.0.1
       proxy-from-env: 2.1.0
@@ -7645,7 +7649,7 @@ snapshots:
   flru@1.0.2:
     optional: true
 
-  follow-redirects@1.16.0: {}
+  follow-redirects@1.16.1: {}
 
   foreground-child@3.3.1:
     dependencies:
@@ -8791,6 +8795,9 @@ snapshots:
   obug@2.2.1:
     optional: true
 
+  obug@3.0.0:
+    optional: true
+
   ohash@2.0.12: {}
 
   on-finished@2.4.1:
@@ -9148,7 +9155,7 @@ snapshots:
 
   require-from-string@2.0.2: {}
 
-  resend@6.32.0:
+  resend@6.32.1:
     dependencies:
       postal-mime: 2.7.6
       standardwebhooks: 1.1.1
@@ -9659,7 +9666,7 @@ snapshots:
 
   vary@1.1.2: {}
 
-  verkit@0.3.2:
+  verkit@0.5.0:
     optional: true
 
   wasm-feature-detect@1.8.0: {}
