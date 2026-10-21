@@ -133,7 +133,7 @@ Errors: `400 { "errores": { "campo": "mensaje" } }`, `401` invalid key, `429` ra
 - Limits: consumer 60/min per `X-Consumer-User`; anonymous 30/min per IP (`x-forwarded-for` first hop, trusted
   only behind Coolify's proxy); `GET /api/v1/tasas` 60/min per IP.
 - Logs: consumer name + user id + latency, never the key.
-- `/api/tasas` (current web route) becomes an alias of `/api/v1/tasas`. TODO: remove once the web reads v1.
+- `/api/tasas` stays as the web's internal route (its own shape); `/api/v1/tasas` is the public contract for consumers. Both read the same service.
 
 ### 2.6 Exchange environment
 

@@ -15,10 +15,10 @@ Each task = one commit (Conventional Commits, Spanish message), tests in the sam
 
 ## Phase 1 — Exchange: repo + rates history (`exchange-rate`, new repo)
 
-- [ ] T1.1 `chore`: own git repo for `exchange-rate` (initial commit of the current app)
-- [ ] T1.2 `build(db)`: Prisma 7 + `TasaHistorial` schema + `docker-compose.yml` with local PostgreSQL; migration SQL generated (user applies)
-- [ ] T1.3 `feat(tasas)`: `RepositorioTasas` (Prisma) + rates service writes history and falls back to PG (RATES-001..004)
-- [ ] T1.4 `feat(api)`: `GET /api/v1/tasas`; `/api/tasas` as alias; web reads v1 (RATES-002, RATES-005)
+- [x] T1.1 `chore`: own git repo for `exchange-rate` (initial commit of the current app)
+- [x] T1.2 `build(db)`: Prisma 7 + `TasaHistorial` schema + `docker-compose.yml` with local PostgreSQL; migration SQL generated (user applies)
+- [x] T1.3 `feat(tasas)`: `RepositorioTasas` (Prisma) + rates service writes history and falls back to PG (RATES-001..004)
+- [x] T1.4 `feat(api)`: `GET /api/v1/tasas` (public contract); `/api/tasas` stays internal for the web (RATES-002, RATES-005)
 
 ## Phase 2 — Exchange: engine API
 
