@@ -22,9 +22,9 @@ Each task = one commit (Conventional Commits, Spanish message), tests in the sam
 
 ## Phase 2 — Exchange: engine API
 
-- [ ] T2.1 `refactor(motor)`: `lib/motor/comparar.ts` on decimal.js + golden vectors; `lib/calcular.ts` becomes an adapter (PC-001, TD-1, TD-9)
-- [ ] T2.2 `feat(api)`: contract v1 parse/serialize + `POST /api/v1/comparaciones` (PC-002)
-- [ ] T2.3 `feat(api)`: consumer keys (hashed) + Redis rate limiting (PC-003, TD-7, TD-8)
+- [x] T2.1 `refactor(motor)`: `lib/motor/comparar.ts` on decimal.js + golden vectors; `lib/calcular.ts` becomes an adapter (PC-001, TD-1, TD-9)
+- [x] T2.2 `feat(api)`: contract v1 parse/serialize + `POST /api/v1/comparaciones` (PC-002)
+- [x] T2.3 `feat(api)`: consumer keys (hashed) + Redis rate limiting (PC-003, TD-7, TD-8)
 
 ## Phase 3 — Gastos backend: data model
 

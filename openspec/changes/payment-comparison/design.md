@@ -103,26 +103,32 @@ types through the adapter, so no screen changes.
 the web already supports. `tasaVenta` is optional (falls back to `paralelo`).
 
 ```json
-// response 200
+// response 200 (as implemented in exchange-rate lib/api/v1/comparaciones.ts)
 {
   "version": "v1",
-  "computedAt": "2026-10-21T18:30:00Z",
-  "tasas": { "oficial": { "valor": "883.400000", "fechaFuente": "…" }, "paralelo": { … }, "desactualizado": false },
+  "computedAt": "2026-10-21T18:57:50.037Z",
+  "producto": null,
+  "tasas": { "oficial": { "valor": "883.396300", "fechaFuente": "…" }, "paralelo": { … }, "desactualizado": false },
   "tasaVenta": { "valor": "1100.000000", "origen": "usuario" },
+  "precioBs": { "modo": "monto_bs", "monto": "391400.00" },
   "opciones": [
     {
       "id": "bs", "moneda": "BS", "montoCobrado": "391400.00",
       "equivalenteBcvUsd": "443.06", "comisionPct": null, "comisionUsd": null,
       "costoRealUsd": "355.82", "costoRealBs": "391400.00", "diferenciaVsMejorUsd": "0.00",
-      "esMejor": true, "empatada": false
+      "esMejor": true
     }
   ],
-  "mejorOpcion": "bs",
+  "mejores": ["bs"],
   "empateTotal": false,
+  "ahorroUsd": "35.58",
   "tasaEquilibrio": "1030.00",
   "recargoBsPct": "16.60"
 }
 ```
+
+`mejores` can hold several ids (ties). Gastos stores `bestOptionId = mejores[0]` only as an index; the full array
+stays in `result`.
 
 Errors: `400 { "errores": { "campo": "mensaje" } }`, `401` invalid key, `429` rate limit, `503` no rates at all.
 
