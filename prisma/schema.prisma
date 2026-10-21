@@ -13,6 +13,24 @@ enum CurrencyCode {
   USD
 }
 
+/// Cómo se pagó un gasto que vino de una comparación de Exchange.
+enum PaymentMethod {
+  CASH
+  ELECTRONIC
+  BS
+}
+
+/// BCV = monto convertido a tasa oficial (flujo clásico); SELL_RATE = costo real a la tasa de venta de la comparación.
+enum ValuationBasis {
+  BCV
+  SELL_RATE
+}
+
+enum ComparisonStatus {
+  PENDING
+  CONVERTED
+}
+
 enum ProfileType {
   familiar
   grupal
@@ -58,6 +76,8 @@ model User {
 
   telegramLink         TelegramLink?
   telegramLinkTokens   TelegramLinkToken[]
+
+  paymentComparisons   PaymentComparison[]
 }
 
 /// Vínculo 1:1 entre usuario Gastos y cuenta Telegram (MVP).
@@ -278,6 +298,16 @@ model Expense {
   receiptImage   Bytes?
   /// MIME type de receiptImage (image/jpeg, image/png, image/webp).
   receiptMime    String?
+  /// Campos de comparación de pago: solo se llenan cuando el gasto nace de Exchange (amount = costo real).
+  paymentMethod    PaymentMethod?
+  nominalAmount    Decimal?       @db.Decimal(16, 2)
+  nominalCurrency  CurrencyCode?
+  commissionPct    Decimal?       @db.Decimal(5, 2)
+  commissionUsd    Decimal?       @db.Decimal(14, 2)
+  sellRate         Decimal?       @db.Decimal(14, 6)
+  bcvEquivalentUsd Decimal?       @db.Decimal(14, 2)
+  valuationBasis   ValuationBasis @default(BCV)
+  comparison       PaymentComparison?
   createdAt      DateTime @default(now())
   updatedAt      DateTime @updatedAt
 
@@ -285,6 +315,32 @@ model Expense {
   @@index([categoryId])
   @@index([paidByMemberId])
   ocrCorrectionSamples OcrCorrectionSample[]
+}
+
+/// Comparación calculada por Exchange; vive 24 h salvo que se convierta en gasto.
+model PaymentComparison {
+  id                    String           @id @default(uuid())
+  userId                String
+  user                  User             @relation(fields: [userId], references: [id], onDelete: Cascade)
+  status                ComparisonStatus @default(PENDING)
+  productName           String?
+  /// Request v1 enviado a Exchange.
+  offer                 Json
+  /// Respuesta v1 tal cual (todas las opciones), para mostrarla en el detalle del gasto.
+  result                Json
+  contractVersion       String           @default("v1")
+  bestOptionId          String
+  computedAt            DateTime
+  expiresAt             DateTime
+  expenseId             String?          @unique
+  expense               Expense?         @relation(fields: [expenseId], references: [id], onDelete: Cascade)
+  convertIdempotencyKey String?
+  convertRequestHash    String?
+  createdAt             DateTime         @default(now())
+  updatedAt             DateTime         @updatedAt
+
+  @@index([userId, status, createdAt])
+  @@index([status, expiresAt])
 }
 
 /// Predicción OCR vs valores confirmados por el usuario (mobile gastos v1.3+).
