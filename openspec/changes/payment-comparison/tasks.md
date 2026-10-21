@@ -29,7 +29,7 @@ Each task = one commit (Conventional Commits, Spanish message), tests in the sam
 ## Phase 3 — Gastos backend: data model
 
 - [x] T3.1 `feat(db)`: Prisma schema (`PaymentComparison`, enums, `Expense` fields) + migration SQL (user applies) (design §3.2) — `20261021200000_payment_comparison`
-- [ ] T3.2 `feat(expenses)`: new fields in `mapExpenseToResponse`; `resolveExpenseContext()`; amount edit 409 on `SELL_RATE` (EXP-001, EXP-003, TD-4)
+- [x] T3.2 `feat(expenses)`: new fields in `mapExpenseToResponse`; `resolveExpenseContext()`; amount edit 409 on `SELL_RATE` (EXP-001, EXP-003, TD-4)
 
 ## Phase 4 — Gastos backend: comparisons module
 
