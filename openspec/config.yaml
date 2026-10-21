@@ -1,0 +1,106 @@
+# SDD config for the Gastos product. The backend repo owns the domain and API contract;
+# the frontend repo is a sibling at ../frontend_gastosmobile (independent git repo).
+schema: spec-driven
+product: gastos
+artifact_store: hybrid
+engram_project: gastos
+artifact_language: en
+initialized: 2026-10-21
+
+context: |
+  Product: Gastos (personal/household expense, budget and inventory tracking; Caracas-time, USD/VES with BCV rate).
+  Backend (this repo): NestJS 11 + Prisma 7 (PostgreSQL via @prisma/adapter-pg) + ioredis; modules auth, me, inventory, ocr, chat, telegram, bcv, email, audit, profile-collaborators, common.
+  Frontend (../frontend_gastosmobile): Angular 20 standalone + signals, SSR static output, Capacitor 8 Android, Tailwind 4, Firebase auth.
+  Reference only (../../exchange-rate, untracked): Next.js 16 + Vitest payment-method comparison calculator to be integrated into Gastos.
+  Testing: backend Jest 30 (ts-jest), frontend Karma 6 + Jasmine; no workspace-wide test command.
+  Quality: ESLint (max-warnings 0 in CI) + Prettier, gitleaks pre-commit, SonarCloud LCOV, GitHub Actions CI per repo.
+
+strict_tdd: false
+strict_tdd_reason: >-
+  Two independent git repos with no explicit workspace-level test command covering both;
+  per-project commands are recorded below and must be run inside each repo.
+
+workspace_root: ..
+projects:
+  - path: backend_gastosmobile
+    role: domain-and-api-contract
+    stack: NestJS 11, TypeScript 5.9, Prisma 7, PostgreSQL, ioredis, pnpm 11
+    test_command: pnpm test
+    ci_test_command: pnpm test --passWithNoTests
+    framework: Jest 30 + ts-jest (rootDir src, *.spec.ts)
+    layers:
+      unit: { available: true, tool: "Jest + @nestjs/testing" }
+      integration: { available: true, tool: "@nestjs/testing (module-level with test doubles)" }
+      e2e: { available: true, tool: "Jest + supertest (pnpm test:e2e, test/jest-e2e.json)", in_ci: false, note: "Boots AppModule; needs live PostgreSQL/Redis env - do not run without an isolated DB" }
+    coverage: { available: true, command: "pnpm test:cov", output: coverage/lcov.info }
+    quality:
+      linter: pnpm lint:ci
+      type_checker: pnpm build
+      formatter: pnpm format:check
+      schema_check: pnpm prisma validate
+    hooks: "pre-commit: gitleaks, prettier --check, eslint --max-warnings 0; pre-push: pnpm run lint:ci && pnpm test"
+    ci: .github/workflows/ci.yml (format, lint, audit high, prisma validate, unit tests, build); sonarcloud.yml (test:cov)
+  - path: frontend_gastosmobile
+    role: client (web SSR static + Android via Capacitor)
+    stack: Angular 20, TypeScript 5.9, Tailwind 4, Capacitor 8, Firebase, pnpm 11
+    test_command: pnpm exec ng test --no-watch --browsers=ChromeHeadlessNoSandbox
+    local_test_command: pnpm test
+    framework: Karma 6 + Jasmine 7 (ChromeHeadless)
+    layers:
+      unit: { available: true, tool: "Karma + Jasmine + TestBed" }
+      integration: { available: true, tool: "Angular TestBed (component + service)" }
+      e2e: { available: false, tool: "-" }
+    coverage: { available: true, command: "pnpm exec ng test --no-watch --code-coverage --browsers=ChromeHeadlessNoSandbox", output: coverage/web/lcov.info }
+    quality:
+      linter: pnpm lint:ci
+      type_checker: pnpm build
+      formatter: pnpm format:check
+    hooks: "pre-commit: gitleaks, prettier --check, ng lint; pre-push: lint:ci + headless ng test"
+    ci: .github/workflows/ci.yml (env generation, format, lint, headless tests, build); sonarcloud.yml (coverage)
+    note: "pretest/prebuild scripts generate environment files with API keys; CI uses placeholders"
+reference_projects:
+  - path: ../exchange-rate
+    stack: Next.js 16, React 19, Vitest 5, ioredis
+    test_command: pnpm test
+    scope: reference-only (not covered by strict TDD or verify)
+
+rules:
+  proposal:
+    - State which repo(s) are affected (backend, frontend, or both) and the API contract impact
+    - Include rollback plan for risky changes, especially Prisma migrations
+  specs:
+    - Use Given/When/Then for scenarios
+    - Use RFC 2119 keywords (MUST, SHALL, SHOULD, MAY)
+    - Backend API contract specs live here; frontend behavior specs reference the endpoints they consume
+  design:
+    - Include sequence diagrams for cross-repo flows
+    - Document architecture decisions with rationale
+    - Prisma schema changes MUST describe migration and data backfill strategy
+  tasks:
+    - Group by repo and phase, use hierarchical numbering
+    - Keep tasks completable in one session
+    - Keep each PR within the 400 changed-line review budget; chain PRs per repo otherwise
+  apply:
+    guidelines:
+      - Follow existing code patterns (NestJS module per domain, Angular standalone + signals)
+      - Never run git push, prisma migrate/db push, or write to any database
+      - Agents may commit only when the user explicitly asks
+    tdd: false
+    test_command: ""
+    per_project_test_commands:
+      backend_gastosmobile: pnpm test
+      frontend_gastosmobile: pnpm exec ng test --no-watch --browsers=ChromeHeadlessNoSandbox
+  verify:
+    test_command: ""
+    per_project:
+      backend_gastosmobile:
+        test_command: pnpm test
+        build_command: pnpm build
+        lint_command: pnpm lint:ci
+      frontend_gastosmobile:
+        test_command: pnpm exec ng test --no-watch --browsers=ChromeHeadlessNoSandbox
+        build_command: pnpm build
+        lint_command: pnpm lint:ci
+    coverage_threshold: 0
+  archive:
+    - Warn before merging destructive deltas

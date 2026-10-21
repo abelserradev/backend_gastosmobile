@@ -1,0 +1,7 @@
+﻿# cmd: tsc -p <TEMP>/tsconfig.audit.json --noEmit (extiende tsconfig.eslint.json del repo; tipos resueltos desde toolchain temporal)
+# exit=2 (solo src/ocr, fuera de alcance)
+src/ocr/services/google-vision-quota.service.spec.ts(10,30): error TS2352: Conversion of type '{ get: () => undefined; }' to type 'ConfigService<Record<string | symbol, unknown>, false>' may be a mistake because neither type sufficiently overlaps with the other. If this was intentional, convert the expression to 'unknown' first.
+  Type '{ get: () => undefined; }' is missing the following properties from type 'ConfigService<Record<string | symbol, unknown>, false>': internalConfig, isCacheEnabled, skipProcessEnv, cache, and 15 more.
+src/ocr/services/google-vision-quota.service.spec.ts(32,7): error TS2352: Conversion of type '{ get: () => undefined; }' to type 'ConfigService<Record<string | symbol, unknown>, false>' may be a mistake because neither type sufficiently overlaps with the other. If this was intentional, convert the expression to 'unknown' first.
+  Type '{ get: () => undefined; }' is missing the following properties from type 'ConfigService<Record<string | symbol, unknown>, false>': internalConfig, isCacheEnabled, skipProcessEnv, cache, and 15 more.
+

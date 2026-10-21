@@ -1,0 +1,78 @@
+﻿# cmd: node <TEMP>/node_modules/jest/bin/jest.js --config <TEMP>/jest.audit.json --testPathPatterns "(bcv|me|common|auth)/" --coverage --ci
+# jest.audit.json = config jest del package.json + modulePaths/transform desde toolchain temporal; cobertura limitada a archivos en alcance
+# ningun spec en alcance usa BD real (todos mockean PrismaService)
+# exit=1
+FAIL ../../../../OneDrive - VENEMERGENCIA AG, C.A/Documentos/buildforge/gastos/backend_gastosmobile/src/common/utils/active-budget-context.util.spec.ts
+  ● active-budget-context expense filters › corte: rango semiabierto periodStart–cutoffDate inclusive
+    expect(received).toBeGreaterThanOrEqual(expected)
+    Expected: >= 1792108800000
+    Received:    1790812800000
+      35 |     expect(filter.lt).toEqual(ltExpected);
+      36 |     const legacyOct = new Date('2026-10-01T00:00:00.000Z');
+    > 37 |     expect(legacyOct.getTime()).toBeGreaterThanOrEqual(filter.gte.getTime());
+         |                                 ^
+      38 |     expect(legacyOct.getTime()).toBeLessThan(filter.lt.getTime());
+      39 |   });
+      40 |
+      at Object.<anonymous> (common/utils/active-budget-context.util.spec.ts:37:33)
+[Nest] 10440  - 21/10/2026, 1:37:08 p. m.     LOG [AuthService] [Ingreso] Intento con correo/clave para **@test.com
+[Nest] 10440  - 21/10/2026, 1:37:08 p. m.    WARN [AuthService] [Ingreso] Cuenta bloqueada: **@test.com
+[Nest] 10440  - 21/10/2026, 1:37:08 p. m.     LOG [AuthService] [Ingreso] Intento con correo/clave para **@test.com
+[Nest] 10440  - 21/10/2026, 1:37:08 p. m.    WARN [AuthService] [Ingreso] Se bloqueó la cuenta por intentos: **@test.com
+[Nest] 10440  - 21/10/2026, 1:37:08 p. m.     LOG [AuthService] [Ingreso] Intento con correo/clave para **@test.com
+[Nest] 10440  - 21/10/2026, 1:37:08 p. m.     LOG [AuthService] [Ingreso] Todo fino, sesión montada para **@test.com
+[Nest] 10440  - 21/10/2026, 1:37:08 p. m.     LOG [AuthService] [Ingreso] Intento con correo/clave para g***t@test.com
+[Nest] 10440  - 21/10/2026, 1:37:08 p. m.    WARN [AuthService] [Ingreso] No hay cuenta o no tiene clave: g***t@test.com
+-------------------------------------|---------|----------|---------|---------|-------------------------------------------------------------------------------------------------------------------------------------------------
+File                                 | % Stmts | % Branch | % Funcs | % Lines | Uncovered Line #s                                                                                                                               
+-------------------------------------|---------|----------|---------|---------|-------------------------------------------------------------------------------------------------------------------------------------------------
+All files                            |   24.78 |     19.4 |   21.95 |    24.6 |                                                                                                                                                 
+ auth                                |       0 |        0 |       0 |       0 |                                                                                                                                                 
+  jwt-auth.guard.ts                  |       0 |        0 |       0 |       0 | 1-25                                                                                                                                            
+ bcv                                 |    8.88 |     12.5 |       0 |    7.63 |                                                                                                                                                 
+  bcv-rate.service.ts                |    9.75 |    14.06 |       0 |    8.26 | 36-362                                                                                                                                          
+  bcv.controller.ts                  |       0 |        0 |       0 |       0 | 1-20                                                                                                                                            
+ common/cache                        |   59.84 |     52.3 |    61.9 |   58.26 |                                                                                                                                                 
+  cache.service.ts                   |   53.63 |    44.23 |   58.82 |   52.33 | 35,39-41,90-91,143-228                                                                                                                          
+  gastos-throttler.storage.ts        |    90.9 |    84.61 |      75 |      90 | 22,46                                                                                                                                           
+ common/guards                       |       0 |        0 |       0 |       0 |                                                                                                                                                 
+  api-key.guard.ts                   |       0 |        0 |       0 |       0 | 1-44                                                                                                                                            
+  profile-access.guard.ts            |       0 |        0 |       0 |       0 | 1-35                                                                                                                                            
+  profile-owner.guard.ts             |       0 |        0 |       0 |       0 | 1-37                                                                                                                                            
+ common/services                     |   51.16 |    48.38 |   33.33 |   46.15 |                                                                                                                                                 
+  profile-access.service.ts          |   27.27 |    31.57 |       0 |      20 | 25-81                                                                                                                                           
+  profile-ownership.service.ts       |   76.19 |       75 |      60 |   73.68 | 34,59-65                                                                                                                                        
+ common/utils                        |   83.58 |    58.06 |      80 |   84.61 |                                                                                                                                                 
+  active-budget-context.util.ts      |     100 |       80 |     100 |     100 | 37-38,103                                                                                                                                       
+  amount-currency.util.ts            |     100 |      100 |     100 |     100 |                                                                                                                                                 
+  caracas-date.ts                    |   91.04 |     62.5 |      80 |   90.76 | 31-36,41,137,157                                                                                                                                
+  mask-correo-for-log.util.ts        |      90 |       75 |     100 |      90 | 8                                                                                                                                               
+  retry.util.ts                      |       0 |        0 |       0 |       0 | 4-26                                                                                                                                            
+ me                                  |   14.14 |    10.28 |    11.4 |   14.45 |                                                                                                                                                 
+  income-source.default.ts           |     100 |      100 |     100 |     100 |                                                                                                                                                 
+  me.controller.ts                   |       0 |        0 |       0 |       0 | 1-247                                                                                                                                           
+  me.mappers.ts                      |   31.57 |       40 |      50 |   31.57 | 120-141,165                                                                                                                                     
+  me.service.ts                      |   15.58 |     9.84 |   13.25 |    15.9 | 107,143-147,155-861,898-1005,1071-1402,1436-1440,1444,1463-1577,1585-1591,1598,1606-1639,1650-1651,1670-1733,1745,1749,1752-1762,1771,1802-1841 
+ me/dto                              |       0 |        0 |       0 |       0 |                                                                                                                                                 
+  create-expense-with-receipt.dto.ts |       0 |      100 |       0 |       0 | 1-41                                                                                                                                            
+  create-expense.dto.ts              |       0 |      100 |       0 |       0 | 1-58                                                                                                                                            
+  create-income.dto.ts               |       0 |      100 |       0 |       0 | 1-53                                                                                                                                            
+  create-profile-member.dto.ts       |       0 |      100 |     100 |       0 | 1-7                                                                                                                                             
+  create-profile.dto.ts              |       0 |        0 |     100 |       0 | 1-21                                                                                                                                            
+  delete-expenses.dto.ts             |       0 |      100 |     100 |       0 | 1-7                                                                                                                                             
+  delete-income.dto.ts               |       0 |      100 |     100 |       0 | 1-7                                                                                                                                             
+  mark-expenses-paid.dto.ts          |       0 |      100 |     100 |       0 | 1-27                                                                                                                                            
+  month-rollover.dto.ts              |       0 |      100 |       0 |       0 | 1-9                                                                                                                                             
+  patch-expense.dto.ts               |       0 |      100 |     100 |       0 | 1-24                                                                                                                                            
+  replace-categories.dto.ts          |       0 |      100 |     100 |       0 | 1-8                                                                                                                                             
+  submit-ocr-feedback.dto.ts         |       0 |      100 |       0 |       0 | 1-119                                                                                                                                           
+  update-expense-fields.dto.ts       |       0 |      100 |     100 |       0 | 1-29                                                                                                                                            
+  update-income-fields.dto.ts        |       0 |      100 |     100 |       0 | 1-28                                                                                                                                            
+  update-preferences.dto.ts          |       0 |        0 |       0 |       0 | 1-77                                                                                                                                            
+-------------------------------------|---------|----------|---------|---------|-------------------------------------------------------------------------------------------------------------------------------------------------
+Test Suites: 1 failed, 8 passed, 9 total
+Tests:       1 failed, 58 passed, 59 total
+Snapshots:   0 total
+Time:        6.958 s
+Ran all test suites matching (bcv|me|common|auth)/.
+

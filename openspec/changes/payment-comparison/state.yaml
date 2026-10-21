@@ -1,0 +1,65 @@
+change: payment-comparison
+created: 2026-10-21
+artifact_store: hybrid
+repos: [exchange-rate, backend_gastosmobile, frontend_gastosmobile]
+phases:
+  explore: done        # exploration.md
+  audit: done          # docs/code-audit/2026-10-21-integracion-exchange/
+  propose: done        # proposal.md v3 — ADR-003, APPROVED 2026-10-21
+  spec: done           # APPROVED 2026-10-21. specs/{rates,payment-comparison}=exchange; specs/{gastos-comparisons,expenses}=backend; specs/gastos-app=frontend
+  design: in_review    # design.md TD-1..TD-9
+  tasks: pending
+  analyze: pending
+  apply: pending
+  verify: pending
+  archive: pending
+decisions:
+  - id: ADR-001
+    status: superseded
+    summary: Modular monolith inside Gastos
+  - id: ADR-002
+    status: superseded
+    summary: Gastos user goes to the Exchange web; Gastos as OAuth provider (mixed both products)
+  - id: ADR-003
+    summary: Exchange is a microservice (rates + engine, /api/v1) with its own public web; only the Gastos backend calls it with a service key + X-Consumer-User; Gastos owns UI (Angular), comparisons and expenses
+  - id: D1
+    summary: Expense.amount = real USD cost at user's selling rate; BCV equivalent stored as reference
+  - id: D2
+    summary: Electronic commission included in a single expense, broken down
+  - id: D3
+    summary: Exchange public web works without any account
+  - id: D4
+    summary: Created expense is pending (isPaid=false)
+  - id: D6
+    summary: Rates in a PG history table (new row per new value) + Redis read cache
+  - id: D7
+    summary: Gastos comparisons expire after 24 h (410); client clears the form
+  - id: D8
+    summary: Expense detail shows the full comparison table
+  - id: D9
+    summary: Amount edits on SELL_RATE expenses rejected (409)
+  - id: D10
+    summary: Expired comparisons deleted immediately (on access + hourly cleanup)
+  - id: D11
+    summary: Nominal amount/currency stored only for comparison expenses
+  - id: D12
+    summary: Exchange and Gastos are separate projects; Exchange is a microservice consumed by Gastos
+  - id: D13
+    summary: Gastos user compares inside Gastos (own Angular screen)
+  - id: D14
+    summary: Rate history table lives in Exchange's own PostgreSQL
+  - id: D15
+    summary: Gastos BCV module unchanged now; later consumes Exchange /api/v1/tasas
+  - id: D16
+    summary: Registered user for Exchange = call from Gastos with service key + user id; Exchange keeps no accounts
+technical_decisions:
+  - TD-1 decimal.js in Exchange, decimal strings on the wire, Prisma.Decimal in Gastos
+  - TD-2 Prisma 7 in Exchange (TasaHistorial)
+  - TD-3 new Nest module src/payment-comparison
+  - TD-4 MeService.resolveExpenseContext() public, reused
+  - TD-5 idempotency on the comparison row + conditional updateMany
+  - TD-6 @nestjs/schedule hourly cleanup + Redis lock
+  - TD-7 hashed consumer keys in Exchange env
+  - TD-8 Redis fixed-window rate limit in Exchange
+  - TD-9 public web keeps computing in the browser with the same engine
+next: user approves design, then sdd-tasks (chained PRs <= 400 lines)

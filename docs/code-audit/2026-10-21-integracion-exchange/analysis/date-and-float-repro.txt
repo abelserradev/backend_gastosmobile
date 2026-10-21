@@ -1,0 +1,7 @@
+﻿# cmd: node -e (reproduce parseYmdToUtcNoon de src/common/utils/caracas-date.ts:25-27 y regex de CreateExpenseDto.paymentDate)
+2026-02-31 /^\d{4}-\d{2}-\d{2}$/ = true -> parseYmdToUtcNoon = 2026-03-03T12:00:00.000Z
+2026-13-01 /^\d{4}-\d{2}-\d{2}$/ = true -> parseYmdToUtcNoon = Invalid Date
+2026-04-31 /^\d{4}-\d{2}-\d{2}$/ = true -> parseYmdToUtcNoon = 2026-05-01T12:00:00.000Z
+resolveAmountUsd(150,BS,36.5) sin redondeo = 4.109589041095891
+USD electronico 100 + 3% / tasa venta 40 (float) = 103 2.575
+
