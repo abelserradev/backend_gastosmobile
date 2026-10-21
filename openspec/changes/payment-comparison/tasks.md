@@ -8,10 +8,10 @@ Each task = one commit (Conventional Commits, Spanish message), tests in the sam
 
 ## Phase 0 — Gastos backend guardrails (`develop`)
 
-- [ ] T0.1 `test(budget)`: make `active-budget-context.util.spec.ts` deterministic with a fixed clock (F-08, R-06)
-- [ ] T0.2 `test(bcv)`: `bcv-rate.service.spec.ts` covering PG hit, Redis hit, live OK, live fail → fallback (R-07 part 1)
-- [ ] T0.3 `fix(bcv)`: fallback no longer cached as today's rate; `usedFallback` propagated (F-01, R-01)
-- [ ] T0.4 `build(deps)`: `follow-redirects` ≥ 1.16.1 via override; `pnpm audit --prod --audit-level=high` exit 0 (F-06, R-08)
+- [x] T0.1 `test(budget)`: make `active-budget-context.util.spec.ts` deterministic with a fixed clock (F-08, R-06)
+- [x] T0.2 `test(bcv)`: `bcv-rate.service.spec.ts` covering PG hit, Redis hit, live OK, live fail → fallback (R-07 part 1)
+- [x] T0.3 `fix(bcv)`: fallback no longer cached as today's rate; `usedFallback` propagated (F-01, R-01)
+- [x] T0.4 `build(deps)`: `follow-redirects` ≥ 1.16.1 via override; `pnpm audit --prod --audit-level=high` exit 0 (F-06, R-08)
 
 ## Phase 1 — Exchange: repo + rates history (`exchange-rate`, new repo)
 
