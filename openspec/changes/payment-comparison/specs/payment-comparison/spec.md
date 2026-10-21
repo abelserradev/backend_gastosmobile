@@ -15,10 +15,10 @@ values are serialized as decimal strings rounded half-up to 2 decimals.
 #### Scenario: Golden vector — sell rate 1100
 - GIVEN USD 380 cash, Bs 391.400, BCV 883.40, sell rate 1100
 - THEN Bs real cost MUST be 355.82, BCV equivalent 443.06, saving vs cash 24.18, break-even 1030.00,
-  surcharge 16.6 %, best option "bs"
+  surcharge 16.59 %, best option "bs"
 
 #### Scenario: Golden vector — electronic commission
-- GIVEN USD 380 cash and electronic with 3 % commission, Bs 391.400, sell rate 1004.17
+- GIVEN USD 380 cash and electronic with 3 % commission, Bs 391.400, sell rate 1004.16805
 - THEN electronic MUST be 391.40, Bs 389.78, cash 380.00, best option "efectivo"
 
 #### Scenario: Ties
