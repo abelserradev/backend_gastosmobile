@@ -23,7 +23,10 @@ describe('active-budget-context expense filters', () => {
 
   it('corte: rango semiabierto periodStart–cutoffDate inclusive', () => {
     const pref = { budgetCycleMode: 'monthly_cutoff', budgetCutoffDay: 15 };
-    const budget = resolveActiveBudgetContext(pref);
+    // Fecha fija: el periodo 2026-09-16…2026-10-15 es el que contiene legacyOct;
+    // con el reloj real el test se rompía al pasar el 15 de octubre.
+    const budget = resolveActiveBudgetContext(pref, '2026-10-07');
+    expect(budget.activePeriod.periodStart).toBe('2026-09-16');
     const filter = buildExpenseReferenceMonthFilter(pref, budget);
     expect(filter.gte).toEqual(
       new Date(`${budget.activePeriod.periodStart}T00:00:00.000Z`),
