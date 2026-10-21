@@ -21,14 +21,23 @@ function filaTasa(ymd: string, ves: string) {
   };
 }
 
-/** Caché en memoria con la misma forma que CacheService (sin Redis). */
+/** Caché en memoria con la misma forma que CacheService; respeta el TTL con el reloj falso. */
 function crearCacheFalsa() {
   const datos = new Map<string, unknown>();
+  const vence = new Map<string, number>();
   return {
     datos,
-    get: jest.fn((key: string) => Promise.resolve(datos.get(key) ?? null)),
-    set: jest.fn((key: string, value: unknown) => {
+    get: jest.fn((key: string) => {
+      const expiraEn = vence.get(key);
+      if (expiraEn !== undefined && Date.now() >= expiraEn) {
+        datos.delete(key);
+        vence.delete(key);
+      }
+      return Promise.resolve(datos.get(key) ?? null);
+    }),
+    set: jest.fn((key: string, value: unknown, ttlMs: number) => {
       datos.set(key, value);
+      vence.set(key, Date.now() + ttlMs);
       return Promise.resolve();
     }),
     del: jest.fn((key: string) => {
@@ -112,6 +121,55 @@ describe('BcvRateService', () => {
 
     expect(actual.usedFallback).toBe(true);
     expect(actual.vesPerUsd.toString()).toBe('209');
+  });
+
+  describe('regresión F-01: el fallback no se cachea como tasa de hoy', () => {
+    it('no escribe la tasa de ayer bajo la clave de hoy', async () => {
+      http.get.mockReturnValue(throwError(() => new Error('timeout')));
+      prisma.bcVOfficialRate.findFirst.mockResolvedValue(filaTasa(AYER, '209'));
+
+      await service.getVesPerUsdForCalendarDay(HOY);
+
+      expect(cache.datos.has(`bcv:day:${HOY}`)).toBe(false);
+    });
+
+    it('cuando DolarApi vuelve, la siguiente lectura trae la tasa nueva', async () => {
+      prisma.bcVOfficialRate.findFirst.mockResolvedValue(filaTasa(AYER, '209'));
+      http.get.mockReturnValueOnce(throwError(() => new Error('timeout')));
+      await service.getVesPerUsdForCalendarDay(HOY);
+      // Pasada la pausa corta tras el fallo
+      jest.setSystemTime(new Date(AHORA.getTime() + 6 * 60 * 1000));
+      http.get.mockReturnValueOnce(of({ data: { promedio: 213 } }));
+
+      const actual = await service.getVesPerUsdForCalendarDay(HOY);
+
+      expect(actual.usedFallback).toBe(false);
+      expect(actual.vesPerUsd.toString()).toBe('213');
+    });
+
+    it('durante la pausa corta repite el fallback sin volver a llamar a DolarApi', async () => {
+      prisma.bcVOfficialRate.findFirst.mockResolvedValue(filaTasa(AYER, '209'));
+      http.get.mockReturnValue(throwError(() => new Error('timeout')));
+      await service.getVesPerUsdForCalendarDay(HOY);
+
+      const actual = await service.getVesPerUsdForCalendarDay(HOY);
+
+      expect(actual.usedFallback).toBe(true);
+      expect(http.get).toHaveBeenCalledTimes(1);
+    });
+
+    it('ignora una entrada de hoy ya envenenada con la tasa de otro día', async () => {
+      cache.datos.set(`bcv:day:${HOY}`, {
+        vesPerUsd: '209',
+        rateDateYmd: AYER,
+      });
+      http.get.mockReturnValue(of({ data: { promedio: 213 } }));
+
+      const actual = await service.getVesPerUsdForCalendarDay(HOY);
+
+      expect(actual.vesPerUsd.toString()).toBe('213');
+      expect(actual.usedFallback).toBe(false);
+    });
   });
 
   it('sin DolarApi ni histórico responde 503', async () => {
