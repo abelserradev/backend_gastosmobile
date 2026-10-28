@@ -28,9 +28,7 @@ describe('resolveProfileRouteAuth', () => {
   });
 
   it('devuelve profileId undefined si la ruta no lo incluye', () => {
-    const result = resolveProfileRouteAuth(
-      mockContext({}, { userId: 'u1' }),
-    );
+    const result = resolveProfileRouteAuth(mockContext({}, { userId: 'u1' }));
     expect(result.profileId).toBeUndefined();
   });
 });

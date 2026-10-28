@@ -15,8 +15,7 @@ export async function buildBcvAmountPatchForYmd(
   amount: number,
   amountCurrency: 'USD' | 'BS' | undefined,
 ): Promise<BcvAmountPatch> {
-  const { vesPerUsd, rateDate } =
-    await bcv.getVesPerUsdForCalendarDay(rateYmd);
+  const { vesPerUsd, rateDate } = await bcv.getVesPerUsdForCalendarDay(rateYmd);
   const vesPerUsdNum = Number(vesPerUsd.toString());
   return {
     amount: resolveAmountUsd(amount, amountCurrency, vesPerUsdNum),
