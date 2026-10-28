@@ -4,6 +4,7 @@ import {
   parseMoneyFragment,
   resolveInvoiceCurrency,
 } from './invoice-money.util';
+import { isTranscriptEmptyOrLetterPoor } from './transcript-signal.util';
 
 const KEYED_LABELS = new Set([
   'items',
@@ -549,14 +550,11 @@ export function extractStructuredFields(text: string): {
 }
 
 export function isDegenerateTranscript(text: string): boolean {
+  if (isTranscriptEmptyOrLetterPoor(text)) {
+    return true;
+  }
   const s = (text ?? '').trim();
-  if (s.length === 0) {
-    return true;
-  }
   const letters = [...s].filter((c) => /[a-záéíóúñ]/i.test(c)).length;
-  if (s.length < 10 && letters < 2) {
-    return true;
-  }
   if (s.length < 80 && letters < 3 && /^[\d\s.,:$€£\-Bs]+$/i.test(s)) {
     return true;
   }

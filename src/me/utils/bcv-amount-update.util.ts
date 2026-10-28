@@ -9,13 +9,12 @@ export type BcvAmountPatch = {
   bcvRateDate: Date;
 };
 
-/** Convierte monto entrante (USD/BS) a USD almacenado usando tasa BCV del día en Caracas. */
-export async function buildBcvAmountPatch(
+export async function buildBcvAmountPatchForYmd(
   bcv: BcvRateService,
+  rateYmd: string,
   amount: number,
   amountCurrency: 'USD' | 'BS' | undefined,
 ): Promise<BcvAmountPatch> {
-  const rateYmd = formatYmdInCaracas();
   const { vesPerUsd, rateDate } =
     await bcv.getVesPerUsdForCalendarDay(rateYmd);
   const vesPerUsdNum = Number(vesPerUsd.toString());
@@ -24,4 +23,18 @@ export async function buildBcvAmountPatch(
     bcvRateApplied: vesPerUsd,
     bcvRateDate: rateDate,
   };
+}
+
+/** Convierte monto entrante (USD/BS) a USD con tasa BCV del día actual en Caracas (updates Telegram). */
+export async function buildBcvAmountPatch(
+  bcv: BcvRateService,
+  amount: number,
+  amountCurrency: 'USD' | 'BS' | undefined,
+): Promise<BcvAmountPatch> {
+  return buildBcvAmountPatchForYmd(
+    bcv,
+    formatYmdInCaracas(),
+    amount,
+    amountCurrency,
+  );
 }

@@ -16,7 +16,10 @@ import {
   type BudgetPeriod,
 } from '../common/utils/caracas-date';
 import { resolveAmountUsd } from '../common/utils/amount-currency.util';
-import { buildBcvAmountPatch } from './utils/bcv-amount-update.util';
+import {
+  buildBcvAmountPatch,
+  buildBcvAmountPatchForYmd,
+} from './utils/bcv-amount-update.util';
 import type { AuthUserPayload } from '../common/types/auth-user.payload';
 import { type Prisma } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
@@ -1043,14 +1046,12 @@ export class MeService {
       dto.referenceMonth,
     );
     const rateYmd = dto.paymentDate ?? formatYmdInCaracas();
-    const { vesPerUsd, rateDate } =
-      await this.bcv.getVesPerUsdForCalendarDay(rateYmd);
     const paymentDate = parseYmdToUtcNoon(rateYmd);
-    const vesPerUsdNum = Number(vesPerUsd.toString());
-    const amountUsd = resolveAmountUsd(
+    const bcvAmount = await buildBcvAmountPatchForYmd(
+      this.bcv,
+      rateYmd,
       dto.amount,
       dto.amountCurrency,
-      vesPerUsdNum,
     );
     const row = await this.prisma.expense.create({
       data: {
@@ -1058,11 +1059,11 @@ export class MeService {
         categoryId,
         title: dto.title.trim(),
         description: dto.description?.trim() ?? '',
-        amount: amountUsd,
+        amount: bcvAmount.amount,
         referenceMonth: toReferenceMonthDate(refStr),
         paymentDate,
-        bcvRateApplied: vesPerUsd,
-        bcvRateDate: rateDate,
+        bcvRateApplied: bcvAmount.bcvRateApplied,
+        bcvRateDate: bcvAmount.bcvRateDate,
       },
       include: EXPENSE_RESPONSE_INCLUDE,
     });
@@ -1074,7 +1075,7 @@ export class MeService {
       profileId,
       {
         title: row.title,
-        amount: amountUsd,
+        amount: bcvAmount.amount,
         amountCurrency: dto.amountCurrency,
         categoryName: row.category?.name,
       },
@@ -1099,17 +1100,14 @@ export class MeService {
     });
     const profileId = await this.resolveProfileId(userId, undefined);
     const rateYmd = dto.paymentDate ?? formatYmdInCaracas();
-    const { vesPerUsd, rateDate } =
-      await this.bcv.getVesPerUsdForCalendarDay(rateYmd);
     const paymentDate = parseYmdToUtcNoon(rateYmd);
     const pref = await this.getBudgetCyclePrefForUser(userId);
     const refStr = this.resolveMovementReferenceMonthYmd(pref);
-
-    const vesPerUsdNum = Number(vesPerUsd.toString());
-    const amountUsd = resolveAmountUsd(
+    const bcvAmount = await buildBcvAmountPatchForYmd(
+      this.bcv,
+      rateYmd,
       dto.amount,
       dto.amountCurrency,
-      vesPerUsdNum,
     );
 
     // Título autogenerado si no viene del frontend: "Factura · YYYY-MM-DD" o "Pago · ..."
@@ -1121,11 +1119,11 @@ export class MeService {
         categoryId,
         title,
         description: '',
-        amount: amountUsd,
+        amount: bcvAmount.amount,
         referenceMonth: toReferenceMonthDate(refStr),
         paymentDate,
-        bcvRateApplied: vesPerUsd,
-        bcvRateDate: rateDate,
+        bcvRateApplied: bcvAmount.bcvRateApplied,
+        bcvRateDate: bcvAmount.bcvRateDate,
         receiptImage: new Uint8Array(imageBuffer),
         receiptMime: imageMime,
       },
@@ -1138,7 +1136,7 @@ export class MeService {
       profileId,
       {
         title: row.title,
-        amount: amountUsd,
+        amount: bcvAmount.amount,
         amountCurrency: dto.amountCurrency,
         categoryName: row.category?.name,
         hasReceipt: true,
@@ -1727,13 +1725,11 @@ export class MeService {
       dto.referenceMonth,
     );
     const rateYmd = dto.receivedDate ?? formatYmdInCaracas();
-    const { vesPerUsd, rateDate } =
-      await this.bcv.getVesPerUsdForCalendarDay(rateYmd);
-    const vesPerUsdNum = Number(vesPerUsd.toString());
-    const amountUsd = resolveAmountUsd(
+    const bcvAmount = await buildBcvAmountPatchForYmd(
+      this.bcv,
+      rateYmd,
       dto.amount,
       dto.amountCurrency,
-      vesPerUsdNum,
     );
     const row = (await this.incomePrisma.incomeEntry.create({
       data: {
@@ -1741,11 +1737,11 @@ export class MeService {
         sourceId,
         title: dto.title.trim(),
         description: dto.description?.trim() ?? '',
-        amount: amountUsd,
+        amount: bcvAmount.amount,
         referenceMonth: toReferenceMonthDate(refStr),
         receivedDate: parseYmdToUtcNoon(rateYmd),
-        bcvRateApplied: vesPerUsd,
-        bcvRateDate: rateDate,
+        bcvRateApplied: bcvAmount.bcvRateApplied,
+        bcvRateDate: bcvAmount.bcvRateDate,
       },
       include: { source: true },
     })) as IncomeEntryWithSourceRow;
