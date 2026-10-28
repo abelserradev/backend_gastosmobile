@@ -6,6 +6,10 @@ import {
 import { InventoryItemService } from './inventory-item.service';
 import { CreateInventoryItemDto } from './dto/create-item.dto';
 import { UpdateInventoryItemDto } from './dto/update-item.dto';
+import {
+  createInventoryProfileAccessMock,
+  createInventorySpecStubs,
+} from './testing/inventory-service-test.util';
 
 describe('InventoryItemService', () => {
   let service: InventoryItemService;
@@ -36,14 +40,8 @@ describe('InventoryItemService', () => {
   const mockItemId = 'item-001';
 
   beforeEach(() => {
-    cache = { del: jest.fn().mockResolvedValue(undefined) };
-    audit = { recordDomainEvent: jest.fn().mockResolvedValue(undefined) };
-    profileAccess = {
-      assertInventoryAccess: jest.fn().mockResolvedValue({
-        access: 'owner',
-        profile: { id: mockProfileId, type: 'comercio' },
-      }),
-    };
+    ({ cache, audit } = createInventorySpecStubs());
+    profileAccess = createInventoryProfileAccessMock(mockProfileId);
     prisma = {
       inventoryItem: {
         findMany: jest.fn(),

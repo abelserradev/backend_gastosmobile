@@ -118,3 +118,14 @@ Sin branch protection, los workflows corren pero **no impiden** merge o push dir
 ## Secretos
 
 No commitear `.env`. Los workflows no necesitan secretos para CI; el deploy usa `COOLIFY_WEBHOOK_BACKEND` en repository secrets.
+
+## Publicar commits (`git push`) en Windows
+
+Si en la terminal integrada de Cursor aparece `fatal error - add_item` en `sh.exe` / `bash.exe`, `askpass.sh` o `could not read Username for 'https://github.com'`:
+
+1. **Terminal externa:** abre **PowerShell** o **Git Bash** fuera de Cursor, `cd` al repo y ejecuta `git push origin develop`.
+2. **Credenciales HTTPS:** instala [Git Credential Manager](https://github.com/git-ecosystem/git-credential-manager) (viene con Git for Windows reciente). En el push externo debería abrirse login de GitHub.
+3. **SSH (alternativa):** en GitHub → Settings → SSH keys; en el repo `git remote set-url origin git@github.com:abelserradev/backend_gastosmobile.git` y push con clave SSH.
+4. **No usar** el agente para push; los commits locales los publicas tú cuando CI en verde.
+
+Remote actual: `https://github.com/abelserradev/backend_gastosmobile.git` (rama `develop`).
