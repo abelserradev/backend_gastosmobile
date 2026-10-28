@@ -1,0 +1,361 @@
+{
+  "duplicates": [
+    {
+      "firstFile": {
+        "end": 34,
+        "endLoc": {
+          "column": 15,
+          "line": 34,
+          "position": 999
+        },
+        "name": "common\\guards\\profile-access.guard.ts",
+        "start": 15,
+        "startLoc": {
+          "column": 66,
+          "line": 15,
+          "position": 466
+        }
+      },
+      "format": "typescript",
+      "fragment": "  constructor(private readonly profileAccess: ProfileAccessService) {}\n\n  async canActivate(context: ExecutionContext): Promise<boolean> {\n    const request = context.switchToHttp().getRequest<Request>();\n    const user = (request as { user?: { userId: string } }).user;\n\n    if (!user?.userId) {\n      throw new ForbiddenException('Usuario no autenticado');\n    }\n\n    const rawProfileId = request.params['profileId'];\n    const profileId = Array.isArray(rawProfileId)\n      ? rawProfileId[0]\n      : rawProfileId;\n\n    if (!profileId) {\n      return true;\n    }\n\n    await this.profileAccess.assertInventoryAccess(profileId, user.userId);",
+      "isNew": false,
+      "kind": "exact",
+      "lines": 20,
+      "secondFile": {
+        "end": 36,
+        "endLoc": {
+          "column": 15,
+          "line": 36,
+          "position": 1082
+        },
+        "name": "common\\guards\\profile-owner.guard.ts",
+        "start": 17,
+        "startLoc": {
+          "column": 72,
+          "line": 17,
+          "position": 549
+        }
+      },
+      "tokens": 108
+    },
+    {
+      "firstFile": {
+        "end": 48,
+        "endLoc": {
+          "column": 22,
+          "line": 48,
+          "position": 1400
+        },
+        "name": "inventory\\inventory-item.service.spec.ts",
+        "start": 36,
+        "startLoc": {
+          "column": 31,
+          "line": 36,
+          "position": 1010
+        }
+      },
+      "format": "typescript",
+      "fragment": "  const mockItemId = 'item-001';\n\n  beforeEach(() => {\n    cache = { del: jest.fn().mockResolvedValue(undefined) };\n    audit = { recordDomainEvent: jest.fn().mockResolvedValue(undefined) };\n    profileAccess = {\n      assertInventoryAccess: jest.fn().mockResolvedValue({\n        access: 'owner',\n        profile: { id: mockProfileId, type: 'comercio' },\n      }),\n    };\n    prisma = {\n      inventoryItem: {",
+      "isNew": false,
+      "kind": "exact",
+      "lines": 13,
+      "secondFile": {
+        "end": 53,
+        "endLoc": {
+          "column": 22,
+          "line": 53,
+          "position": 1450
+        },
+        "name": "inventory\\stock-movement.service.spec.ts",
+        "start": 41,
+        "startLoc": {
+          "column": 34,
+          "line": 41,
+          "position": 1060
+        }
+      },
+      "tokens": 82
+    },
+    {
+      "firstFile": {
+        "end": 37,
+        "endLoc": {
+          "column": 11,
+          "line": 37,
+          "position": 648
+        },
+        "name": "me\\dto\\create-expense.dto.ts",
+        "start": 15,
+        "startLoc": {
+          "column": 30,
+          "line": 15,
+          "position": 236
+        }
+      },
+      "format": "typescript",
+      "fragment": "export class CreateExpenseDto {\n  @IsString()\n  @MinLength(1)\n  @MaxLength(200)\n  title!: string;\n\n  @IsOptional()\n  @IsString()\n  @MaxLength(2000)\n  description?: string;\n\n  @Type(() => Number)\n  @IsNumber()\n  @Min(0)\n  amount!: number;\n\n  /** Si amount viene en Bs, se convierte a USD con tasa BCV del paymentDate. */\n  @IsOptional()\n  @IsIn(['USD', 'BS'])\n  amountCurrency?: 'USD' | 'BS';\n\n  @IsOptional()\n  @IsUUID()",
+      "isNew": false,
+      "kind": "exact",
+      "lines": 23,
+      "secondFile": {
+        "end": 36,
+        "endLoc": {
+          "column": 11,
+          "line": 36,
+          "position": 565
+        },
+        "name": "me\\dto\\create-income.dto.ts",
+        "start": 15,
+        "startLoc": {
+          "column": 29,
+          "line": 15,
+          "position": 235
+        }
+      },
+      "tokens": 88
+    },
+    {
+      "firstFile": {
+        "end": 28,
+        "endLoc": {
+          "column": 16,
+          "line": 28,
+          "position": 500
+        },
+        "name": "me\\dto\\update-expense-fields.dto.ts",
+        "start": 11,
+        "startLoc": {
+          "column": 36,
+          "line": 11,
+          "position": 212
+        }
+      },
+      "format": "typescript",
+      "fragment": "export class UpdateExpenseFieldsDto {\n  @IsOptional()\n  @IsString()\n  @MaxLength(200)\n  title?: string;\n\n  @IsOptional()\n  @IsNumber({ maxDecimalPlaces: 2 })\n  @Min(0)\n  amount?: number;\n\n  @IsOptional()\n  @IsIn(['USD', 'BS'])\n  amountCurrency?: 'USD' | 'BS';\n\n  @IsOptional()\n  @IsString()\n  @MaxLength(80)",
+      "isNew": false,
+      "kind": "exact",
+      "lines": 18,
+      "secondFile": {
+        "end": 27,
+        "endLoc": {
+          "column": 16,
+          "line": 27,
+          "position": 434
+        },
+        "name": "me\\dto\\update-income-fields.dto.ts",
+        "start": 10,
+        "startLoc": {
+          "column": 35,
+          "line": 10,
+          "position": 146
+        }
+      },
+      "tokens": 75
+    },
+    {
+      "firstFile": {
+        "end": 1795,
+        "endLoc": {
+          "column": 12,
+          "line": 1795,
+          "position": 59660
+        },
+        "name": "me\\me.service.ts",
+        "start": 1778,
+        "startLoc": {
+          "column": 42,
+          "line": 1778,
+          "position": 59127
+        }
+      },
+      "format": "typescript",
+      "fragment": "    const data: Prisma.ExpenseUpdateInput = {};\n    if (dto.title?.trim()) {\n      data.title = dto.title.trim();\n    }\n    if (dto.amount != null) {\n      const rateYmd = formatYmdInCaracas();\n      const { vesPerUsd, rateDate } =\n        await this.bcv.getVesPerUsdForCalendarDay(rateYmd);\n      const vesPerUsdNum = Number(vesPerUsd.toString());\n      data.amount = resolveAmountUsd(\n        dto.amount,\n        dto.amountCurrency,\n        vesPerUsdNum,\n      );\n      data.bcvRateApplied = vesPerUsd;\n      data.bcvRateDate = rateDate;\n    }\n    if (dto.categoryName?.trim()) {",
+      "isNew": false,
+      "kind": "exact",
+      "lines": 18,
+      "secondFile": {
+        "end": 1856,
+        "endLoc": {
+          "column": 12,
+          "line": 1856,
+          "position": 61522
+        },
+        "name": "me\\me.service.ts",
+        "start": 1839,
+        "startLoc": {
+          "column": 46,
+          "line": 1839,
+          "position": 60989
+        }
+      },
+      "tokens": 108
+    },
+    {
+      "firstFile": {
+        "end": 560,
+        "endLoc": {
+          "column": 6,
+          "line": 560,
+          "position": 17541
+        },
+        "name": "ocr\\parsing\\invoice-text.parser.ts",
+        "start": 551,
+        "startLoc": {
+          "column": 38,
+          "line": 551,
+          "position": 17286
+        }
+      },
+      "format": "typescript",
+      "fragment": "export function isDegenerateTranscript(text: string): boolean {\n  const s = (text ?? '').trim();\n  if (s.length === 0) {\n    return true;\n  }\n  const letters = [...s].filter((c) => /[a-záéíóúñ]/i.test(c)).length;\n  if (s.length < 10 && letters < 2) {\n    return true;\n  }\n  if (s.length < 80 && letters < 3 && /^[\\d\\s.,:$€£\\-Bs]+$/i.test(s)) {",
+      "isNew": false,
+      "kind": "exact",
+      "lines": 10,
+      "secondFile": {
+        "end": 83,
+        "endLoc": {
+          "column": 6,
+          "line": 83,
+          "position": 2129
+        },
+        "name": "ocr\\parsing\\vlm-text.util.ts",
+        "start": 74,
+        "startLoc": {
+          "column": 41,
+          "line": 74,
+          "position": 1874
+        }
+      },
+      "tokens": 77
+    },
+    {
+      "firstFile": {
+        "end": 304,
+        "endLoc": {
+          "column": 15,
+          "line": 304,
+          "position": 9001
+        },
+        "name": "telegram\\telegram-mutation.service.ts",
+        "start": 287,
+        "startLoc": {
+          "column": 37,
+          "line": 287,
+          "position": 8482
+        }
+      },
+      "format": "typescript",
+      "fragment": "  private async deleteInventoryIntent(\n    chatId: string,\n    user: AuthUserPayload,\n    intent: ParsedTelegramIntent,\n    state: MeState,\n  ): Promise<void> {\n    const profile = this.resolveComercioProfile(state);\n    if (!profile) {\n      await this.api.sendMessage(chatId, formatNoInventoryProfile());\n      return;\n    }\n    const items = await this.inventoryItems.listItems(profile.id, user.userId);\n    const picks = this.resolver.matchInventoryItems(\n      items,\n      profile.id,\n      intent.searchQuery,\n    );\n    await this.offerDeletePicks(chatId, picks, 'Producto');",
+      "isNew": false,
+      "kind": "exact",
+      "lines": 18,
+      "secondFile": {
+        "end": 352,
+        "endLoc": {
+          "column": 15,
+          "line": 352,
+          "position": 10398
+        },
+        "name": "telegram\\telegram-mutation.service.ts",
+        "start": 335,
+        "startLoc": {
+          "column": 37,
+          "line": 335,
+          "position": 9879
+        }
+      },
+      "tokens": 100
+    },
+    {
+      "firstFile": {
+        "end": 600,
+        "endLoc": {
+          "column": 11,
+          "line": 600,
+          "position": 17911
+        },
+        "name": "telegram\\telegram-mutation.service.ts",
+        "start": 580,
+        "startLoc": {
+          "column": 74,
+          "line": 580,
+          "position": 17370
+        }
+      },
+      "format": "typescript",
+      "fragment": "            `$${target.amount.toFixed(2)} · ${target.source} — ${target.title}`,\n          ),\n        );\n        return;\n      }\n      const profile = this.resolveComercioProfile(state);\n      if (!profile) {\n        throw new BadRequestException('Sin perfil comercio');\n      }\n      const items = await this.inventoryItems.listItems(\n        profile.id,\n        user.userId,\n      );\n      const id = this.resolver.resolveShortId(\n        items.map((i) => i.id),\n        shortId,\n      );\n      if (!id) {\n        throw new BadRequestException('Producto no encontrado');\n      }\n      const target = items.find((i) => i.id === id)!;",
+      "isNew": false,
+      "kind": "exact",
+      "lines": 21,
+      "secondFile": {
+        "end": 703,
+        "endLoc": {
+          "column": 11,
+          "line": 703,
+          "position": 21305
+        },
+        "name": "telegram\\telegram-mutation.service.ts",
+        "start": 683,
+        "startLoc": {
+          "column": 77,
+          "line": 683,
+          "position": 20764
+        }
+      },
+      "tokens": 96
+    }
+  ],
+  "statistics": {
+    "detectionDate": "2026-10-28T13:18:10.014Z",
+    "formats": {
+      "markdown": {
+        "clones": 0,
+        "duplicatedLines": 0,
+        "duplicatedTokens": 0,
+        "lines": 307,
+        "newClones": 0,
+        "newDuplicatedLines": 0,
+        "percentage": 0.0,
+        "percentageTokens": 0.0,
+        "sources": 1,
+        "tokens": 2082
+      },
+      "text": {
+        "clones": 0,
+        "duplicatedLines": 0,
+        "duplicatedTokens": 0,
+        "lines": 61,
+        "newClones": 0,
+        "newDuplicatedLines": 0,
+        "percentage": 0.0,
+        "percentageTokens": 0.0,
+        "sources": 1,
+        "tokens": 363
+      },
+      "typescript": {
+        "clones": 8,
+        "duplicatedLines": 141,
+        "duplicatedTokens": 734,
+        "lines": 17990,
+        "newClones": 0,
+        "newDuplicatedLines": 0,
+        "percentage": 0.7837687604224569,
+        "percentageTokens": 0.8024927567922157,
+        "sources": 132,
+        "tokens": 91465
+      }
+    },
+    "total": {
+      "clones": 8,
+      "duplicatedLines": 141,
+      "duplicatedTokens": 734,
+      "lines": 18358,
+      "newClones": 0,
+      "newDuplicatedLines": 0,
+      "percentage": 0.7680575226059484,
+      "percentageTokens": 0.7815994036843786,
+      "sources": 134,
+      "tokens": 93910
+    }
+  }
+}
