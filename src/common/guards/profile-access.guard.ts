@@ -1,11 +1,6 @@
-import {
-  CanActivate,
-  ExecutionContext,
-  ForbiddenException,
-  Injectable,
-} from '@nestjs/common';
-import type { Request } from 'express';
+import { CanActivate, ExecutionContext, Injectable } from '@nestjs/common';
 import { ProfileAccessService } from '../services/profile-access.service';
+import { resolveProfileRouteAuth } from './profile-route-auth.util';
 
 /**
  * Guard de inventario: dueño del perfil comercio o colaborador aceptado (FEAT-003).
@@ -15,23 +10,13 @@ export class ProfileAccessGuard implements CanActivate {
   constructor(private readonly profileAccess: ProfileAccessService) {}
 
   async canActivate(context: ExecutionContext): Promise<boolean> {
-    const request = context.switchToHttp().getRequest<Request>();
-    const user = (request as { user?: { userId: string } }).user;
-
-    if (!user?.userId) {
-      throw new ForbiddenException('Usuario no autenticado');
-    }
-
-    const rawProfileId = request.params['profileId'];
-    const profileId = Array.isArray(rawProfileId)
-      ? rawProfileId[0]
-      : rawProfileId;
+    const { userId, profileId } = resolveProfileRouteAuth(context);
 
     if (!profileId) {
       return true;
     }
 
-    await this.profileAccess.assertInventoryAccess(profileId, user.userId);
+    await this.profileAccess.assertInventoryAccess(profileId, userId);
     return true;
   }
 }

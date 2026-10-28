@@ -1,0 +1,104 @@
+{
+  "repo": "C:\\Users\\aserra\\OneDrive - VENEMERGENCIA AG, C.A\\Documentos\\buildforge\\gastos\\backend_gastosmobile",
+  "stacks": [
+    {
+      "stack": "nestjs",
+      "dir": ".",
+      "evidence": "package.json:@nestjs/core"
+    }
+  ],
+  "dockerfiles": [
+    "Dockerfile"
+  ],
+  "compose_files": [
+    "docker-compose.host-ollama.yml",
+    "docker-compose.local.yml",
+    "docker-compose.override.gpu-host.yml",
+    "docker-compose.yml",
+    "docker-compose_local.yml"
+  ],
+  "lockfiles": [
+    "pnpm-lock.yaml"
+  ],
+  "has_precommit": true,
+  "tests": {
+    "unit_count": 26,
+    "integration_count": 0,
+    "unit_sample": [
+      "src\\audit\\audit.service.spec.ts",
+      "src\\auth\\auth.service.spec.ts",
+      "src\\bcv\\bcv-rate.service.spec.ts",
+      "src\\chat\\prompt-guard.service.spec.ts",
+      "src\\inventory\\inventory-item.service.spec.ts",
+      "src\\inventory\\inventory-pricing.util.spec.ts",
+      "src\\inventory\\inventory.mappers.spec.ts",
+      "src\\inventory\\inventory.service.spec.ts",
+      "src\\inventory\\stock-movement.service.spec.ts",
+      "src\\me\\me.service.payment-comparison.spec.ts",
+      "src\\me\\me.service.reference-month.spec.ts",
+      "src\\me\\me.service.spec.ts",
+      "src\\profile-collaborators\\profile-collaborator.service.spec.ts",
+      "src\\telegram\\telegram-entity-resolver.service.spec.ts",
+      "src\\telegram\\telegram-intent-parser.service.spec.ts"
+    ],
+    "integration_sample": []
+  },
+  "gaps": {
+    "sources_scanned": [
+      ".pre-commit-config.yaml",
+      "package.json",
+      ".github\\dependabot.yml",
+      ".github\\workflows\\ci.yml",
+      ".github\\workflows\\coolify-deploy.yml",
+      ".github\\workflows\\dependabot-auto-merge.yml",
+      ".github\\workflows\\dependabot-batch-merge.yml",
+      ".github\\workflows\\security-audit.yml",
+      ".github\\workflows\\sonarcloud.yml"
+    ],
+    "matrix": {
+      "DRY": {
+        "covered": false,
+        "tools_found": []
+      },
+      "SOLID": {
+        "covered": false,
+        "tools_found": [],
+        "note": "always manual evaluation (Phase 2)"
+      },
+      "unit_tests": {
+        "covered": true,
+        "tools_found": [
+          "jest"
+        ]
+      },
+      "integration_tests": {
+        "covered": true,
+        "tools_found": [
+          "e2e",
+          "supertest"
+        ]
+      },
+      "SAST": {
+        "covered": false,
+        "tools_found": []
+      },
+      "SCA": {
+        "covered": true,
+        "tools_found": [
+          "dependabot",
+          "npm audit"
+        ]
+      },
+      "secrets": {
+        "covered": true,
+        "tools_found": [
+          "gitleaks"
+        ]
+      },
+      "containers": {
+        "covered": false,
+        "tools_found": []
+      }
+    }
+  }
+}

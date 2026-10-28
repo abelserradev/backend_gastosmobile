@@ -7,12 +7,14 @@ describe('GoogleVisionQuotaService', () => {
   let quota: GoogleVisionQuotaService;
 
   beforeEach(() => {
-    cache = new CacheService({ get: () => undefined } as ConfigService);
+    cache = new CacheService({
+      get: () => undefined,
+    } as unknown as ConfigService);
     quota = new GoogleVisionQuotaService(
       {
         get: (key: string) =>
           key === 'GOOGLE_VISION_MONTHLY_LIMIT' ? '3' : undefined,
-      } as ConfigService,
+      } as unknown as ConfigService,
       cache,
     );
   });
@@ -29,7 +31,7 @@ describe('GoogleVisionQuotaService', () => {
 
   it('getMonthlyLimit usa default 1000 si no hay env', () => {
     const defaultQuota = new GoogleVisionQuotaService(
-      { get: () => undefined } as ConfigService,
+      { get: () => undefined } as unknown as ConfigService,
       cache,
     );
     expect(defaultQuota.getMonthlyLimit()).toBe(1000);

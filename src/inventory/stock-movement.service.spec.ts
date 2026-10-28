@@ -9,6 +9,10 @@ import {
   MovementType,
 } from './dto/create-movement.dto';
 import { AdjustStockDto } from './dto/create-movement.dto';
+import {
+  createInventoryProfileAccessMock,
+  createInventorySpecStubs,
+} from './testing/inventory-service-test.util';
 
 describe('StockMovementService', () => {
   let service: StockMovementService;
@@ -41,14 +45,8 @@ describe('StockMovementService', () => {
   const mockMovementId = 'mov-001';
 
   beforeEach(() => {
-    cache = { del: jest.fn().mockResolvedValue(undefined) };
-    audit = { recordDomainEvent: jest.fn().mockResolvedValue(undefined) };
-    profileAccess = {
-      assertInventoryAccess: jest.fn().mockResolvedValue({
-        access: 'owner',
-        profile: { id: mockProfileId, type: 'comercio' },
-      }),
-    };
+    ({ cache, audit } = createInventorySpecStubs());
+    profileAccess = createInventoryProfileAccessMock(mockProfileId);
     prisma = {
       inventoryItem: {
         findFirst: jest.fn(),

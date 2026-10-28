@@ -290,15 +290,14 @@ export class TelegramMutationService {
     intent: ParsedTelegramIntent,
     state: MeState,
   ): Promise<void> {
-    const profile = this.resolveComercioProfile(state);
-    if (!profile) {
+    const loaded = await this.loadComercioInventoryItems(user, state);
+    if (!loaded) {
       await this.api.sendMessage(chatId, formatNoInventoryProfile());
       return;
     }
-    const items = await this.inventoryItems.listItems(profile.id, user.userId);
     const picks = this.resolver.matchInventoryItems(
-      items,
-      profile.id,
+      loaded.items,
+      loaded.profile.id,
       intent.searchQuery,
     );
     await this.offerDeletePicks(chatId, picks, 'Producto');
@@ -338,15 +337,14 @@ export class TelegramMutationService {
     intent: ParsedTelegramIntent,
     state: MeState,
   ): Promise<void> {
-    const profile = this.resolveComercioProfile(state);
-    if (!profile) {
+    const loaded = await this.loadComercioInventoryItems(user, state);
+    if (!loaded) {
       await this.api.sendMessage(chatId, formatNoInventoryProfile());
       return;
     }
-    const items = await this.inventoryItems.listItems(profile.id, user.userId);
     const picks = this.resolver.matchInventoryItems(
-      items,
-      profile.id,
+      loaded.items,
+      loaded.profile.id,
       intent.searchQuery,
     );
     await this.offerUpdatePicks(chatId, user, picks, 'inventory', intent);
@@ -582,18 +580,11 @@ export class TelegramMutationService {
         );
         return;
       }
-      const profile = this.resolveComercioProfile(state);
-      if (!profile) {
-        throw new BadRequestException('Sin perfil comercio');
-      }
-      const items = await this.inventoryItems.listItems(
-        profile.id,
-        user.userId,
+      const { profile, items } = await this.requireComercioInventoryItems(
+        user,
+        state,
       );
-      const id = this.resolver.resolveShortId(
-        items.map((i) => i.id),
-        shortId,
-      );
+      const id = this.resolveInventoryShortId(items, shortId);
       if (!id) {
         throw new BadRequestException('Producto no encontrado');
       }
@@ -685,18 +676,11 @@ export class TelegramMutationService {
         );
         return;
       }
-      const profile = this.resolveComercioProfile(state);
-      if (!profile) {
-        throw new BadRequestException('Sin perfil comercio');
-      }
-      const items = await this.inventoryItems.listItems(
-        profile.id,
-        user.userId,
+      const { profile, items } = await this.requireComercioInventoryItems(
+        user,
+        state,
       );
-      const id = this.resolver.resolveShortId(
-        items.map((i) => i.id),
-        shortId,
-      );
+      const id = this.resolveInventoryShortId(items, shortId);
       if (!id) {
         throw new BadRequestException('Producto no encontrado');
       }
@@ -831,5 +815,44 @@ export class TelegramMutationService {
   ): { id: string; name: string } | null {
     const p = state.profiles.find((x) => x.type === 'comercio');
     return p ? { id: p.id, name: p.name } : null;
+  }
+
+  private async loadComercioInventoryItems(
+    user: AuthUserPayload,
+    state: MeState,
+  ): Promise<{
+    profile: { id: string; name: string };
+    items: Awaited<ReturnType<InventoryItemService['listItems']>>;
+  } | null> {
+    const profile = this.resolveComercioProfile(state);
+    if (!profile) {
+      return null;
+    }
+    const items = await this.inventoryItems.listItems(profile.id, user.userId);
+    return { profile, items };
+  }
+
+  private async requireComercioInventoryItems(
+    user: AuthUserPayload,
+    state: MeState,
+  ): Promise<{
+    profile: { id: string; name: string };
+    items: Awaited<ReturnType<InventoryItemService['listItems']>>;
+  }> {
+    const loaded = await this.loadComercioInventoryItems(user, state);
+    if (!loaded) {
+      throw new BadRequestException('Sin perfil comercio');
+    }
+    return loaded;
+  }
+
+  private resolveInventoryShortId(
+    items: { id: string }[],
+    shortId: string,
+  ): string | null {
+    return this.resolver.resolveShortId(
+      items.map((i) => i.id),
+      shortId,
+    );
   }
 }

@@ -1,5 +1,7 @@
 /** Filtros de respuesta VLM (glm-ocr / Moondream): eco del prompt y transcripciones vacías. */
 
+import { isTranscriptEmptyOrLetterPoor } from './transcript-signal.util';
+
 const ECHO_LINE_PATTERNS = [
   /en la foto/i,
   /instrucciones m[ií]nimas/i,
@@ -72,14 +74,10 @@ export function isLowSignalVlmAnswer(raw: string): boolean {
 }
 
 export function isDegenerateVlmTranscript(text: string): boolean {
+  if (isTranscriptEmptyOrLetterPoor(text)) {
+    return true;
+  }
   const s = (text ?? '').trim();
-  if (s.length === 0) {
-    return true;
-  }
-  const letters = [...s].filter((c) => /[a-záéíóúñ]/i.test(c)).length;
-  if (s.length < 10 && letters < 2) {
-    return true;
-  }
   if (/^\d+\.?\s*$/.test(s)) {
     return true;
   }

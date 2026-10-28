@@ -1,0 +1,6 @@
+# Aplica al escaneo de pnpm-lock.yaml en la raíz del repo.
+# CI: pnpm audit bloquea high/critical; OSV alinea con riesgo aceptado dev-only sin fix en npm.
+
+[[IgnoredVulns]]
+id = "GHSA-gcqx-w48m-w2h4"
+reason = "deepmerge@4.3.1 vía Jest/@nestjs/cli (dev); parche >=4.3.2 aún no publicado en npm"

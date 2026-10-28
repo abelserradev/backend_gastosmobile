@@ -1,0 +1,23 @@
+﻿┌─────────────────────┬────────────────────────────────────────────────────────┐
+│ low                 │ deepmerge mergeObject() allows prototype poisoning of  │
+│                     │ returned objects                                       │
+├─────────────────────┼────────────────────────────────────────────────────────┤
+│ Package             │ deepmerge                                              │
+├─────────────────────┼────────────────────────────────────────────────────────┤
+│ Vulnerable versions │ >=4.2.0 <=4.3.1                                        │
+├─────────────────────┼────────────────────────────────────────────────────────┤
+│ Patched versions    │ >=4.3.2                                                │
+├─────────────────────┼────────────────────────────────────────────────────────┤
+│ Paths               │ .>@nestjs/cli>fork-ts-checker-webpack-plugin>deepmerge │
+│                     │                                                        │
+│                     │ .>jest>@jest/core>jest-config>deepmerge                │
+│                     │                                                        │
+│                     │ .>jest>jest-cli>@jest/core>jest-config>deepmerge       │
+│                     │                                                        │
+│                     │ ... Found 7 paths, run `pnpm why deepmerge` for more   │
+│                     │ information                                            │
+├─────────────────────┼────────────────────────────────────────────────────────┤
+│ More info           │ https://github.com/advisories/GHSA-gcqx-w48m-w2h4      │
+└─────────────────────┴────────────────────────────────────────────────────────┘
+1 vulnerabilities found
+Severity: 1 low

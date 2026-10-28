@@ -1,0 +1,7 @@
+Semgrep baseline — 2026-10-28
+Command: semgrep scan --config p/typescript --config p/nodejs src
+Rules run: 74
+Files scanned: 164 (git-tracked under src/)
+Findings: 0 (0 blocking)
+
+Evidence: semgrep.json in this directory.
