@@ -1,0 +1,108 @@
+﻿# cmd (repo frontend_gastosmobile): pnpm audit --prod --config.verify-deps-before-run=false
+# exit=1
+┌─────────────────────┬────────────────────────────────────────────────────────┐
+│ critical            │ proxy-addr vulnerable to IP spoofing via IPv4-mapped   │
+│                     │ IPv6 trust subnet                                      │
+├─────────────────────┼────────────────────────────────────────────────────────┤
+│ Package             │ proxy-addr                                             │
+├─────────────────────┼────────────────────────────────────────────────────────┤
+│ Vulnerable versions │ >=1.1.0 <2.0.8                                         │
+├─────────────────────┼────────────────────────────────────────────────────────┤
+│ Patched versions    │ >=2.0.8                                                │
+├─────────────────────┼────────────────────────────────────────────────────────┤
+│ Paths               │ .>express>proxy-addr                                   │
+├─────────────────────┼────────────────────────────────────────────────────────┤
+│ More info           │ https://github.com/advisories/GHSA-jqcg-44mw-7w3h      │
+└─────────────────────┴────────────────────────────────────────────────────────┘
+┌─────────────────────┬────────────────────────────────────────────────────────┐
+│ high                │ @grpc/grpc-js: In certain configurations,              │
+│                     │ getAuthContext can return unauthorized certificates as │
+│                     │ though they were authorized                            │
+├─────────────────────┼────────────────────────────────────────────────────────┤
+│ Package             │ @grpc/grpc-js                                          │
+├─────────────────────┼────────────────────────────────────────────────────────┤
+│ Vulnerable versions │ <1.13.6                                                │
+├─────────────────────┼────────────────────────────────────────────────────────┤
+│ Patched versions    │ >=1.13.6                                               │
+├─────────────────────┼────────────────────────────────────────────────────────┤
+│ Paths               │ .>@capacitor-firebase/                                 │
+│                     │ authentication>firebase>@firebase/firestore>@grpc/     │
+│                     │ grpc-js                                                │
+│                     │                                                        │
+│                     │ .>@capacitor-firebase/                                 │
+│                     │ authentication>firebase>@firebase/firestore-           │
+│                     │ compat>@firebase/firestore>@grpc/grpc-js               │
+│                     │                                                        │
+│                     │ .>firebase>@firebase/firestore>@grpc/grpc-js           │
+│                     │                                                        │
+│                     │ ... Found 4 paths, run `pnpm why @grpc/grpc-js` for    │
+│                     │ more information                                       │
+├─────────────────────┼────────────────────────────────────────────────────────┤
+│ More info           │ https://github.com/advisories/GHSA-m9gg-hp2v-232j      │
+└─────────────────────┴────────────────────────────────────────────────────────┘
+┌─────────────────────┬────────────────────────────────────────────────────────┐
+│ moderate            │ uuid: Missing buffer bounds check in v3/v5/v6 when buf │
+│                     │ is provided                                            │
+├─────────────────────┼────────────────────────────────────────────────────────┤
+│ Package             │ uuid                                                   │
+├─────────────────────┼────────────────────────────────────────────────────────┤
+│ Vulnerable versions │ <11.1.1                                                │
+├─────────────────────┼────────────────────────────────────────────────────────┤
+│ Patched versions    │ >=11.1.1                                               │
+├─────────────────────┼────────────────────────────────────────────────────────┤
+│ Paths               │ .>@capacitor/cli>xcode>uuid                            │
+├─────────────────────┼────────────────────────────────────────────────────────┤
+│ More info           │ https://github.com/advisories/GHSA-w5hq-g745-h8pq      │
+└─────────────────────┴────────────────────────────────────────────────────────┘
+┌─────────────────────┬────────────────────────────────────────────────────────┐
+│ moderate            │ @angular/common: XSRF Token Leakage via URL Parsing    │
+│                     │ Discrepancy in Angular HTTP Client (Incomplete fix for │
+│                     │ CVE-2025-66035)                                        │
+├─────────────────────┼────────────────────────────────────────────────────────┤
+│ Package             │ @angular/common                                        │
+├─────────────────────┼────────────────────────────────────────────────────────┤
+│ Vulnerable versions │ >=20.0.0 <20.3.34                                      │
+├─────────────────────┼────────────────────────────────────────────────────────┤
+│ Patched versions    │ >=20.3.34                                              │
+├─────────────────────┼────────────────────────────────────────────────────────┤
+│ Paths               │ .>@angular/common                                      │
+│                     │                                                        │
+│                     │ .>@angular/forms>@angular/common                       │
+│                     │                                                        │
+│                     │ .>@angular/forms>@angular/platform-browser>@angular/   │
+│                     │ common                                                 │
+│                     │                                                        │
+│                     │ ... Found 15 paths, run `pnpm why @angular/common` for │
+│                     │ more information                                       │
+├─────────────────────┼────────────────────────────────────────────────────────┤
+│ More info           │ https://github.com/advisories/GHSA-jfgx-762w-99vr      │
+└─────────────────────┴────────────────────────────────────────────────────────┘
+┌─────────────────────┬────────────────────────────────────────────────────────┐
+│ low                 │ @grpc/grpc-js: The server transmits some error         │
+│                     │ messages thrown by method handlers to the client in    │
+│                     │ status messages                                        │
+├─────────────────────┼────────────────────────────────────────────────────────┤
+│ Package             │ @grpc/grpc-js                                          │
+├─────────────────────┼────────────────────────────────────────────────────────┤
+│ Vulnerable versions │ <1.13.6                                                │
+├─────────────────────┼────────────────────────────────────────────────────────┤
+│ Patched versions    │ >=1.13.6                                               │
+├─────────────────────┼────────────────────────────────────────────────────────┤
+│ Paths               │ .>@capacitor-firebase/                                 │
+│                     │ authentication>firebase>@firebase/firestore>@grpc/     │
+│                     │ grpc-js                                                │
+│                     │                                                        │
+│                     │ .>@capacitor-firebase/                                 │
+│                     │ authentication>firebase>@firebase/firestore-           │
+│                     │ compat>@firebase/firestore>@grpc/grpc-js               │
+│                     │                                                        │
+│                     │ .>firebase>@firebase/firestore>@grpc/grpc-js           │
+│                     │                                                        │
+│                     │ ... Found 4 paths, run `pnpm why @grpc/grpc-js` for    │
+│                     │ more information                                       │
+├─────────────────────┼────────────────────────────────────────────────────────┤
+│ More info           │ https://github.com/advisories/GHSA-f596-whhp-79r4      │
+└─────────────────────┴────────────────────────────────────────────────────────┘
+5 vulnerabilities found
+Severity: 1 low | 2 moderate | 1 high | 1 critical
+

@@ -1,0 +1,10 @@
+﻿# Inventario de tests de integracion/e2e backend (carpeta test/)
+app.e2e-spec.ts
+jest-e2e.json
+
+# Referencias a expenses/bcv en test/:
+test\app.e2e-spec.ts:24:  it('GET /bcv/oficial-por-dia sin credenciales responde 401', () => {
+test\app.e2e-spec.ts:25:    return request(app.getHttpServer()).get('/bcv/oficial-por-dia').expect(401);
+
+# Casos de createExpense en me.service.spec.ts:
+

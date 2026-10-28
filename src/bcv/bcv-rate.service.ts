@@ -29,6 +29,11 @@ interface BcvDayCachePayload {
 const TTL_TODAY_MS = 26 * 60 * 60 * 1000;
 /** Histórico en Redis: datos que ya están en Postgres no cambian. */
 const TTL_HISTORIC_MS = 7 * 24 * 60 * 60 * 1000;
+/**
+ * Pausa tras un fallo de DolarApi: corta a propósito. Antes el fallback se guardaba
+ * 26 h bajo la clave del día y la tasa de ayer quedaba como "la de hoy" (F-01).
+ */
+const TTL_FALLBACK_MS = 5 * 60 * 1000;
 
 @Injectable()
 export class BcvRateService {
@@ -74,8 +79,16 @@ export class BcvRateService {
     }
 
     const redisHit = await this.readDayFromCache(ymd);
-    if (redisHit) {
+    // Una entrada cuya fecha no es la pedida viene de un fallback viejo; no es la tasa del día
+    if (redisHit && this.toYmd(redisHit.rateDate) === ymd) {
       return { ...redisHit, usedFallback: false };
+    }
+
+    const recentFallback = await this.readDayFromCache(
+      this.fallbackKeyForDay(ymd),
+    );
+    if (recentFallback) {
+      return { ...recentFallback, usedFallback: true };
     }
 
     const pending = this.pendingDayFetches.get(ymd);
@@ -200,13 +213,14 @@ export class BcvRateService {
   }> {
     const cached = await this.readLatestFromCache();
     if (cached) {
+      await this.writeFallbackToCache(ymd, cached.vesPerUsd, cached.rateDate);
       return { ...cached, usedFallback: true };
     }
     const row = await this.prisma.bcVOfficialRate.findFirst({
       orderBy: { rateDate: 'desc' },
     });
     if (row) {
-      await this.writeDayToCache(ymd, row.vesPerUsd, row.rateDate);
+      await this.writeFallbackToCache(ymd, row.vesPerUsd, row.rateDate);
       return {
         vesPerUsd: row.vesPerUsd,
         rateDate: row.rateDate,
@@ -233,6 +247,31 @@ export class BcvRateService {
 
   private cacheKeyForDay(ymd: string): string {
     return `bcv:day:${ymd}`;
+  }
+
+  /** Se lee con readDayFromCache, que antepone `bcv:day:`. */
+  private fallbackKeyForDay(ymd: string): string {
+    return `${ymd}:fallback`;
+  }
+
+  private toYmd(rateDate: Date): string {
+    return rateDate.toISOString().slice(0, 10);
+  }
+
+  private async writeFallbackToCache(
+    ymd: string,
+    vesPerUsd: Prisma.Decimal,
+    rateDate: Date,
+  ): Promise<void> {
+    const payload: BcvDayCachePayload = {
+      vesPerUsd: vesPerUsd.toString(),
+      rateDateYmd: this.toYmd(rateDate),
+    };
+    await this.cache.set(
+      this.cacheKeyForDay(this.fallbackKeyForDay(ymd)),
+      payload,
+      TTL_FALLBACK_MS,
+    );
   }
 
   private async readDayFromCache(ymd: string): Promise<{

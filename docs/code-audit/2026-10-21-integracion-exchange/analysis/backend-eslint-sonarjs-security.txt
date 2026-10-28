@@ -1,0 +1,29 @@
+﻿# cmd: eslint --config <TEMP>/eslint.audit-extra.mjs (sonarjs cognitive-complexity 12, complexity 10, max-lines 300, max-lines-per-function 60, eslint-plugin-security recommended) <mismas rutas>
+# exit=0
+
+src\bcv\bcv-rate.service.ts
+  337:1  warning  File has too many lines (330). Maximum allowed is 300  max-lines
+
+src\common\guards\api-key.guard.ts
+  26:17  warning  Variable Assigned to Object Injection Sink  security/detect-object-injection
+
+src\common\utils\caracas-date.ts
+  93:8   warning  Function 'getBudgetPeriodForCutoffDay' has too many lines (99). Maximum allowed is 60  max-lines-per-function
+  93:17  warning  Refactor this function to reduce its Cognitive Complexity from 22 to the 12 allowed    sonarjs/cognitive-complexity
+
+src\common\utils\retry.util.ts
+   4:8   warning  Async function 'withRetry' has a complexity of 11. Maximum allowed is 10  complexity
+  22:21  warning  Generic Object Injection Sink                                             security/detect-object-injection
+
+src\me\me.service.ts
+   227:3  warning  Async method 'getState' has too many lines (81). Maximum allowed is 60                   max-lines-per-function
+   323:3  warning  Async method 'rolloverMonth' has a complexity of 11. Maximum allowed is 10               complexity
+   380:1  warning  File has too many lines (1638). Maximum allowed is 300                                   max-lines
+   380:3  warning  Async method 'updatePreferences' has too many lines (61). Maximum allowed is 60          max-lines-per-function
+   380:3  warning  Async method 'updatePreferences' has a complexity of 16. Maximum allowed is 10           complexity
+  1311:3  warning  Async method 'mapPreferencesToResponse' has too many lines (115). Maximum allowed is 60  max-lines-per-function
+  1311:3  warning  Async method 'mapPreferencesToResponse' has a complexity of 16. Maximum allowed is 10    complexity
+
+✖ 13 problems (0 errors, 13 warnings)
+
+

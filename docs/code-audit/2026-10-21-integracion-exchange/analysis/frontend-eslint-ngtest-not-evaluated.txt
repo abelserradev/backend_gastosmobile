@@ -1,0 +1,5 @@
+﻿# Frontend: ESLint (ng lint) y ng test (Karma)
+# Test-Path node_modules -> False
+# Chrome detectado: C:\Program Files\Google\Chrome\Application\chrome.exe
+# Resultado: NO EVALUADO (tooling). Sin node_modules no se puede ejecutar 'pnpm exec eslint' ni 'ng test' y la regla de auditoria prohibe instalar (pnpm install reescribiria node_modules/lockfile).
+# Para evaluarlo: pnpm install --frozen-lockfile && pnpm exec eslint src/app/core/me-api.service.ts src/app/core/bcv-rate-cache.util.ts src/app/core/http.interceptors.ts src/app/pages/expenses/expense-modal.component.ts src/app/pages/expenses/expense-type-selector.component.ts src/app/pages/expenses/expenses-page.component.ts --max-warnings 0 && pnpm exec ng test --no-watch --browsers=ChromeHeadlessNoSandbox

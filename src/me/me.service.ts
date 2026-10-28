@@ -1,5 +1,6 @@
 import {
   BadRequestException,
+  ConflictException,
   Injectable,
   NotFoundException,
   Logger,
@@ -45,6 +46,7 @@ import {
 } from './dto/submit-ocr-feedback.dto';
 import {
   buildBsIncomeNarrativeLine,
+  EXPENSE_RESPONSE_INCLUDE,
   mapExpenseToResponse,
   type MePreferencesResponse,
   toReferenceMonthDate,
@@ -268,7 +270,7 @@ export class MeService {
           ...expenseProfileScope,
           referenceMonth: expenseReferenceMonth,
         },
-        include: { category: true, profile: true },
+        include: EXPENSE_RESPONSE_INCLUDE,
         orderBy: { createdAt: 'desc' },
       }),
       this.prisma.expense.count({ where: expenseProfileScope }),
@@ -963,7 +965,7 @@ export class MeService {
         profileId: { in: profileIds.length > 0 ? profileIds : ['__none__'] },
         referenceMonth,
       },
-      include: { category: true, profile: true },
+      include: EXPENSE_RESPONSE_INCLUDE,
       orderBy: { createdAt: 'desc' },
     });
     return rows.map((e) => mapExpenseToResponse(e));
@@ -999,10 +1001,32 @@ export class MeService {
         profileId: { in: profileIds.length > 0 ? profileIds : ['__none__'] },
         referenceMonth: refRange,
       },
-      include: { category: true, profile: true },
+      include: EXPENSE_RESPONSE_INCLUDE,
       orderBy: { createdAt: 'desc' },
     });
     return rows.map((e) => mapExpenseToResponse(e));
+  }
+
+  /**
+   * Perfil, categoría y periodo con las mismas reglas que el alta manual. Lo usa la conversión de
+   * comparaciones (TD-4) para no duplicar validaciones de pertenencia ni del ciclo de corte.
+   */
+  async resolveExpenseContext(
+    userId: string,
+    input: { profileId?: string; categoryId?: string; categoryName?: string },
+  ): Promise<{ profileId: string; categoryId: string; referenceMonth: Date }> {
+    const categoryId = await this.resolveCategoryId(userId, {
+      id: input.categoryId,
+      name: input.categoryName,
+    });
+    const profileId = await this.resolveProfileId(userId, input.profileId);
+    const pref = await this.getBudgetCyclePrefForUser(userId);
+    const refYmd = this.resolveMovementReferenceMonthYmd(pref);
+    return {
+      profileId,
+      categoryId,
+      referenceMonth: toReferenceMonthDate(refYmd),
+    };
   }
 
   async createExpense(user: AuthUserPayload, dto: CreateExpenseDto) {
@@ -1039,7 +1063,7 @@ export class MeService {
         bcvRateApplied: vesPerUsd,
         bcvRateDate: rateDate,
       },
-      include: { category: true, profile: true },
+      include: EXPENSE_RESPONSE_INCLUDE,
     });
 
     this.recordExpenseEvent(
@@ -1151,7 +1175,7 @@ export class MeService {
   ) {
     const row = await this.prisma.expense.findFirst({
       where: { id: expenseId, profile: { userId: user.userId } },
-      include: { category: true, profile: true },
+      include: EXPENSE_RESPONSE_INCLUDE,
     });
     if (!row) throw new NotFoundException('Gasto no encontrado');
 
@@ -1164,7 +1188,7 @@ export class MeService {
           paidByMemberId: null,
           paidAt: null,
         },
-        include: { category: true, profile: true },
+        include: EXPENSE_RESPONSE_INCLUDE,
       });
       return mapExpenseToResponse(updated);
     }
@@ -1188,7 +1212,7 @@ export class MeService {
         paidByMemberId: paidByMemberId ?? null,
         paidAt: new Date(),
       },
-      include: { category: true, profile: true },
+      include: EXPENSE_RESPONSE_INCLUDE,
     });
     // La app usa POST /me/expenses/mark-paid; este path cubre marcado vía PATCH directo.
     this.logger.log(
@@ -1212,7 +1236,7 @@ export class MeService {
     );
     const rows = await this.prisma.expense.findMany({
       where: { id: { in: uniqueIds }, profile: { userId: user.userId } },
-      include: { category: true, profile: true },
+      include: EXPENSE_RESPONSE_INCLUDE,
     });
     if (rows.length !== uniqueIds.length) {
       throw new BadRequestException(
@@ -1249,7 +1273,7 @@ export class MeService {
 
     const updated = await this.prisma.expense.findMany({
       where: { id: { in: uniqueIds } },
-      include: { category: true, profile: true },
+      include: EXPENSE_RESPONSE_INCLUDE,
     });
     const orderMap = new Map(uniqueIds.map((id, idx) => [id, idx]));
     updated.sort(
@@ -1744,6 +1768,13 @@ export class MeService {
     if (!row) {
       throw new NotFoundException('Gasto no encontrado');
     }
+    // EXP-003: el monto de un gasto de comparación es costo real a tasa de venta; recalcularlo con
+    // BCV de hoy mezclaría bases. Título y categoría sí se pueden editar.
+    if (dto.amount != null && row.valuationBasis === 'SELL_RATE') {
+      throw new ConflictException(
+        'Este gasto viene de una comparación de pago; para cambiar el monto elimínalo y compara de nuevo',
+      );
+    }
     const data: Prisma.ExpenseUpdateInput = {};
     if (dto.title?.trim()) {
       data.title = dto.title.trim();
@@ -1775,7 +1806,7 @@ export class MeService {
     const updated = await this.prisma.expense.update({
       where: { id: expenseId },
       data,
-      include: { category: true, profile: true },
+      include: EXPENSE_RESPONSE_INCLUDE,
     });
 
     this.recordExpenseEvent(

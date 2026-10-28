@@ -1,0 +1,32 @@
+﻿# cmd: npx --yes jscpd@4 --min-tokens 50 --reporters console --ignore "**/*.spec.ts" src/bcv src/me src/common/utils src/common/cache src/common/guards src/common/services
+# exit=0
+Clone found (typescript):
+ - src\common\guards\profile-access.guard.ts [15:67 - 34:29] (19 lines, 196 tokens)
+   src\common\guards\profile-owner.guard.ts [17:73 - 36:32]
+
+Clone found (typescript):
+ - src\me\dto\update-expense-fields.dto.ts [11:37 - 29:15] (18 lines, 135 tokens)
+   src\me\dto\update-income-fields.dto.ts [10:36 - 28:13]
+
+Clone found (typescript):
+ - src\me\dto\create-expense.dto.ts [15:31 - 31:81] (16 lines, 110 tokens)
+   src\me\dto\create-income.dto.ts [15:30 - 31:4]
+
+Clone found (typescript):
+ - src\me\me.mappers.ts [173:23 - 181:4] (8 lines, 89 tokens)
+   src\me\me.mappers.ts [51:22 - 59:22]
+
+┌────────────┬────────────────┬─────────────┬──────────────┬──────────────┬──────────────────┬───────────────────┐
+│ Format     │ Files analyzed │ Total lines │ Total tokens │ Clones found │ Duplicated lines │ Duplicated tokens │
+├────────────┼────────────────┼─────────────┼──────────────┼──────────────┼──────────────────┼───────────────────┤
+│ typescript │ 37             │ 2466        │ 21422        │ 4            │ 61 (2.47%)       │ 530 (2.47%)       │
+├────────────┼────────────────┼─────────────┼──────────────┼──────────────┼──────────────────┼───────────────────┤
+│ Total:     │ 37             │ 2466        │ 21422        │ 4            │ 61 (2.47%)       │ 530 (2.47%)       │
+└────────────┴────────────────┴─────────────┴──────────────┴──────────────┴──────────────────┴───────────────────┘
+Found 4 clones.
+time: 161.675ms
+
+💡 Auto-refactor with AI: npx skills add kucherenko/jscpd
+🎩 New: Gangsta Agents — discipline your AI coding → gangsta.page
+💖 Support jscpd project → https://opencollective.com/jscpd
+

@@ -2,23 +2,48 @@ export function toReferenceMonthDate(isoDay: string): Date {
   return new Date(`${isoDay}T12:00:00.000Z`);
 }
 
+/**
+ * Include estándar para gastos que salen por la API: con `comparison.id` el cliente sabe si
+ * puede pedir la tabla de comparación sin una llamada extra por gasto.
+ */
+export const EXPENSE_RESPONSE_INCLUDE = {
+  category: true,
+  profile: true,
+  comparison: { select: { id: true } },
+} as const;
+
+type DecimalLike = { toString(): string };
+
+const decimalToNumber = (v: DecimalLike | null | undefined): number | null =>
+  v == null ? null : Number(v.toString());
+
 export function mapExpenseToResponse(e: {
   id: string;
   profileId: string;
   profile?: { name: string };
   title: string;
   description: string;
-  amount: { toString(): string };
+  amount: DecimalLike;
   isPaid: boolean;
   referenceMonth: Date;
   paymentDate: Date | null;
-  bcvRateApplied: { toString(): string } | null;
+  bcvRateApplied: DecimalLike | null;
   bcvRateDate: Date | null;
   paidByDisplayName?: string | null;
   paidAt?: Date | null;
   paidByMemberId?: string | null;
   category: { name: string };
   receiptImage?: Uint8Array | null;
+  // Opcionales: el accessor de comprobantes no los trae y esos gastos nunca vienen de una comparación
+  paymentMethod?: 'CASH' | 'ELECTRONIC' | 'BS' | null;
+  nominalAmount?: DecimalLike | null;
+  nominalCurrency?: 'BS' | 'USD' | null;
+  commissionPct?: DecimalLike | null;
+  commissionUsd?: DecimalLike | null;
+  sellRate?: DecimalLike | null;
+  bcvEquivalentUsd?: DecimalLike | null;
+  valuationBasis?: 'BCV' | 'SELL_RATE';
+  comparison?: { id: string } | null;
 }): {
   id: string;
   profileId: string;
@@ -36,6 +61,15 @@ export function mapExpenseToResponse(e: {
   paidAt: string | null;
   paidByMemberId: string | null;
   hasReceipt: boolean;
+  paymentMethod: 'CASH' | 'ELECTRONIC' | 'BS' | null;
+  nominalAmount: number | null;
+  nominalCurrency: 'BS' | 'USD' | null;
+  commissionPct: number | null;
+  commissionUsd: number | null;
+  sellRate: number | null;
+  bcvEquivalentUsd: number | null;
+  valuationBasis: 'BCV' | 'SELL_RATE';
+  comparisonId: string | null;
 } {
   return {
     id: e.id,
@@ -60,6 +94,15 @@ export function mapExpenseToResponse(e: {
     paidAt: e.paidAt ? e.paidAt.toISOString() : null,
     paidByMemberId: e.paidByMemberId ?? null,
     hasReceipt: e.receiptImage != null && e.receiptImage.length > 0,
+    paymentMethod: e.paymentMethod ?? null,
+    nominalAmount: decimalToNumber(e.nominalAmount),
+    nominalCurrency: e.nominalCurrency ?? null,
+    commissionPct: decimalToNumber(e.commissionPct),
+    commissionUsd: decimalToNumber(e.commissionUsd),
+    sellRate: decimalToNumber(e.sellRate),
+    bcvEquivalentUsd: decimalToNumber(e.bcvEquivalentUsd),
+    valuationBasis: e.valuationBasis ?? 'BCV',
+    comparisonId: e.comparison?.id ?? null,
   };
 }
 
