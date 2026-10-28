@@ -12,8 +12,8 @@
 
 ## Bloqueo por vulnerabilidades
 
-- **Fallan el pipeline:** vulnerabilidades **high** y **critical** (`pnpm audit --audit-level=high`).
-- **Solo aviso:** **moderate** (siguen visibles en logs; conviene corregir con overrides o actualizar Dependabot).
+- **Fallan el pipeline:** vulnerabilidades **high** y **critical** (`pnpm audit --audit-level=high`). **OSV-Scanner** usa `osv-scanner.toml` (misma política; ignora GHSA sin parche en npm documentados ahí).
+- **Solo aviso:** **moderate** en `pnpm audit` informativo salvo exclusiones en `auditConfig.ignoreGhsas` / `osv-scanner.toml`.
 
 ## Overrides pnpm (CVEs transitivas)
 

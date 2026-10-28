@@ -5,6 +5,8 @@ packages:
 auditConfig:
   ignoreGhsas:
     - GHSA-hp3w-g68c-fv3c
+    # deepmerge dev-only; sin 4.3.2 en npm (GHSA-gcqx-w48m-w2h4)
+    - GHSA-gcqx-w48m-w2h4
 
 # Scripts nativos permitidos (pnpm supply-chain). false = omitir build sin fallar el install.
 allowBuilds:

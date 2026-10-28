@@ -74,6 +74,7 @@ jobs:
         with:
           scan-args: |-
             --lockfile=pnpm-lock.yaml
+            --config=osv-scanner.toml
 
   semgrep:
     name: Semgrep SAST (src)
