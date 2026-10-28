@@ -17,9 +17,9 @@ import {
 } from '../common/utils/caracas-date';
 import { resolveAmountUsd } from '../common/utils/amount-currency.util';
 import {
-  buildBcvAmountPatch,
   buildBcvAmountPatchForYmd,
 } from './utils/bcv-amount-update.util';
+import { buildMoneyEntryCoreUpdateFields } from './utils/money-entry-update.util';
 import type { AuthUserPayload } from '../common/types/auth-user.payload';
 import { type Prisma } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
@@ -1772,16 +1772,9 @@ export class MeService {
         'Este gasto viene de una comparación de pago; para cambiar el monto elimínalo y compara de nuevo',
       );
     }
-    const data: Prisma.ExpenseUpdateInput = {};
-    if (dto.title?.trim()) {
-      data.title = dto.title.trim();
-    }
-    if (dto.amount != null) {
-      Object.assign(
-        data,
-        await buildBcvAmountPatch(this.bcv, dto.amount, dto.amountCurrency),
-      );
-    }
+    const data: Prisma.ExpenseUpdateInput = {
+      ...(await buildMoneyEntryCoreUpdateFields(this.bcv, dto)),
+    };
     if (dto.categoryName?.trim()) {
       const categoryId = await this.resolveCategoryId(user.userId, {
         name: dto.categoryName,
@@ -1826,16 +1819,9 @@ export class MeService {
     if (!row) {
       throw new NotFoundException('Ingreso no encontrado');
     }
-    const data: Prisma.IncomeEntryUpdateInput = {};
-    if (dto.title?.trim()) {
-      data.title = dto.title.trim();
-    }
-    if (dto.amount != null) {
-      Object.assign(
-        data,
-        await buildBcvAmountPatch(this.bcv, dto.amount, dto.amountCurrency),
-      );
-    }
+    const data: Prisma.IncomeEntryUpdateInput = {
+      ...(await buildMoneyEntryCoreUpdateFields(this.bcv, dto)),
+    };
     if (dto.sourceName?.trim()) {
       const sourceId = await this.findIncomeSourceOrThrow(user.userId, {
         name: dto.sourceName,
