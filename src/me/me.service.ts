@@ -16,6 +16,7 @@ import {
   type BudgetPeriod,
 } from '../common/utils/caracas-date';
 import { resolveAmountUsd } from '../common/utils/amount-currency.util';
+import { buildBcvAmountPatch } from './utils/bcv-amount-update.util';
 import type { AuthUserPayload } from '../common/types/auth-user.payload';
 import { type Prisma } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
@@ -1780,17 +1781,10 @@ export class MeService {
       data.title = dto.title.trim();
     }
     if (dto.amount != null) {
-      const rateYmd = formatYmdInCaracas();
-      const { vesPerUsd, rateDate } =
-        await this.bcv.getVesPerUsdForCalendarDay(rateYmd);
-      const vesPerUsdNum = Number(vesPerUsd.toString());
-      data.amount = resolveAmountUsd(
-        dto.amount,
-        dto.amountCurrency,
-        vesPerUsdNum,
+      Object.assign(
+        data,
+        await buildBcvAmountPatch(this.bcv, dto.amount, dto.amountCurrency),
       );
-      data.bcvRateApplied = vesPerUsd;
-      data.bcvRateDate = rateDate;
     }
     if (dto.categoryName?.trim()) {
       const categoryId = await this.resolveCategoryId(user.userId, {
@@ -1841,17 +1835,10 @@ export class MeService {
       data.title = dto.title.trim();
     }
     if (dto.amount != null) {
-      const rateYmd = formatYmdInCaracas();
-      const { vesPerUsd, rateDate } =
-        await this.bcv.getVesPerUsdForCalendarDay(rateYmd);
-      const vesPerUsdNum = Number(vesPerUsd.toString());
-      data.amount = resolveAmountUsd(
-        dto.amount,
-        dto.amountCurrency,
-        vesPerUsdNum,
+      Object.assign(
+        data,
+        await buildBcvAmountPatch(this.bcv, dto.amount, dto.amountCurrency),
       );
-      data.bcvRateApplied = vesPerUsd;
-      data.bcvRateDate = rateDate;
     }
     if (dto.sourceName?.trim()) {
       const sourceId = await this.findIncomeSourceOrThrow(user.userId, {

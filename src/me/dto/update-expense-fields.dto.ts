@@ -1,28 +1,8 @@
-import {
-  IsIn,
-  IsNumber,
-  IsOptional,
-  IsString,
-  MaxLength,
-  Min,
-} from 'class-validator';
+import { IsOptional, IsString, MaxLength } from 'class-validator';
+import { UpdateMoneyEntryCoreDto } from './money-entry-core.dto';
 
 /** Campos editables de un gasto vía Telegram o API futura. */
-export class UpdateExpenseFieldsDto {
-  @IsOptional()
-  @IsString()
-  @MaxLength(200)
-  title?: string;
-
-  @IsOptional()
-  @IsNumber({ maxDecimalPlaces: 2 })
-  @Min(0)
-  amount?: number;
-
-  @IsOptional()
-  @IsIn(['USD', 'BS'])
-  amountCurrency?: 'USD' | 'BS';
-
+export class UpdateExpenseFieldsDto extends UpdateMoneyEntryCoreDto {
   @IsOptional()
   @IsString()
   @MaxLength(80)
