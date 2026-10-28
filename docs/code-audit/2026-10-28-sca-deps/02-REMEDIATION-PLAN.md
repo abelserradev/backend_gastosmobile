@@ -27,7 +27,7 @@ After push, **re-run Dependabot** or wait for rescan; close alerts when lockfile
 | Task | Effort | Verify |
 |------|--------|--------|
 | Add `pnpm audit` output to CI artifact on failure (optional) | S | CI logs |
-| Run **Semgrep** `p/typescript` + `p/nodejs` in CI (slow job) | M | Done 2026-10-28 — non-blocking; tighten when baseline clean |
+| Run **Semgrep** `p/typescript` + `p/nodejs` in CI (slow job) | M | Done 2026-10-28 — 0 findings baseline; CI blocking |
 | **osv-scanner** on lockfile in CI (GitHub Action) | S | Done 2026-10-28 — job `OSV-Scanner (lockfile)` |
 | DRY profile guards | S | Done 2026-10-28 — `profile-route-auth.util.ts` |
 
@@ -48,6 +48,6 @@ After push, **re-run Dependabot** or wait for rescan; close alerts when lockfile
 
 | Task | Effort | Verify |
 |------|--------|--------|
-| Evaluate bump `axios` override `1.20.0` → `1.21.0` in isolated commit | S | `pnpm test`, smoke outbound HTTP (BCV, Telegram) |
+| Evaluate bump `axios` override `1.20.0` → `1.21.0` in isolated commit | S | Done 2026-10-28 — `pnpm test` 223 OK, audit high clean |
 
 **Note:** Agent must not `git push`. User publishes commits to trigger Dependabot refresh.

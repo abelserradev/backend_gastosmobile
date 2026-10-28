@@ -85,9 +85,7 @@ jobs:
         with:
           egress-policy: audit
 
-      # Baseline: no bloquea merge hasta fijar reglas; ver docs/ci-seguridad-github.md
       - name: Semgrep p/typescript + p/nodejs
-        continue-on-error: true
         uses: semgrep/semgrep-action@v1
         with:
           config: >-
