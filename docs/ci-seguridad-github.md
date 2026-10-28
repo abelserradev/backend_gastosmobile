@@ -5,7 +5,7 @@
 | Workflow | Cuándo corre | Qué hace |
 |----------|--------------|----------|
 | **CI** | Push y PR a `develop`, `main`, `master`, `backend` | `pnpm install --frozen-lockfile`, Prettier check, ESLint (`--max-warnings 0`), audit (high+), Prisma validate, tests, build |
-| **Security audit** | Mismo + lunes 06:00 UTC + manual | `pnpm install --frozen-lockfile`, guardia anti `package-lock.json`, `pnpm audit --prod --audit-level=high`, audit árbol completo, listado de dependencias |
+| **Security audit** | Mismo + lunes 06:00 UTC + manual | Jobs: **pnpm audit** (prod + árbol completo), **OSV-Scanner** sobre `pnpm-lock.yaml`, **Semgrep** (`p/typescript`, `p/nodejs` en `src/` — informativo hasta baseline) |
 | **Dependabot auto-merge** | PR de Dependabot hacia `develop` | Auto-merge squash si es patch o security y CI pasa |
 | **Dependabot batch merge** | Lunes 10:00 UTC + manual | Merge de respaldo de PRs Dependabot con checks verdes hacia `develop` |
 | **Deploy Coolify** | Solo manual | Webhook de deploy (no sustituye CI) |
@@ -22,7 +22,9 @@ Cuando Dependabot no puede actualizar una dependencia transitiva (p. ej. *"canno
 | Paquete | Versión mínima | Motivo típico |
 |---------|----------------|---------------|
 | `websocket-driver` | `>=0.7.5` | `firebase-admin` |
-| `axios` | `1.18.1` | `@nestjs/axios` |
+| `axios` | `1.20.0` | `@nestjs/axios` |
+| `follow-redirects` | `>=1.16.2` | `axios` (GHSA-mrwp-f3q8-3g9p, redirects cross-origin) |
+| `handlebars` | `4.7.10` | `ts-jest` (dev; GHSA handlebars 4.7.10) |
 | `js-yaml@3` / `js-yaml@4` | `3.15.2` / `4.3.2` | Jest, ESLint, Nest CLI (GHSA-2883-xcg3-v3hh) |
 | `multer` | `>=2.3.0` | `@nestjs/platform-express` uploads (GHSA-wc9g-mqfw-jrwm, GHSA-535w-7cp7-47q4) |
 | `brace-expansion@1/@2/@5` | `1.1.20` / `2.1.6` / `5.0.11` | Jest, ESLint, `@nestjs/cli` (GHSA-qhr7, GHSA-6j4f) |
@@ -80,6 +82,7 @@ Repo → **Settings** → **Branches** → **Add rule** (o editar regla de `deve
 3. Buscar y marcar estos checks:
    - `Backend (Nest + Prisma)` (workflow CI)
    - `Dependencias (pnpm audit)` (workflow Security audit)
+   - `OSV-Scanner (lockfile)` (workflow Security audit; alinea con Dependabot/OSV)
 4. Opcional: **Require branches to be up to date before merging**.
 5. Opcional: **Do not allow bypassing the above settings**.
 

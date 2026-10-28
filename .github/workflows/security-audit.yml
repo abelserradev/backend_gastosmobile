@@ -58,3 +58,38 @@ jobs:
 
       - name: Resumen dependencias directas
         run: pnpm ls --depth=0 || true
+
+  osv-scanner:
+    name: OSV-Scanner (lockfile)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: step-security/harden-runner@v2
+        with:
+          egress-policy: audit
+
+      - name: Escanear pnpm-lock.yaml (OSV)
+        uses: google/osv-scanner-action@v2
+        with:
+          scan-args: |-
+            --lockfile=pnpm-lock.yaml
+
+  semgrep:
+    name: Semgrep SAST (src)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: step-security/harden-runner@v2
+        with:
+          egress-policy: audit
+
+      # Baseline: no bloquea merge hasta fijar reglas; ver docs/ci-seguridad-github.md
+      - name: Semgrep p/typescript + p/nodejs
+        continue-on-error: true
+        uses: semgrep/semgrep-action@v1
+        with:
+          config: >-
+            p/typescript
+            p/nodejs
