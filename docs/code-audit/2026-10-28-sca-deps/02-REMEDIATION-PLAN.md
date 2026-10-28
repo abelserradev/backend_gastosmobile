@@ -27,8 +27,9 @@ After push, **re-run Dependabot** or wait for rescan; close alerts when lockfile
 | Task | Effort | Verify |
 |------|--------|--------|
 | Add `pnpm audit` output to CI artifact on failure (optional) | S | CI logs |
-| Run **Semgrep** `p/typescript` + `p/nodejs` in CI (slow job) | M | 0 new P1 in report |
-| **osv-scanner** on lockfile in CI (GitHub Action) | S | Align with Dependabot |
+| Run **Semgrep** `p/typescript` + `p/nodejs` in CI (slow job) | M | Done 2026-10-28 — non-blocking; tighten when baseline clean |
+| **osv-scanner** on lockfile in CI (GitHub Action) | S | Done 2026-10-28 — job `OSV-Scanner (lockfile)` |
+| DRY profile guards | S | Done 2026-10-28 — `profile-route-auth.util.ts` |
 
 ## Phase 2 — deepmerge (watch)
 
