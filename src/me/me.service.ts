@@ -15,7 +15,6 @@ import {
   startOfMonthYmdInCaracas,
   type BudgetPeriod,
 } from '../common/utils/caracas-date';
-import { resolveAmountUsd } from '../common/utils/amount-currency.util';
 import { buildBcvAmountPatchForYmd } from './utils/bcv-amount-update.util';
 import { buildMoneyEntryCoreUpdateFields } from './utils/money-entry-update.util';
 import type { AuthUserPayload } from '../common/types/auth-user.payload';
