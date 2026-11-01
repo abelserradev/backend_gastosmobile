@@ -1835,6 +1835,27 @@ export class MeService {
     return mapIncomeToResponse(updated);
   }
 
+  /** GC-005: mismo evento que alta manual, con marca de comparación Exchange. */
+  logExpenseCreatedFromComparison(
+    userId: string,
+    expenseId: string,
+    profileId: string,
+    payload: {
+      title: string;
+      amount: number;
+      categoryName?: string;
+      comparisonId: string;
+    },
+  ): void {
+    this.recordExpenseEvent(
+      AuditEventTypes.expense.created,
+      userId,
+      expenseId,
+      profileId,
+      { ...payload, fromComparison: true },
+    );
+  }
+
   private recordExpenseEvent(
     eventType: string,
     userId: string,

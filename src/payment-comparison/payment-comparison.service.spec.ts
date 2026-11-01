@@ -1,8 +1,14 @@
-import { NotFoundException } from '@nestjs/common';
+import {
+  BadRequestException,
+  ConflictException,
+  NotFoundException,
+} from '@nestjs/common';
 import { Test, TestingModule } from '@nestjs/testing';
+import { MeService } from '../me/me.service';
 import { ComparisonExpiredException } from './comparison-expired.exception';
 import { ExchangeClient } from './exchange.client';
 import { PaymentComparisonService } from './payment-comparison.service';
+import { hashConvertRequest } from './mappers/comparison-expense.mapper';
 import { PrismaService } from '../prisma/prisma.service';
 
 const comparacionV1 = {
@@ -45,9 +51,20 @@ describe('PaymentComparisonService (GC-002/003)', () => {
       findMany: jest.fn(),
       findFirst: jest.fn(),
       delete: jest.fn(),
+      updateMany: jest.fn(),
+      update: jest.fn(),
     },
+    expense: {
+      create: jest.fn(),
+      findUnique: jest.fn(),
+    },
+    $transaction: jest.fn(),
   };
   const exchange = { postComparacion: jest.fn() };
+  const me = {
+    resolveExpenseContext: jest.fn(),
+    logExpenseCreatedFromComparison: jest.fn(),
+  };
 
   beforeEach(async () => {
     jest.clearAllMocks();
@@ -56,6 +73,7 @@ describe('PaymentComparisonService (GC-002/003)', () => {
         PaymentComparisonService,
         { provide: PrismaService, useValue: prisma },
         { provide: ExchangeClient, useValue: exchange },
+        { provide: MeService, useValue: me },
       ],
     }).compile();
     service = module.get(PaymentComparisonService);
@@ -106,5 +124,88 @@ describe('PaymentComparisonService (GC-002/003)', () => {
     await expect(service.discard('u1', 'cmp-x')).rejects.toBeInstanceOf(
       NotFoundException,
     );
+  });
+
+  it('convertToExpense exige Idempotency-Key', async () => {
+    await expect(
+      service.convertToExpense('u1', 'cmp-1', undefined, {
+        optionId: 'bs',
+        title: 'TV',
+        categoryName: 'Hogar',
+      }),
+    ).rejects.toBeInstanceOf(BadRequestException);
+  });
+
+  it('convertToExpense idempotente devuelve 200 path (created false)', async () => {
+    const dto = {
+      optionId: 'bs' as const,
+      title: 'TV',
+      categoryName: 'Hogar',
+    };
+    const requestHash = hashConvertRequest('cmp-1', dto);
+    prisma.paymentComparison.findFirst.mockResolvedValue({
+      id: 'cmp-1',
+      userId: 'u1',
+      status: 'CONVERTED',
+      expenseId: 'exp-1',
+      convertIdempotencyKey: 'key-1',
+      convertRequestHash: requestHash,
+      contractVersion: 'v1',
+      result: comparacionV1,
+    });
+    prisma.expense.findUnique.mockResolvedValue({
+      id: 'exp-1',
+      profileId: 'p1',
+      title: 'TV',
+      description: '',
+      amount: { toString: () => '1' },
+      isPaid: false,
+      referenceMonth: new Date('2026-10-01T12:00:00.000Z'),
+      paymentDate: new Date('2026-10-21T12:00:00.000Z'),
+      bcvRateApplied: { toString: () => '883' },
+      bcvRateDate: new Date('2026-10-21T12:00:00.000Z'),
+      category: { name: 'Hogar' },
+      profile: { name: 'Personal' },
+      paymentMethod: 'BS',
+      nominalAmount: { toString: () => '1' },
+      nominalCurrency: 'BS',
+      commissionPct: null,
+      commissionUsd: null,
+      sellRate: { toString: () => '1100' },
+      bcvEquivalentUsd: { toString: () => '1' },
+      valuationBasis: 'SELL_RATE',
+      comparison: { id: 'cmp-1' },
+    });
+
+    const { created, expense } = await service.convertToExpense(
+      'u1',
+      'cmp-1',
+      'key-1',
+      dto,
+    );
+
+    expect(created).toBe(false);
+    expect(expense.id).toBe('exp-1');
+  });
+
+  it('convertToExpense 409 si ya convertida con otra key', async () => {
+    prisma.paymentComparison.findFirst.mockResolvedValue({
+      id: 'cmp-1',
+      userId: 'u1',
+      status: 'CONVERTED',
+      expenseId: 'exp-9',
+      convertIdempotencyKey: 'otra-key',
+      convertRequestHash: 'hash',
+      contractVersion: 'v1',
+      result: comparacionV1,
+    });
+
+    await expect(
+      service.convertToExpense('u1', 'cmp-1', 'key-nueva', {
+        optionId: 'bs',
+        title: 'TV',
+        categoryName: 'Hogar',
+      }),
+    ).rejects.toBeInstanceOf(ConflictException);
   });
 });

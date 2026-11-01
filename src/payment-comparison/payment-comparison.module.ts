@@ -1,5 +1,6 @@
 import { Module } from '@nestjs/common';
 import { HttpModule } from '@nestjs/axios';
+import { MeModule } from '../me/me.module';
 import { PrismaModule } from '../prisma/prisma.module';
 import { ExchangeClient } from './exchange.client';
 import { PaymentComparisonController } from './payment-comparison.controller';
@@ -8,6 +9,7 @@ import { PaymentComparisonService } from './payment-comparison.service';
 
 @Module({
   imports: [
+    MeModule,
     PrismaModule,
     HttpModule.register({
       timeout: 3000,
