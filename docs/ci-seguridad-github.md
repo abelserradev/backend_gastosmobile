@@ -29,6 +29,7 @@ Cuando Dependabot no puede actualizar una dependencia transitiva (p. ej. *"canno
 | `multer` | `>=2.3.0` | `@nestjs/platform-express` uploads (GHSA-wc9g-mqfw-jrwm, GHSA-535w-7cp7-47q4) |
 | `brace-expansion@1/@2/@5` | `1.1.20` / `2.1.6` / `5.0.11` | Jest, ESLint, `@nestjs/cli` (GHSA-qhr7, GHSA-6j4f) |
 | `deepmerge-ts` | `>=8.0.2` | `prisma` → `@prisma/config` (GHSA-ggr8-5vv4-36mx) |
+| `deepmerge` | *(sin override)* | Jest / `@nestjs/cli` (dev). GHSA-gcqx-w48m-w2h4 — **no hay 4.3.2+ en npm**; ignore en `auditConfig` + OSV; alerta Dependabot #99 dismiss `risk_accepted`. Ver [`code-audit/2026-10-31-deepmerge-sonar/01-AUDIT-REPORT.md`](code-audit/2026-10-31-deepmerge-sonar/01-AUDIT-REPORT.md). |
 | `uuid` | `>=11.1.1` | `firebase-admin` / Google Cloud (GHSA-w5hq-g745-h8pq) |
 | `fast-uri` | `>=3.1.5` | `ajv` (Nest CLI, Prisma dev) |
 | `valibot` | `>=1.4.2` | `prisma` → `@prisma/dev` |

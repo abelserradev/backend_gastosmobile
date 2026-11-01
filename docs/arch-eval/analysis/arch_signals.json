@@ -1,0 +1,749 @@
+{
+  "repo": "C:\\Users\\aserra\\OneDrive - VENEMERGENCIA AG, C.A\\Documentos\\buildforge\\gastos\\backend_gastosmobile",
+  "commits_analyzed": 240,
+  "date_range": [
+    "2026-04-16",
+    "2026-10-31"
+  ],
+  "hotspots": [
+    {
+      "file": "pnpm-workspace.yaml",
+      "touches": 33,
+      "fixes": 15,
+      "churn": 192,
+      "score": 528
+    },
+    {
+      "file": "src/me/me.service.ts",
+      "touches": 48,
+      "fixes": 9,
+      "churn": 4059,
+      "score": 480
+    },
+    {
+      "file": "package.json",
+      "touches": 83,
+      "fixes": 4,
+      "churn": 423,
+      "score": 415
+    },
+    {
+      "file": "docs/ci-seguridad-github.md",
+      "touches": 17,
+      "fixes": 7,
+      "churn": 220,
+      "score": 136
+    },
+    {
+      "file": ".github/workflows/security-audit.yml",
+      "touches": 18,
+      "fixes": 4,
+      "churn": 188,
+      "score": 90
+    },
+    {
+      "file": "src/common/utils/active-budget-context.util.spec.ts",
+      "touches": 12,
+      "fixes": 6,
+      "churn": 339,
+      "score": 84
+    },
+    {
+      "file": "src/common/utils/active-budget-context.util.ts",
+      "touches": 10,
+      "fixes": 5,
+      "churn": 306,
+      "score": 60
+    },
+    {
+      "file": "README.md",
+      "touches": 17,
+      "fixes": 1,
+      "churn": 379,
+      "score": 34
+    },
+    {
+      "file": "src/common/constants/deploy-capabilities.const.ts",
+      "touches": 8,
+      "fixes": 3,
+      "churn": 30,
+      "score": 32
+    },
+    {
+      "file": "Dockerfile",
+      "touches": 10,
+      "fixes": 2,
+      "churn": 97,
+      "score": 30
+    },
+    {
+      "file": "src/auth/auth.service.ts",
+      "touches": 13,
+      "fixes": 1,
+      "churn": 921,
+      "score": 26
+    },
+    {
+      "file": "src/bcv/bcv-rate.service.ts",
+      "touches": 8,
+      "fixes": 2,
+      "churn": 597,
+      "score": 24
+    },
+    {
+      "file": "src/me/me.mappers.ts",
+      "touches": 12,
+      "fixes": 1,
+      "churn": 298,
+      "score": 24
+    },
+    {
+      "file": "src/auth/auth.controller.ts",
+      "touches": 12,
+      "fixes": 1,
+      "churn": 233,
+      "score": 24
+    },
+    {
+      "file": "prisma/schema.prisma",
+      "touches": 21,
+      "fixes": 0,
+      "churn": 652,
+      "score": 21
+    },
+    {
+      "file": ".github/dependabot.yml",
+      "touches": 7,
+      "fixes": 2,
+      "churn": 82,
+      "score": 21
+    },
+    {
+      "file": "src/config/env.validation.ts",
+      "touches": 19,
+      "fixes": 0,
+      "churn": 169,
+      "score": 19
+    },
+    {
+      "file": "src/me/dto/update-preferences.dto.ts",
+      "touches": 6,
+      "fixes": 2,
+      "churn": 106,
+      "score": 18
+    },
+    {
+      "file": "src/app.module.ts",
+      "touches": 15,
+      "fixes": 0,
+      "churn": 129,
+      "score": 15
+    },
+    {
+      "file": "src/me/dto/create-expense.dto.ts",
+      "touches": 7,
+      "fixes": 1,
+      "churn": 133,
+      "score": 14
+    },
+    {
+      "file": "src/auth/auth.service.spec.ts",
+      "touches": 7,
+      "fixes": 1,
+      "churn": 193,
+      "score": 14
+    },
+    {
+      "file": ".gitignore",
+      "touches": 7,
+      "fixes": 1,
+      "churn": 22,
+      "score": 14
+    },
+    {
+      "file": ".github/workflows/ci.yml",
+      "touches": 13,
+      "fixes": 0,
+      "churn": 127,
+      "score": 13
+    },
+    {
+      "file": "src/email/resend-email.service.ts",
+      "touches": 13,
+      "fixes": 0,
+      "churn": 408,
+      "score": 13
+    },
+    {
+      "file": ".env.example",
+      "touches": 13,
+      "fixes": 0,
+      "churn": 120,
+      "score": 13
+    }
+  ],
+  "fix_prone_files": [
+    {
+      "file": "pnpm-workspace.yaml",
+      "fixes": 15
+    },
+    {
+      "file": "src/me/me.service.ts",
+      "fixes": 9
+    },
+    {
+      "file": "docs/ci-seguridad-github.md",
+      "fixes": 7
+    },
+    {
+      "file": "src/common/utils/active-budget-context.util.spec.ts",
+      "fixes": 6
+    },
+    {
+      "file": "src/common/utils/active-budget-context.util.ts",
+      "fixes": 5
+    },
+    {
+      "file": ".github/workflows/security-audit.yml",
+      "fixes": 4
+    },
+    {
+      "file": "package.json",
+      "fixes": 4
+    },
+    {
+      "file": "src/common/constants/deploy-capabilities.const.ts",
+      "fixes": 3
+    },
+    {
+      "file": "src/bcv/bcv-rate.service.ts",
+      "fixes": 2
+    },
+    {
+      "file": "Dockerfile",
+      "fixes": 2
+    },
+    {
+      "file": "docs/code-audit/SCA-2026-10-07-package-lock-removal.md",
+      "fixes": 2
+    },
+    {
+      "file": ".github/dependabot.yml",
+      "fixes": 2
+    },
+    {
+      "file": "src/me/dto/update-preferences.dto.ts",
+      "fixes": 2
+    }
+  ],
+  "temporal_coupling_pairs": [
+    {
+      "file_a": "docs/ci-seguridad-github.md",
+      "file_b": "pnpm-workspace.yaml",
+      "cochanges": 9,
+      "confidence": 0.53,
+      "cross_module": true,
+      "module_a": "docs",
+      "module_b": "(root)"
+    },
+    {
+      "file_a": "src/common/utils/active-budget-context.util.spec.ts",
+      "file_b": "src/me/me.service.ts",
+      "cochanges": 8,
+      "confidence": 0.67,
+      "cross_module": true,
+      "module_a": "src/common/utils",
+      "module_b": "src/me"
+    },
+    {
+      "file_a": ".env.example",
+      "file_b": "src/config/env.validation.ts",
+      "cochanges": 8,
+      "confidence": 0.62,
+      "cross_module": true,
+      "module_a": "(root)",
+      "module_b": "src/config"
+    },
+    {
+      "file_a": "src/common/utils/active-budget-context.util.ts",
+      "file_b": "src/me/me.service.ts",
+      "cochanges": 7,
+      "confidence": 0.7,
+      "cross_module": true,
+      "module_a": "src/common/utils",
+      "module_b": "src/me"
+    },
+    {
+      "file_a": "src/common/constants/deploy-capabilities.const.ts",
+      "file_b": "src/common/utils/active-budget-context.util.spec.ts",
+      "cochanges": 6,
+      "confidence": 0.75,
+      "cross_module": true,
+      "module_a": "src/common/constants",
+      "module_b": "src/common/utils"
+    },
+    {
+      "file_a": "src/common/constants/deploy-capabilities.const.ts",
+      "file_b": "src/common/utils/active-budget-context.util.ts",
+      "cochanges": 6,
+      "confidence": 0.75,
+      "cross_module": true,
+      "module_a": "src/common/constants",
+      "module_b": "src/common/utils"
+    },
+    {
+      "file_a": "src/config/env.validation.ts",
+      "file_b": "src/ocr/ocr.service.ts",
+      "cochanges": 6,
+      "confidence": 0.67,
+      "cross_module": true,
+      "module_a": "src/config",
+      "module_b": "src/ocr"
+    },
+    {
+      "file_a": "prisma/schema.prisma",
+      "file_b": "src/me/me.mappers.ts",
+      "cochanges": 6,
+      "confidence": 0.5,
+      "cross_module": true,
+      "module_a": "prisma",
+      "module_b": "src/me"
+    },
+    {
+      "file_a": "src/me/dto/create-expense.dto.ts",
+      "file_b": "src/me/me.service.ts",
+      "cochanges": 5,
+      "confidence": 0.71,
+      "cross_module": true,
+      "module_a": "src/me/dto",
+      "module_b": "src/me"
+    },
+    {
+      "file_a": "src/config/env.validation.ts",
+      "file_b": "src/ocr/ocr.module.ts",
+      "cochanges": 4,
+      "confidence": 1.0,
+      "cross_module": true,
+      "module_a": "src/config",
+      "module_b": "src/ocr"
+    },
+    {
+      "file_a": "docker-compose.yml",
+      "file_b": "src/ocr/services/ollama-glm-ocr.service.ts",
+      "cochanges": 4,
+      "confidence": 0.8,
+      "cross_module": true,
+      "module_a": "(root)",
+      "module_b": "src/ocr/services"
+    },
+    {
+      "file_a": "src/me/dto/create-income.dto.ts",
+      "file_b": "src/me/me.service.ts",
+      "cochanges": 4,
+      "confidence": 0.67,
+      "cross_module": true,
+      "module_a": "src/me/dto",
+      "module_b": "src/me"
+    },
+    {
+      "file_a": "src/me/dto/update-preferences.dto.ts",
+      "file_b": "src/me/me.service.ts",
+      "cochanges": 4,
+      "confidence": 0.67,
+      "cross_module": true,
+      "module_a": "src/me/dto",
+      "module_b": "src/me"
+    },
+    {
+      "file_a": ".github/dependabot.yml",
+      "file_b": "package.json",
+      "cochanges": 4,
+      "confidence": 0.57,
+      "cross_module": true,
+      "module_a": ".github",
+      "module_b": "(root)"
+    },
+    {
+      "file_a": "src/common/constants/deploy-capabilities.const.ts",
+      "file_b": "src/me/me.service.ts",
+      "cochanges": 4,
+      "confidence": 0.5,
+      "cross_module": true,
+      "module_a": "src/common/constants",
+      "module_b": "src/me"
+    },
+    {
+      "file_a": "src/app.module.ts",
+      "file_b": "src/common/cache/cache.module.ts",
+      "cochanges": 3,
+      "confidence": 1.0,
+      "cross_module": true,
+      "module_a": "src",
+      "module_b": "src/common/cache"
+    },
+    {
+      "file_a": ".github/workflows/coolify-deploy.yml",
+      "file_b": "src/email/resend-email.service.ts",
+      "cochanges": 3,
+      "confidence": 1.0,
+      "cross_module": true,
+      "module_a": ".github/workflows",
+      "module_b": "src/email"
+    },
+    {
+      "file_a": "docs/telegram-bot.md",
+      "file_b": "src/telegram/telegram-bot.service.ts",
+      "cochanges": 3,
+      "confidence": 1.0,
+      "cross_module": true,
+      "module_a": "docs",
+      "module_b": "src/telegram"
+    },
+    {
+      "file_a": "docs/telegram-bot.md",
+      "file_b": "src/telegram/telegram-intent-parser.service.spec.ts",
+      "cochanges": 3,
+      "confidence": 1.0,
+      "cross_module": true,
+      "module_a": "docs",
+      "module_b": "src/telegram"
+    },
+    {
+      "file_a": "docs/telegram-bot.md",
+      "file_b": "src/telegram/telegram-intent-parser.service.ts",
+      "cochanges": 3,
+      "confidence": 1.0,
+      "cross_module": true,
+      "module_a": "docs",
+      "module_b": "src/telegram"
+    },
+    {
+      "file_a": "docs/telegram-bot.md",
+      "file_b": "src/telegram/telegram-message.formatter.ts",
+      "cochanges": 3,
+      "confidence": 1.0,
+      "cross_module": true,
+      "module_a": "docs",
+      "module_b": "src/telegram"
+    },
+    {
+      "file_a": "docs/telegram-bot.md",
+      "file_b": "src/telegram/telegram.types.ts",
+      "cochanges": 3,
+      "confidence": 1.0,
+      "cross_module": true,
+      "module_a": "docs",
+      "module_b": "src/telegram"
+    },
+    {
+      "file_a": "src/config/env.validation.ts",
+      "file_b": "src/ocr/engines/tesseract-invoice.engine.ts",
+      "cochanges": 3,
+      "confidence": 1.0,
+      "cross_module": true,
+      "module_a": "src/config",
+      "module_b": "src/ocr/engines"
+    },
+    {
+      "file_a": "src/ocr/engines/tesseract-invoice.engine.ts",
+      "file_b": "src/ocr/parsing/invoice-confidence.util.ts",
+      "cochanges": 3,
+      "confidence": 1.0,
+      "cross_module": true,
+      "module_a": "src/ocr/engines",
+      "module_b": "src/ocr/parsing"
+    },
+    {
+      "file_a": "src/ocr/engines/tesseract-invoice.engine.ts",
+      "file_b": "src/ocr/parsing/invoice-text.parser.ts",
+      "cochanges": 3,
+      "confidence": 1.0,
+      "cross_module": true,
+      "module_a": "src/ocr/engines",
+      "module_b": "src/ocr/parsing"
+    },
+    {
+      "file_a": "src/me/me.service.ts",
+      "file_b": "src/me/utils/bcv-amount-update.util.ts",
+      "cochanges": 3,
+      "confidence": 0.75,
+      "cross_module": true,
+      "module_a": "src/me",
+      "module_b": "src/me/utils"
+    },
+    {
+      "file_a": "src/app.module.ts",
+      "file_b": "src/inventory/inventory.service.ts",
+      "cochanges": 3,
+      "confidence": 0.75,
+      "cross_module": true,
+      "module_a": "src",
+      "module_b": "src/inventory"
+    },
+    {
+      "file_a": "docker-compose.local.yml",
+      "file_b": "src/config/env.validation.ts",
+      "cochanges": 3,
+      "confidence": 0.75,
+      "cross_module": true,
+      "module_a": "(root)",
+      "module_b": "src/config"
+    },
+    {
+      "file_a": ".env.example",
+      "file_b": "src/ocr/ocr.module.ts",
+      "cochanges": 3,
+      "confidence": 0.75,
+      "cross_module": true,
+      "module_a": "(root)",
+      "module_b": "src/ocr"
+    },
+    {
+      "file_a": "package.json",
+      "file_b": "src/ocr/ocr.module.ts",
+      "cochanges": 3,
+      "confidence": 0.75,
+      "cross_module": true,
+      "module_a": "(root)",
+      "module_b": "src/ocr"
+    },
+    {
+      "file_a": "src/config/env.validation.ts",
+      "file_b": "src/ocr/parsing/build-invoice-result-hybrid.spec.ts",
+      "cochanges": 3,
+      "confidence": 0.75,
+      "cross_module": true,
+      "module_a": "src/config",
+      "module_b": "src/ocr/parsing"
+    },
+    {
+      "file_a": "src/bcv/bcv.controller.ts",
+      "file_b": "src/config/env.validation.ts",
+      "cochanges": 3,
+      "confidence": 0.75,
+      "cross_module": true,
+      "module_a": "src/bcv",
+      "module_b": "src/config"
+    },
+    {
+      "file_a": "src/config/env.validation.ts",
+      "file_b": "src/ocr/parsing/invoice-confidence.util.ts",
+      "cochanges": 3,
+      "confidence": 0.75,
+      "cross_module": true,
+      "module_a": "src/config",
+      "module_b": "src/ocr/parsing"
+    },
+    {
+      "file_a": "src/config/env.validation.ts",
+      "file_b": "src/ocr/services/ollama-glm-ocr.service.ts",
+      "cochanges": 3,
+      "confidence": 0.6,
+      "cross_module": true,
+      "module_a": "src/config",
+      "module_b": "src/ocr/services"
+    },
+    {
+      "file_a": "README.md",
+      "file_b": "src/ocr/services/ollama-glm-ocr.service.ts",
+      "cochanges": 3,
+      "confidence": 0.6,
+      "cross_module": true,
+      "module_a": "(root)",
+      "module_b": "src/ocr/services"
+    },
+    {
+      "file_a": "src/me/dto/update-expense-fields.dto.ts",
+      "file_b": "src/me/me.service.ts",
+      "cochanges": 3,
+      "confidence": 0.5,
+      "cross_module": true,
+      "module_a": "src/me/dto",
+      "module_b": "src/me"
+    },
+    {
+      "file_a": "src/me/dto/update-income-fields.dto.ts",
+      "file_b": "src/me/me.service.ts",
+      "cochanges": 3,
+      "confidence": 0.5,
+      "cross_module": true,
+      "module_a": "src/me/dto",
+      "module_b": "src/me"
+    },
+    {
+      "file_a": "src/auth/auth.module.ts",
+      "file_b": "src/config/env.validation.ts",
+      "cochanges": 3,
+      "confidence": 0.5,
+      "cross_module": true,
+      "module_a": "src/auth",
+      "module_b": "src/config"
+    },
+    {
+      "file_a": "prisma/schema.prisma",
+      "file_b": "src/me/dto/update-preferences.dto.ts",
+      "cochanges": 3,
+      "confidence": 0.5,
+      "cross_module": true,
+      "module_a": "prisma",
+      "module_b": "src/me/dto"
+    },
+    {
+      "file_a": "src/me/dto/update-preferences.dto.ts",
+      "file_b": "src/me/me.mappers.ts",
+      "cochanges": 3,
+      "confidence": 0.5,
+      "cross_module": true,
+      "module_a": "src/me/dto",
+      "module_b": "src/me"
+    }
+  ],
+  "cross_module_pairs": 40,
+  "bus_factor_by_module": [
+    {
+      "module": "src/ocr/engines",
+      "commits": 3,
+      "authors": 1,
+      "top_author": "aserra",
+      "top_author_pct": 100.0
+    },
+    {
+      "module": "src/inventory/entities",
+      "commits": 2,
+      "authors": 1,
+      "top_author": "aserra",
+      "top_author_pct": 100.0
+    },
+    {
+      "module": "patches",
+      "commits": 1,
+      "authors": 1,
+      "top_author": "Abel Serra",
+      "top_author_pct": 100.0
+    },
+    {
+      "module": "src/profile-collaborators/dto",
+      "commits": 1,
+      "authors": 1,
+      "top_author": "aserra",
+      "top_author_pct": 100.0
+    },
+    {
+      "module": "src/ocr/dto",
+      "commits": 1,
+      "authors": 1,
+      "top_author": "aserra",
+      "top_author_pct": 100.0
+    },
+    {
+      "module": "src/common/types",
+      "commits": 1,
+      "authors": 1,
+      "top_author": "aserra",
+      "top_author_pct": 100.0
+    },
+    {
+      "module": "src/ocr",
+      "commits": 10,
+      "authors": 2,
+      "top_author": "aserra",
+      "top_author_pct": 90.0
+    },
+    {
+      "module": "openspec/changes",
+      "commits": 8,
+      "authors": 2,
+      "top_author": "aserra",
+      "top_author_pct": 87.5
+    },
+    {
+      "module": "src/ocr/parsing",
+      "commits": 13,
+      "authors": 3,
+      "top_author": "aserra",
+      "top_author_pct": 84.6
+    },
+    {
+      "module": "src/me/utils",
+      "commits": 5,
+      "authors": 2,
+      "top_author": "aserra",
+      "top_author_pct": 80.0
+    },
+    {
+      "module": "src/profile-collaborators",
+      "commits": 4,
+      "authors": 2,
+      "top_author": "Abel Serra",
+      "top_author_pct": 75.0
+    },
+    {
+      "module": "src/ocr/services",
+      "commits": 10,
+      "authors": 2,
+      "top_author": "aserra",
+      "top_author_pct": 70.0
+    },
+    {
+      "module": "src/config",
+      "commits": 19,
+      "authors": 4,
+      "top_author": "aserra",
+      "top_author_pct": 68.4
+    },
+    {
+      "module": "src/bcv",
+      "commits": 12,
+      "authors": 3,
+      "top_author": "aserra",
+      "top_author_pct": 66.7
+    },
+    {
+      "module": "src/audit",
+      "commits": 3,
+      "authors": 2,
+      "top_author": "Abel Serra",
+      "top_author_pct": 66.7
+    },
+    {
+      "module": "src/common/services",
+      "commits": 3,
+      "authors": 2,
+      "top_author": "Abel Serra",
+      "top_author_pct": 66.7
+    },
+    {
+      "module": "prisma/migrations",
+      "commits": 19,
+      "authors": 3,
+      "top_author": "aserra",
+      "top_author_pct": 63.2
+    },
+    {
+      "module": "src/me/dto",
+      "commits": 23,
+      "authors": 4,
+      "top_author": "aserra",
+      "top_author_pct": 60.9
+    },
+    {
+      "module": "src/telegram",
+      "commits": 7,
+      "authors": 2,
+      "top_author": "aserra",
+      "top_author_pct": 57.1
+    },
+    {
+      "module": "scripts",
+      "commits": 7,
+      "authors": 3,
+      "top_author": "Abel Serra",
+      "top_author_pct": 57.1
+    }
+  ],
+  "params": {
+    "max_commits": 500,
+    "min_cochanges": 3,
+    "min_confidence": 0.5
+  }
+}

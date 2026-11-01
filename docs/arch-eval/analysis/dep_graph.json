@@ -1,0 +1,855 @@
+{
+  "repo": "C:\\Users\\aserra\\OneDrive - VENEMERGENCIA AG, C.A\\Documentos\\buildforge\\gastos\\backend_gastosmobile",
+  "scanned_root": "C:\\Users\\aserra\\OneDrive - VENEMERGENCIA AG, C.A\\Documentos\\buildforge\\gastos\\backend_gastosmobile",
+  "files_analyzed": 177,
+  "parse_errors": [],
+  "modules": [
+    {
+      "module": "src/me",
+      "files": 8,
+      "loc": 2634,
+      "fan_in": 3,
+      "fan_out": 10,
+      "instability": 0.77,
+      "coupling_score": 30
+    },
+    {
+      "module": "src/inventory",
+      "files": 14,
+      "loc": 2532,
+      "fan_in": 2,
+      "fan_out": 10,
+      "instability": 0.83,
+      "coupling_score": 20
+    },
+    {
+      "module": "src/auth",
+      "files": 11,
+      "loc": 1224,
+      "fan_in": 2,
+      "fan_out": 10,
+      "instability": 0.83,
+      "coupling_score": 20
+    },
+    {
+      "module": "src/bcv",
+      "files": 5,
+      "loc": 608,
+      "fan_in": 3,
+      "fan_out": 5,
+      "instability": 0.62,
+      "coupling_score": 15
+    },
+    {
+      "module": "src",
+      "files": 2,
+      "loc": 128,
+      "fan_in": 1,
+      "fan_out": 15,
+      "instability": 0.94,
+      "coupling_score": 15
+    },
+    {
+      "module": "src/profile-collaborators",
+      "files": 6,
+      "loc": 660,
+      "fan_in": 2,
+      "fan_out": 7,
+      "instability": 0.78,
+      "coupling_score": 14
+    },
+    {
+      "module": "src/audit",
+      "files": 5,
+      "loc": 228,
+      "fan_in": 5,
+      "fan_out": 2,
+      "instability": 0.29,
+      "coupling_score": 10
+    },
+    {
+      "module": "src/common/decorators",
+      "files": 2,
+      "loc": 13,
+      "fan_in": 8,
+      "fan_out": 1,
+      "instability": 0.11,
+      "coupling_score": 8
+    },
+    {
+      "module": "src/telegram",
+      "files": 13,
+      "loc": 2483,
+      "fan_in": 1,
+      "fan_out": 7,
+      "instability": 0.88,
+      "coupling_score": 7
+    },
+    {
+      "module": "src/email",
+      "files": 3,
+      "loc": 322,
+      "fan_in": 2,
+      "fan_out": 3,
+      "instability": 0.6,
+      "coupling_score": 6
+    },
+    {
+      "module": "src/common/utils",
+      "files": 8,
+      "loc": 616,
+      "fan_in": 5,
+      "fan_out": 1,
+      "instability": 0.17,
+      "coupling_score": 5
+    },
+    {
+      "module": "src/chat",
+      "files": 10,
+      "loc": 717,
+      "fan_in": 1,
+      "fan_out": 4,
+      "instability": 0.8,
+      "coupling_score": 4
+    },
+    {
+      "module": "src/ocr",
+      "files": 3,
+      "loc": 193,
+      "fan_in": 1,
+      "fan_out": 4,
+      "instability": 0.8,
+      "coupling_score": 4
+    },
+    {
+      "module": "src/common/guards",
+      "files": 6,
+      "loc": 160,
+      "fan_in": 4,
+      "fan_out": 1,
+      "instability": 0.2,
+      "coupling_score": 4
+    },
+    {
+      "module": "src/common/services",
+      "files": 3,
+      "loc": 182,
+      "fan_in": 3,
+      "fan_out": 1,
+      "instability": 0.25,
+      "coupling_score": 3
+    },
+    {
+      "module": "src/me/utils",
+      "files": 3,
+      "loc": 90,
+      "fan_in": 1,
+      "fan_out": 3,
+      "instability": 0.75,
+      "coupling_score": 3
+    },
+    {
+      "module": "src/common/filters",
+      "files": 1,
+      "loc": 73,
+      "fan_in": 1,
+      "fan_out": 2,
+      "instability": 0.67,
+      "coupling_score": 2
+    },
+    {
+      "module": "src/inventory/entities",
+      "files": 1,
+      "loc": 68,
+      "fan_in": 2,
+      "fan_out": 1,
+      "instability": 0.33,
+      "coupling_score": 2
+    },
+    {
+      "module": "src/ocr/parsing",
+      "files": 11,
+      "loc": 1581,
+      "fan_in": 1,
+      "fan_out": 1,
+      "instability": 0.5,
+      "coupling_score": 1
+    },
+    {
+      "module": "src/ocr/services",
+      "files": 6,
+      "loc": 624,
+      "fan_in": 1,
+      "fan_out": 1,
+      "instability": 0.5,
+      "coupling_score": 1
+    },
+    {
+      "module": "src/common/cache",
+      "files": 5,
+      "loc": 466,
+      "fan_in": 7,
+      "fan_out": 0,
+      "instability": 0.0,
+      "coupling_score": 0
+    },
+    {
+      "module": "src/me/dto",
+      "files": 16,
+      "loc": 429,
+      "fan_in": 2,
+      "fan_out": 0,
+      "instability": 0.0,
+      "coupling_score": 0
+    },
+    {
+      "module": "src/inventory/dto",
+      "files": 7,
+      "loc": 247,
+      "fan_in": 2,
+      "fan_out": 0,
+      "instability": 0.0,
+      "coupling_score": 0
+    },
+    {
+      "module": "src/prisma",
+      "files": 5,
+      "loc": 177,
+      "fan_in": 10,
+      "fan_out": 0,
+      "instability": 0.0,
+      "coupling_score": 0
+    },
+    {
+      "module": "src/config",
+      "files": 1,
+      "loc": 97,
+      "fan_in": 1,
+      "fan_out": 0,
+      "instability": 0.0,
+      "coupling_score": 0
+    },
+    {
+      "module": "scripts",
+      "files": 3,
+      "loc": 75,
+      "fan_in": 0,
+      "fan_out": 0,
+      "instability": null,
+      "coupling_score": 0
+    },
+    {
+      "module": "src/auth/dto",
+      "files": 8,
+      "loc": 71,
+      "fan_in": 1,
+      "fan_out": 0,
+      "instability": 0.0,
+      "coupling_score": 0
+    },
+    {
+      "module": "(root)",
+      "files": 2,
+      "loc": 66,
+      "fan_in": 0,
+      "fan_out": 0,
+      "instability": null,
+      "coupling_score": 0
+    },
+    {
+      "module": "src/chat/dto",
+      "files": 1,
+      "loc": 51,
+      "fan_in": 1,
+      "fan_out": 0,
+      "instability": 0.0,
+      "coupling_score": 0
+    },
+    {
+      "module": "src/ocr/engines",
+      "files": 1,
+      "loc": 47,
+      "fan_in": 1,
+      "fan_out": 0,
+      "instability": 0.0,
+      "coupling_score": 0
+    },
+    {
+      "module": "test",
+      "files": 1,
+      "loc": 29,
+      "fan_in": 0,
+      "fan_out": 1,
+      "instability": 1.0,
+      "coupling_score": 0
+    },
+    {
+      "module": "src/ocr/dto",
+      "files": 1,
+      "loc": 27,
+      "fan_in": 2,
+      "fan_out": 0,
+      "instability": 0.0,
+      "coupling_score": 0
+    },
+    {
+      "module": "src/inventory/testing",
+      "files": 1,
+      "loc": 20,
+      "fan_in": 1,
+      "fan_out": 0,
+      "instability": 0.0,
+      "coupling_score": 0
+    },
+    {
+      "module": "src/common/bootstrap",
+      "files": 1,
+      "loc": 16,
+      "fan_in": 1,
+      "fan_out": 0,
+      "instability": 0.0,
+      "coupling_score": 0
+    },
+    {
+      "module": "src/profile-collaborators/dto",
+      "files": 1,
+      "loc": 9,
+      "fan_in": 1,
+      "fan_out": 0,
+      "instability": 0.0,
+      "coupling_score": 0
+    },
+    {
+      "module": "src/common/constants",
+      "files": 1,
+      "loc": 4,
+      "fan_in": 1,
+      "fan_out": 0,
+      "instability": 0.0,
+      "coupling_score": 0
+    },
+    {
+      "module": "src/common/types",
+      "files": 1,
+      "loc": 4,
+      "fan_in": 10,
+      "fan_out": 0,
+      "instability": 0.0,
+      "coupling_score": 0
+    }
+  ],
+  "edges": [
+    {
+      "from": "src/me",
+      "to": "src/me/dto",
+      "imports": 29
+    },
+    {
+      "from": "src/inventory",
+      "to": "src/inventory/dto",
+      "imports": 20
+    },
+    {
+      "from": "src/auth",
+      "to": "src/auth/dto",
+      "imports": 15
+    },
+    {
+      "from": "src/me",
+      "to": "src/prisma",
+      "imports": 7
+    },
+    {
+      "from": "src/ocr",
+      "to": "src/ocr/services",
+      "imports": 6
+    },
+    {
+      "from": "src/inventory",
+      "to": "src/inventory/entities",
+      "imports": 6
+    },
+    {
+      "from": "src/me",
+      "to": "src/profile-collaborators",
+      "imports": 5
+    },
+    {
+      "from": "src/chat",
+      "to": "src/chat/dto",
+      "imports": 5
+    },
+    {
+      "from": "src/me",
+      "to": "src/audit",
+      "imports": 5
+    },
+    {
+      "from": "src/me",
+      "to": "src/bcv",
+      "imports": 5
+    },
+    {
+      "from": "src/me",
+      "to": "src/email",
+      "imports": 5
+    },
+    {
+      "from": "src/inventory",
+      "to": "src/prisma",
+      "imports": 4
+    },
+    {
+      "from": "src/profile-collaborators",
+      "to": "src/common/services",
+      "imports": 4
+    },
+    {
+      "from": "src/auth",
+      "to": "src/audit",
+      "imports": 4
+    },
+    {
+      "from": "src/inventory",
+      "to": "src/common/cache",
+      "imports": 4
+    },
+    {
+      "from": "src/inventory",
+      "to": "src/audit",
+      "imports": 4
+    },
+    {
+      "from": "src/inventory",
+      "to": "src/common/services",
+      "imports": 4
+    },
+    {
+      "from": "src/common/guards",
+      "to": "src/common/services",
+      "imports": 4
+    },
+    {
+      "from": "src/common/filters",
+      "to": "src/audit",
+      "imports": 3
+    },
+    {
+      "from": "src/auth",
+      "to": "src/common/decorators",
+      "imports": 3
+    },
+    {
+      "from": "src/telegram",
+      "to": "src/common/types",
+      "imports": 3
+    },
+    {
+      "from": "src/auth",
+      "to": "src/email",
+      "imports": 3
+    },
+    {
+      "from": "src/me",
+      "to": "src/common/utils",
+      "imports": 3
+    },
+    {
+      "from": "src/bcv",
+      "to": "src/common/utils",
+      "imports": 3
+    },
+    {
+      "from": "src/telegram",
+      "to": "src/me",
+      "imports": 3
+    },
+    {
+      "from": "src/me/utils",
+      "to": "src/common/utils",
+      "imports": 2
+    },
+    {
+      "from": "src/chat",
+      "to": "src/prisma",
+      "imports": 2
+    },
+    {
+      "from": "src/chat",
+      "to": "src/common/decorators",
+      "imports": 2
+    },
+    {
+      "from": "src/ocr/parsing",
+      "to": "src/ocr/dto",
+      "imports": 2
+    },
+    {
+      "from": "src/telegram",
+      "to": "src/inventory",
+      "imports": 2
+    },
+    {
+      "from": "src/common/services",
+      "to": "src/prisma",
+      "imports": 2
+    },
+    {
+      "from": "src/profile-collaborators",
+      "to": "src/prisma",
+      "imports": 2
+    },
+    {
+      "from": "src/me/utils",
+      "to": "src/bcv",
+      "imports": 2
+    },
+    {
+      "from": "src/me",
+      "to": "src/me/utils",
+      "imports": 2
+    },
+    {
+      "from": "src/audit",
+      "to": "src/prisma",
+      "imports": 2
+    },
+    {
+      "from": "src/ocr",
+      "to": "src/ocr/engines",
+      "imports": 2
+    },
+    {
+      "from": "src/profile-collaborators",
+      "to": "src/common/decorators",
+      "imports": 2
+    },
+    {
+      "from": "src/me",
+      "to": "src/common/types",
+      "imports": 2
+    },
+    {
+      "from": "src",
+      "to": "src/common/cache",
+      "imports": 2
+    },
+    {
+      "from": "src",
+      "to": "src/auth",
+      "imports": 2
+    },
+    {
+      "from": "src/ocr",
+      "to": "src/ocr/dto",
+      "imports": 2
+    },
+    {
+      "from": "src/profile-collaborators",
+      "to": "src/profile-collaborators/dto",
+      "imports": 2
+    },
+    {
+      "from": "src/auth",
+      "to": "src/common/types",
+      "imports": 2
+    },
+    {
+      "from": "src/inventory",
+      "to": "src/inventory/testing",
+      "imports": 2
+    },
+    {
+      "from": "src/ocr/services",
+      "to": "src/common/cache",
+      "imports": 2
+    },
+    {
+      "from": "src/profile-collaborators",
+      "to": "src/common/cache",
+      "imports": 2
+    },
+    {
+      "from": "src/telegram",
+      "to": "src/common/decorators",
+      "imports": 2
+    },
+    {
+      "from": "src/profile-collaborators",
+      "to": "src/common/types",
+      "imports": 2
+    },
+    {
+      "from": "src/ocr",
+      "to": "src/ocr/parsing",
+      "imports": 2
+    },
+    {
+      "from": "src",
+      "to": "src/ocr",
+      "imports": 1
+    },
+    {
+      "from": "src/profile-collaborators",
+      "to": "src/common/guards",
+      "imports": 1
+    },
+    {
+      "from": "src",
+      "to": "src/audit",
+      "imports": 1
+    },
+    {
+      "from": "src/common/decorators",
+      "to": "src/common/types",
+      "imports": 1
+    },
+    {
+      "from": "src/chat",
+      "to": "src/common/types",
+      "imports": 1
+    },
+    {
+      "from": "src/inventory/entities",
+      "to": "src/inventory/dto",
+      "imports": 1
+    },
+    {
+      "from": "src",
+      "to": "src/profile-collaborators",
+      "imports": 1
+    },
+    {
+      "from": "src/bcv",
+      "to": "src/common/decorators",
+      "imports": 1
+    },
+    {
+      "from": "src",
+      "to": "src/prisma",
+      "imports": 1
+    },
+    {
+      "from": "src/bcv",
+      "to": "src/common/cache",
+      "imports": 1
+    },
+    {
+      "from": "src",
+      "to": "src/common/guards",
+      "imports": 1
+    },
+    {
+      "from": "src",
+      "to": "src/bcv",
+      "imports": 1
+    },
+    {
+      "from": "src/common/utils",
+      "to": "src/me",
+      "imports": 1
+    },
+    {
+      "from": "src/inventory",
+      "to": "src/common/decorators",
+      "imports": 1
+    },
+    {
+      "from": "src",
+      "to": "src/config",
+      "imports": 1
+    },
+    {
+      "from": "src/common/filters",
+      "to": "src/common/types",
+      "imports": 1
+    },
+    {
+      "from": "test",
+      "to": "src",
+      "imports": 1
+    },
+    {
+      "from": "src/auth",
+      "to": "src/common/utils",
+      "imports": 1
+    },
+    {
+      "from": "src/telegram",
+      "to": "src/inventory/entities",
+      "imports": 1
+    },
+    {
+      "from": "src/email",
+      "to": "src/common/types",
+      "imports": 1
+    },
+    {
+      "from": "src/inventory",
+      "to": "src/common/guards",
+      "imports": 1
+    },
+    {
+      "from": "src",
+      "to": "src/me",
+      "imports": 1
+    },
+    {
+      "from": "src/me/utils",
+      "to": "src/me/dto",
+      "imports": 1
+    },
+    {
+      "from": "src/auth",
+      "to": "src/common/guards",
+      "imports": 1
+    },
+    {
+      "from": "src/telegram",
+      "to": "src/common/cache",
+      "imports": 1
+    },
+    {
+      "from": "src",
+      "to": "src/common/filters",
+      "imports": 1
+    },
+    {
+      "from": "src/me",
+      "to": "src/common/decorators",
+      "imports": 1
+    },
+    {
+      "from": "src/email",
+      "to": "src/common/decorators",
+      "imports": 1
+    },
+    {
+      "from": "src/audit",
+      "to": "src/auth",
+      "imports": 1
+    },
+    {
+      "from": "src",
+      "to": "src/chat",
+      "imports": 1
+    },
+    {
+      "from": "src/auth",
+      "to": "src/prisma",
+      "imports": 1
+    },
+    {
+      "from": "src/bcv",
+      "to": "src/prisma",
+      "imports": 1
+    },
+    {
+      "from": "src/auth",
+      "to": "src/common/cache",
+      "imports": 1
+    },
+    {
+      "from": "src",
+      "to": "src/telegram",
+      "imports": 1
+    },
+    {
+      "from": "src",
+      "to": "src/inventory",
+      "imports": 1
+    },
+    {
+      "from": "src/auth",
+      "to": "src/common/constants",
+      "imports": 1
+    },
+    {
+      "from": "src/bcv",
+      "to": "src/common/types",
+      "imports": 1
+    },
+    {
+      "from": "src",
+      "to": "src/common/bootstrap",
+      "imports": 1
+    },
+    {
+      "from": "src/email",
+      "to": "src/common/utils",
+      "imports": 1
+    },
+    {
+      "from": "src/inventory",
+      "to": "src/common/types",
+      "imports": 1
+    },
+    {
+      "from": "src/telegram",
+      "to": "src/prisma",
+      "imports": 1
+    }
+  ],
+  "cycles_scc": [
+    [
+      "src/audit",
+      "src/auth",
+      "src/bcv",
+      "src/common/utils",
+      "src/email",
+      "src/me",
+      "src/me/utils"
+    ]
+  ],
+  "cycles_pairs": [
+    [
+      "src/audit",
+      "src/auth"
+    ],
+    [
+      "src/common/utils",
+      "src/me"
+    ]
+  ],
+  "god_module_candidates": [
+    {
+      "module": "src/me",
+      "files": 8,
+      "loc": 2634,
+      "fan_in": 3,
+      "fan_out": 10,
+      "instability": 0.77,
+      "coupling_score": 30
+    },
+    {
+      "module": "src/inventory",
+      "files": 14,
+      "loc": 2532,
+      "fan_in": 2,
+      "fan_out": 10,
+      "instability": 0.83,
+      "coupling_score": 20
+    },
+    {
+      "module": "src/auth",
+      "files": 11,
+      "loc": 1224,
+      "fan_in": 2,
+      "fan_out": 10,
+      "instability": 0.83,
+      "coupling_score": 20
+    },
+    {
+      "module": "src/bcv",
+      "files": 5,
+      "loc": 608,
+      "fan_in": 3,
+      "fan_out": 5,
+      "instability": 0.62,
+      "coupling_score": 15
+    }
+  ],
+  "orphan_modules": [
+    "scripts"
+  ]
+}
