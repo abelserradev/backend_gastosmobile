@@ -1,5 +1,6 @@
 import { Module } from '@nestjs/common';
 import { ConfigModule } from '@nestjs/config';
+import { ScheduleModule } from '@nestjs/schedule';
 import { APP_FILTER, APP_GUARD } from '@nestjs/core';
 import { ThrottlerGuard, ThrottlerModule } from '@nestjs/throttler';
 import { envValidationSchema } from './config/env.validation';
@@ -18,9 +19,11 @@ import { InventoryModule } from './inventory/inventory.module';
 import { ProfileCollaboratorsModule } from './profile-collaborators/profile-collaborators.module';
 import { TelegramModule } from './telegram/telegram.module';
 import { ChatModule } from './chat/chat.module';
+import { PaymentComparisonModule } from './payment-comparison/payment-comparison.module';
 
 @Module({
   imports: [
+    ScheduleModule.forRoot(),
     ConfigModule.forRoot({
       isGlobal: true,
       envFilePath:
@@ -59,6 +62,7 @@ import { ChatModule } from './chat/chat.module';
     OcrModule,
     TelegramModule,
     ChatModule,
+    PaymentComparisonModule,
   ],
   providers: [
     { provide: APP_GUARD, useClass: ThrottlerGuard },

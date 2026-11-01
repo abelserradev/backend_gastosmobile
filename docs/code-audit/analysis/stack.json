@@ -22,7 +22,7 @@
   ],
   "has_precommit": true,
   "tests": {
-    "unit_count": 26,
+    "unit_count": 29,
     "integration_count": 0,
     "unit_sample": [
       "src\\audit\\audit.service.spec.ts",
@@ -79,14 +79,17 @@
         ]
       },
       "SAST": {
-        "covered": false,
-        "tools_found": []
+        "covered": true,
+        "tools_found": [
+          "semgrep"
+        ]
       },
       "SCA": {
         "covered": true,
         "tools_found": [
           "dependabot",
-          "npm audit"
+          "npm audit",
+          "osv-scanner"
         ]
       },
       "secrets": {

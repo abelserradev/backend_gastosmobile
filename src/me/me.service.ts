@@ -1,11 +1,11 @@
 import {
   BadRequestException,
-  ConflictException,
   Injectable,
   NotFoundException,
   Logger,
   ServiceUnavailableException,
 } from '@nestjs/common';
+import { ConfigService } from '@nestjs/config';
 import { BcvRateService } from '../bcv/bcv-rate.service';
 import {
   formatYmdInCaracas,
@@ -70,6 +70,8 @@ import { UpdateExpenseFieldsDto } from './dto/update-expense-fields.dto';
 import { UpdateIncomeFieldsDto } from './dto/update-income-fields.dto';
 import { mapIncomeToResponse } from './me.mappers';
 import { DEFAULT_INCOME_SOURCES_NAMES } from './income-source.default';
+import { ExpenseComparisonRulesService } from './expense-comparison-rules.service';
+import { isPaymentComparisonEnabled } from '../payment-comparison/payment-comparison.config';
 
 /** Tasa BCV ligada al registro de ingreso en Bs. */
 type IncomeRegisteredBcvRateRow = Readonly<{
@@ -139,6 +141,8 @@ export class MeService {
     private readonly resendEmail: ResendEmailService,
     private readonly profileCollaborators: ProfileCollaboratorService,
     private readonly audit: AuditService,
+    private readonly expenseComparisonRules: ExpenseComparisonRulesService,
+    private readonly config: ConfigService,
   ) {}
 
   /** Delegates de ingreso cuando el analyzer no enlaza el codegen de PrismaService. */
@@ -316,6 +320,9 @@ export class MeService {
       },
       needsMonthlyIncomeSetup,
       monthRenewal,
+      features: {
+        paymentComparison: isPaymentComparisonEnabled(this.config),
+      },
     };
   }
 
@@ -1016,18 +1023,14 @@ export class MeService {
     userId: string,
     input: { profileId?: string; categoryId?: string; categoryName?: string },
   ): Promise<{ profileId: string; categoryId: string; referenceMonth: Date }> {
-    const categoryId = await this.resolveCategoryId(userId, {
-      id: input.categoryId,
-      name: input.categoryName,
+    return this.expenseComparisonRules.resolveExpenseContext(userId, input, {
+      resolveCategoryId: (uid, cat) => this.resolveCategoryId(uid, cat),
+      resolveProfileId: (uid, profileId) =>
+        this.resolveProfileId(uid, profileId),
+      getBudgetCyclePrefForUser: (uid) => this.getBudgetCyclePrefForUser(uid),
+      resolveMovementReferenceMonthYmd: (pref, explicit) =>
+        this.resolveMovementReferenceMonthYmd(pref, explicit),
     });
-    const profileId = await this.resolveProfileId(userId, input.profileId);
-    const pref = await this.getBudgetCyclePrefForUser(userId);
-    const refYmd = this.resolveMovementReferenceMonthYmd(pref);
-    return {
-      profileId,
-      categoryId,
-      referenceMonth: toReferenceMonthDate(refYmd),
-    };
   }
 
   async createExpense(user: AuthUserPayload, dto: CreateExpenseDto) {
@@ -1762,13 +1765,7 @@ export class MeService {
     if (!row) {
       throw new NotFoundException('Gasto no encontrado');
     }
-    // EXP-003: el monto de un gasto de comparación es costo real a tasa de venta; recalcularlo con
-    // BCV de hoy mezclaría bases. Título y categoría sí se pueden editar.
-    if (dto.amount != null && row.valuationBasis === 'SELL_RATE') {
-      throw new ConflictException(
-        'Este gasto viene de una comparación de pago; para cambiar el monto elimínalo y compara de nuevo',
-      );
-    }
+    this.expenseComparisonRules.assertAmountEditAllowed(row, dto);
     const data: Prisma.ExpenseUpdateInput = {
       ...(await buildMoneyEntryCoreUpdateFields(this.bcv, dto)),
     };
@@ -1836,6 +1833,27 @@ export class MeService {
       include: { source: true },
     })) as IncomeEntryWithSourceRow;
     return mapIncomeToResponse(updated);
+  }
+
+  /** GC-005: mismo evento que alta manual, con marca de comparación Exchange. */
+  logExpenseCreatedFromComparison(
+    userId: string,
+    expenseId: string,
+    profileId: string,
+    payload: {
+      title: string;
+      amount: number;
+      categoryName?: string;
+      comparisonId: string;
+    },
+  ): void {
+    this.recordExpenseEvent(
+      AuditEventTypes.expense.created,
+      userId,
+      expenseId,
+      profileId,
+      { ...payload, fromComparison: true },
+    );
   }
 
   private recordExpenseEvent(

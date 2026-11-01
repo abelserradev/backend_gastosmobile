@@ -109,6 +109,34 @@ export class CacheService implements OnModuleDestroy {
     this.memory.set(key, { data, expiresAt: Date.now() + ttlMs });
   }
 
+  /**
+   * Lock distribuido best-effort (SET NX). Sin Redis, solo evita solapamiento en el mismo proceso.
+   */
+  async tryAcquireLock(key: string, ttlMs: number): Promise<boolean> {
+    const ttl = Math.max(1, ttlMs);
+    if (this.redis) {
+      try {
+        const result = await this.redis.set(
+          this.scopedKey(key),
+          '1',
+          'PX',
+          ttl,
+          'NX',
+        );
+        return result === 'OK';
+      } catch {
+        return false;
+      }
+    }
+    const lockMemKey = `__lock__:${key}`;
+    const entry = this.memory.get(lockMemKey);
+    if (entry && Date.now() <= entry.expiresAt) {
+      return false;
+    }
+    this.memory.set(lockMemKey, { data: true, expiresAt: Date.now() + ttl });
+    return true;
+  }
+
   async del(key: string): Promise<void> {
     if (this.redis) {
       try {

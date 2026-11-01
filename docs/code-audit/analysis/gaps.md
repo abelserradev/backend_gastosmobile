@@ -4,7 +4,7 @@
 **Stacks:** nestjs  
 **Dockerfiles:** 1 · **Lockfiles:** 1 · **pre-commit:** yes
 
-**Tests:** 26 unit (heuristic) · 0 integration
+**Tests:** 29 unit (heuristic) · 0 integration
 
 | Dimension | Tooling present? | Tools found |
 |---|---|---|
@@ -12,8 +12,8 @@
 | SOLID | ❌ | — |
 | unit_tests | ✅ | jest |
 | integration_tests | ✅ | e2e, supertest |
-| SAST | ❌ | — |
-| SCA | ✅ | dependabot, npm audit |
+| SAST | ✅ | semgrep |
+| SCA | ✅ | dependabot, npm audit, osv-scanner |
 | secrets | ✅ | gitleaks |
 | containers | ❌ | — |
 

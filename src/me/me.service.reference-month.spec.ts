@@ -1,3 +1,4 @@
+import { ConfigService } from '@nestjs/config';
 import { Test, TestingModule } from '@nestjs/testing';
 import { BadRequestException } from '@nestjs/common';
 import { MeService } from './me.service';
@@ -6,6 +7,7 @@ import { BcvRateService } from '../bcv/bcv-rate.service';
 import { ResendEmailService } from '../email/resend-email.service';
 import { ProfileCollaboratorService } from '../profile-collaborators/profile-collaborator.service';
 import { AuditService } from '../audit/audit.service';
+import { ExpenseComparisonRulesService } from './expense-comparison-rules.service';
 
 jest.mock('../common/utils/caracas-date', () => {
   const actual = jest.requireActual('../common/utils/caracas-date');
@@ -37,6 +39,7 @@ describe('MeService — referenceMonth al registrar (REQ-REG)', () => {
     const module: TestingModule = await Test.createTestingModule({
       providers: [
         MeService,
+        ExpenseComparisonRulesService,
         { provide: PrismaService, useValue: mockPrisma() },
         { provide: BcvRateService, useValue: mockBcv() },
         {
@@ -53,6 +56,10 @@ describe('MeService — referenceMonth al registrar (REQ-REG)', () => {
             logBackend: jest.fn(),
             recordDomainEvent: jest.fn().mockResolvedValue(undefined),
           },
+        },
+        {
+          provide: ConfigService,
+          useValue: { get: jest.fn((_k: string, d?: unknown) => d ?? 'false') },
         },
       ],
     }).compile();
