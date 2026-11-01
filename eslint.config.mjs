@@ -1,6 +1,7 @@
 // @ts-check
 import eslint from '@eslint/js';
 import eslintPluginPrettierRecommended from 'eslint-plugin-prettier/recommended';
+import sonarjs from 'eslint-plugin-sonarjs';
 import globals from 'globals';
 import tseslint from 'typescript-eslint';
 
@@ -34,6 +35,15 @@ export default tseslint.config(
   },
   // Los tests usan mocks de Prisma/Jest con tipos any; relajamos reglas de type-safety
   // en specs para no forzar anotaciones de bajo valor en código legacy.
+  // SonarJS en código nuevo de comparaciones; me.service.ts se excluye hasta T4 split (SonarCloud).
+  {
+    files: ['src/me/payment-comparison.service.ts'],
+    plugins: { sonarjs },
+    rules: {
+      'sonarjs/cognitive-complexity': ['error', 12],
+      complexity: ['error', 10],
+    },
+  },
   {
     files: ['**/*.spec.ts', 'test/**/*.ts'],
     rules: {
