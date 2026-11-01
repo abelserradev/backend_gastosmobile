@@ -6,6 +6,7 @@ import { BcvRateService } from '../bcv/bcv-rate.service';
 import { ResendEmailService } from '../email/resend-email.service';
 import { ProfileCollaboratorService } from '../profile-collaborators/profile-collaborator.service';
 import { AuditService } from '../audit/audit.service';
+import { PaymentComparisonService } from './payment-comparison.service';
 
 jest.mock('../common/utils/caracas-date', () => {
   const actual = jest.requireActual('../common/utils/caracas-date');
@@ -37,6 +38,7 @@ describe('MeService — referenceMonth al registrar (REQ-REG)', () => {
     const module: TestingModule = await Test.createTestingModule({
       providers: [
         MeService,
+        PaymentComparisonService,
         { provide: PrismaService, useValue: mockPrisma() },
         { provide: BcvRateService, useValue: mockBcv() },
         {

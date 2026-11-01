@@ -6,6 +6,7 @@ import { BcvRateService } from '../bcv/bcv-rate.service';
 import { ResendEmailService } from '../email/resend-email.service';
 import { ProfileCollaboratorService } from '../profile-collaborators/profile-collaborator.service';
 import { AuditService } from '../audit/audit.service';
+import { PaymentComparisonService } from './payment-comparison.service';
 
 const mockPrisma = () => ({
   profile: {
@@ -61,6 +62,7 @@ describe('MeService — perfiles e invalidación de caché', () => {
     const module: TestingModule = await Test.createTestingModule({
       providers: [
         MeService,
+        PaymentComparisonService,
         { provide: PrismaService, useValue: mockPrisma() },
         { provide: BcvRateService, useValue: mockBcv() },
         { provide: ResendEmailService, useValue: mockResendEmail() },
