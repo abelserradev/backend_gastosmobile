@@ -18,6 +18,7 @@ import { InventoryModule } from './inventory/inventory.module';
 import { ProfileCollaboratorsModule } from './profile-collaborators/profile-collaborators.module';
 import { TelegramModule } from './telegram/telegram.module';
 import { ChatModule } from './chat/chat.module';
+import { PaymentComparisonModule } from './payment-comparison/payment-comparison.module';
 
 @Module({
   imports: [
@@ -59,6 +60,7 @@ import { ChatModule } from './chat/chat.module';
     OcrModule,
     TelegramModule,
     ChatModule,
+    PaymentComparisonModule,
   ],
   providers: [
     { provide: APP_GUARD, useClass: ThrottlerGuard },

@@ -98,4 +98,12 @@ export const envValidationSchema = Joi.object({
     .optional(),
   CHAT_OLLAMA_MODEL: Joi.string().allow('').optional(),
   CHAT_OLLAMA_TIMEOUT_MS: Joi.number().integer().min(15_000).optional(),
+
+  /** Comparación de pagos vía Exchange (GC-001). */
+  PAYMENT_COMPARISON_ENABLED: Joi.string()
+    .valid('true', 'false', '0', '1', 'off', 'on')
+    .optional(),
+  EXCHANGE_API_URL: Joi.string().uri().allow('').optional(),
+  EXCHANGE_SERVICE_KEY: Joi.string().allow('').optional(),
+  EXCHANGE_TIMEOUT_MS: Joi.number().integer().min(1000).max(30_000).optional(),
 });

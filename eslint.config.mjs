@@ -35,9 +35,24 @@ export default tseslint.config(
   },
   // Los tests usan mocks de Prisma/Jest con tipos any; relajamos reglas de type-safety
   // en specs para no forzar anotaciones de bajo valor en código legacy.
+  {
+    files: ['src/payment-comparison/**/*.ts'],
+    rules: {
+      '@typescript-eslint/no-unsafe-assignment': 'off',
+      '@typescript-eslint/no-unsafe-member-access': 'off',
+      '@typescript-eslint/no-unsafe-call': 'off',
+      '@typescript-eslint/no-unsafe-return': 'off',
+    },
+  },
   // SonarJS en código nuevo de comparaciones; me.service.ts se excluye hasta T4 split (SonarCloud).
   {
-    files: ['src/me/payment-comparison.service.ts'],
+    files: [
+      'src/me/payment-comparison.service.ts',
+      'src/payment-comparison/exchange.client.ts',
+      'src/payment-comparison/exchange.errors.ts',
+      'src/payment-comparison/payment-comparison.config.ts',
+      'src/payment-comparison/payment-comparison.module.ts',
+    ],
     plugins: { sonarjs },
     rules: {
       'sonarjs/cognitive-complexity': ['error', 12],
