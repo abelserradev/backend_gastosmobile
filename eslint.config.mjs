@@ -47,8 +47,9 @@ export default tseslint.config(
   // SonarJS en código nuevo de comparaciones; me.service.ts se excluye hasta T4 split (SonarCloud).
   {
     files: [
-      'src/me/payment-comparison.service.ts',
+      'src/me/expense-comparison-rules.service.ts',
       'src/payment-comparison/exchange.client.ts',
+      'src/payment-comparison/payment-comparison.service.ts',
       'src/payment-comparison/exchange.errors.ts',
       'src/payment-comparison/payment-comparison.config.ts',
       'src/payment-comparison/payment-comparison.module.ts',

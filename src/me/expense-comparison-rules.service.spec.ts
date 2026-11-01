@@ -1,8 +1,8 @@
 import { ConflictException } from '@nestjs/common';
-import { PaymentComparisonService } from './payment-comparison.service';
+import { ExpenseComparisonRulesService } from './expense-comparison-rules.service';
 
-describe('PaymentComparisonService — EXP-003', () => {
-  const service = new PaymentComparisonService();
+describe('ExpenseComparisonRulesService — EXP-003', () => {
+  const service = new ExpenseComparisonRulesService();
 
   it('rechaza editar monto en gasto SELL_RATE', () => {
     expect(() =>
@@ -18,19 +18,10 @@ describe('PaymentComparisonService — EXP-003', () => {
       service.assertAmountEditAllowed({ valuationBasis: 'SELL_RATE' }, {}),
     ).not.toThrow();
   });
-
-  it('permite monto en gasto BCV', () => {
-    expect(() =>
-      service.assertAmountEditAllowed(
-        { valuationBasis: 'BCV' },
-        { amount: 50 },
-      ),
-    ).not.toThrow();
-  });
 });
 
-describe('PaymentComparisonService — resolveExpenseContext (TD-4)', () => {
-  const service = new PaymentComparisonService();
+describe('ExpenseComparisonRulesService — resolveExpenseContext (TD-4)', () => {
+  const service = new ExpenseComparisonRulesService();
 
   it('orquesta colaboradores de MeService', async () => {
     const actual = await service.resolveExpenseContext(

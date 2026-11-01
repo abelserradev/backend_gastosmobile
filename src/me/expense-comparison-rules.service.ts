@@ -23,7 +23,6 @@ export type ResolvedExpenseContext = Readonly<{
 
 /**
  * Colaboradores que MeService inyecta: evita duplicar resolve* privados en T4 (GC-005).
- * TODO: mover resolvers a un ExpenseRegistrationHelper cuando exista el módulo comparisons.
  */
 export type ExpenseContextCollaborators = Readonly<{
   resolveCategoryId: (
@@ -43,15 +42,9 @@ export type ExpenseContextCollaborators = Readonly<{
 const SELL_RATE_AMOUNT_EDIT_MESSAGE =
   'Este gasto viene de una comparación de pago; para cambiar el monto elimínalo y compara de nuevo';
 
-/**
- * Reglas de dominio payment-comparison (OpenSpec EXP-003, TD-4).
- * Fase T4 ampliará con cliente Exchange y CRUD de comparaciones.
- */
+/** Reglas de dominio gasto ↔ comparación (EXP-003, TD-4). */
 @Injectable()
-export class PaymentComparisonService {
-  /**
-   * EXP-003: recalcular monto con BCV mezclaría bases con SELL_RATE.
-   */
+export class ExpenseComparisonRulesService {
   assertAmountEditAllowed(
     row: ExpenseValuationRow,
     dto: Pick<UpdateExpenseFieldsDto, 'amount'>,
@@ -64,9 +57,6 @@ export class PaymentComparisonService {
     }
   }
 
-  /**
-   * Perfil, categoría y periodo con las mismas reglas que el alta manual (TD-4).
-   */
   async resolveExpenseContext(
     userId: string,
     input: ResolveExpenseContextInput,

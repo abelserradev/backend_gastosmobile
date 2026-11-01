@@ -5,6 +5,7 @@ import {
   Logger,
   ServiceUnavailableException,
 } from '@nestjs/common';
+import { ConfigService } from '@nestjs/config';
 import { BcvRateService } from '../bcv/bcv-rate.service';
 import {
   formatYmdInCaracas,
@@ -69,7 +70,8 @@ import { UpdateExpenseFieldsDto } from './dto/update-expense-fields.dto';
 import { UpdateIncomeFieldsDto } from './dto/update-income-fields.dto';
 import { mapIncomeToResponse } from './me.mappers';
 import { DEFAULT_INCOME_SOURCES_NAMES } from './income-source.default';
-import { PaymentComparisonService } from './payment-comparison.service';
+import { ExpenseComparisonRulesService } from './expense-comparison-rules.service';
+import { isPaymentComparisonEnabled } from '../payment-comparison/payment-comparison.config';
 
 /** Tasa BCV ligada al registro de ingreso en Bs. */
 type IncomeRegisteredBcvRateRow = Readonly<{
@@ -139,7 +141,8 @@ export class MeService {
     private readonly resendEmail: ResendEmailService,
     private readonly profileCollaborators: ProfileCollaboratorService,
     private readonly audit: AuditService,
-    private readonly paymentComparison: PaymentComparisonService,
+    private readonly expenseComparisonRules: ExpenseComparisonRulesService,
+    private readonly config: ConfigService,
   ) {}
 
   /** Delegates de ingreso cuando el analyzer no enlaza el codegen de PrismaService. */
@@ -317,6 +320,9 @@ export class MeService {
       },
       needsMonthlyIncomeSetup,
       monthRenewal,
+      features: {
+        paymentComparison: isPaymentComparisonEnabled(this.config),
+      },
     };
   }
 
@@ -1017,7 +1023,7 @@ export class MeService {
     userId: string,
     input: { profileId?: string; categoryId?: string; categoryName?: string },
   ): Promise<{ profileId: string; categoryId: string; referenceMonth: Date }> {
-    return this.paymentComparison.resolveExpenseContext(userId, input, {
+    return this.expenseComparisonRules.resolveExpenseContext(userId, input, {
       resolveCategoryId: (uid, cat) => this.resolveCategoryId(uid, cat),
       resolveProfileId: (uid, profileId) =>
         this.resolveProfileId(uid, profileId),
@@ -1759,7 +1765,7 @@ export class MeService {
     if (!row) {
       throw new NotFoundException('Gasto no encontrado');
     }
-    this.paymentComparison.assertAmountEditAllowed(row, dto);
+    this.expenseComparisonRules.assertAmountEditAllowed(row, dto);
     const data: Prisma.ExpenseUpdateInput = {
       ...(await buildMoneyEntryCoreUpdateFields(this.bcv, dto)),
     };

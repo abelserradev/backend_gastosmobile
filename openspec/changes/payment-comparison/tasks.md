@@ -34,7 +34,7 @@ Each task = one commit (Conventional Commits, Spanish message), tests in the sam
 ## Phase 4 — Gastos backend: comparisons module
 
 - [ ] T4.1 `feat(comparisons)`: Exchange client + contract validation + error mapping (GC-001)
-- [ ] T4.2 `feat(comparisons)`: create / list / read / discard + expiry on access (GC-002..004)
+- [x] T4.2 `feat(comparisons)`: create / list / read / discard + expiry on access (GC-002..004)
 - [ ] T4.3 `feat(comparisons)`: convert to expense with idempotency (GC-005, TD-5)
 - [ ] T4.4 `feat(comparisons)`: hourly cleanup with Redis lock + `GET /api/me/expenses/:id/comparison` + feature flag (GC-004, EXP-002, TD-6)
 
