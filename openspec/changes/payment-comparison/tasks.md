@@ -40,14 +40,14 @@ Each task = one commit (Conventional Commits, Spanish message), tests in the sam
 
 ## Phase 5 — Gastos frontend (`develop`)
 
-- [ ] T5.1 `feat(comparar)`: API service + "Comparar pago" form and result (APP-001, APP-003)
-- [ ] T5.2 `feat(comparar)`: convert dialog with Idempotency-Key + expiry handling (APP-002)
-- [ ] T5.3 `feat(gastos)`: shared comparison table in expense detail + method/nominal in list + read-only amount (APP-004, APP-005)
+- [x] T5.1 `feat(comparar)`: API service + "Comparar pago" form and result (APP-001, APP-003)
+- [x] T5.2 `feat(comparar)`: convert dialog with Idempotency-Key + expiry handling (APP-002)
+- [x] T5.3 `feat(gastos)`: shared comparison table in expense detail + method/nominal in list + read-only amount (APP-004, APP-005)
 
 ## Phase 6 — Local end-to-end check
 
 - [ ] T6.1 Both services running locally (Exchange :3010, Gastos API :3088, Angular :4200); flow compare → register → detail verified in the browser
-- [ ] T6.2 `sdd-verify` report + archive
+- [x] T6.2 `sdd-verify` report + archive
 
 ## Later (production, out of this list)
 
