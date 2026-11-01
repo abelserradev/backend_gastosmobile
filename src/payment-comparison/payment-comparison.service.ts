@@ -12,6 +12,7 @@ import {
   mapExpenseToResponse,
 } from '../me/me.mappers';
 import { MeService } from '../me/me.service';
+import { ProfileCollaboratorService } from '../profile-collaborators/profile-collaborator.service';
 import { PrismaService } from '../prisma/prisma.service';
 import { ComparisonExpiredException } from './comparison-expired.exception';
 import {
@@ -22,6 +23,7 @@ import type { ConvertComparisonExpenseDto } from './dto/convert-comparison-expen
 import { ExchangeContractError, parseComparacionV1 } from './exchange-contract';
 import { ExchangeClient } from './exchange.client';
 import { mapComparisonToResponse } from './mappers/comparison.mapper';
+import { mapExpenseComparisonDetail } from './mappers/expense-comparison-detail.mapper';
 import {
   buildExpenseDataFromComparisonOption,
   hashConvertRequest,
@@ -41,7 +43,35 @@ export class PaymentComparisonService {
     private readonly prisma: PrismaService,
     private readonly exchange: ExchangeClient,
     private readonly me: MeService,
+    private readonly profileCollaborators: ProfileCollaboratorService,
   ) {}
+
+  /** EXP-002: snapshot guardado al convertir; 404 si el gasto no tiene comparación. */
+  async getComparisonForExpense(userId: string, expenseId: string) {
+    const profiles =
+      await this.profileCollaborators.listProfilesForUser(userId);
+    const profileIds = profiles.map((p) => p.id);
+    const expense = await this.prisma.expense.findFirst({
+      where: { id: expenseId, profileId: { in: profileIds } },
+      include: { comparison: true },
+    });
+    const comparison = expense?.comparison;
+    if (!expense || !comparison) {
+      throw new NotFoundException();
+    }
+    return mapExpenseComparisonDetail(comparison, expense);
+  }
+
+  /** GC-004 job: solo PENDING con expiresAt pasado. */
+  async deleteExpiredPendingComparisons(): Promise<number> {
+    const result = await this.prisma.paymentComparison.deleteMany({
+      where: {
+        status: 'PENDING',
+        expiresAt: { lte: new Date() },
+      },
+    });
+    return result.count;
+  }
 
   async create(userId: string, dto: CreateComparisonDto) {
     const offer = buildExchangeOfferPayload(dto);

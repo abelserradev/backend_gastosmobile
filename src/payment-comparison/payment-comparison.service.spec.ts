@@ -5,6 +5,7 @@ import {
 } from '@nestjs/common';
 import { Test, TestingModule } from '@nestjs/testing';
 import { MeService } from '../me/me.service';
+import { ProfileCollaboratorService } from '../profile-collaborators/profile-collaborator.service';
 import { ComparisonExpiredException } from './comparison-expired.exception';
 import { ExchangeClient } from './exchange.client';
 import { PaymentComparisonService } from './payment-comparison.service';
@@ -57,6 +58,7 @@ describe('PaymentComparisonService (GC-002/003)', () => {
     expense: {
       create: jest.fn(),
       findUnique: jest.fn(),
+      findFirst: jest.fn(),
     },
     $transaction: jest.fn(),
   };
@@ -64,6 +66,9 @@ describe('PaymentComparisonService (GC-002/003)', () => {
   const me = {
     resolveExpenseContext: jest.fn(),
     logExpenseCreatedFromComparison: jest.fn(),
+  };
+  const profileCollaborators = {
+    listProfilesForUser: jest.fn().mockResolvedValue(['p1']),
   };
 
   beforeEach(async () => {
@@ -74,6 +79,10 @@ describe('PaymentComparisonService (GC-002/003)', () => {
         { provide: PrismaService, useValue: prisma },
         { provide: ExchangeClient, useValue: exchange },
         { provide: MeService, useValue: me },
+        {
+          provide: ProfileCollaboratorService,
+          useValue: profileCollaborators,
+        },
       ],
     }).compile();
     service = module.get(PaymentComparisonService);
@@ -186,6 +195,27 @@ describe('PaymentComparisonService (GC-002/003)', () => {
 
     expect(created).toBe(false);
     expect(expense.id).toBe('exp-1');
+  });
+
+  it('getComparisonForExpense 404 sin comparación', async () => {
+    prisma.expense.findFirst.mockResolvedValue(null);
+    await expect(
+      service.getComparisonForExpense('u1', 'exp-x'),
+    ).rejects.toBeInstanceOf(NotFoundException);
+  });
+
+  it('deleteExpiredPendingComparisons solo PENDING vencidas', async () => {
+    prisma.paymentComparison.deleteMany = jest
+      .fn()
+      .mockResolvedValue({ count: 3 });
+    const actual = await service.deleteExpiredPendingComparisons();
+    expect(actual).toBe(3);
+    expect(prisma.paymentComparison.deleteMany).toHaveBeenCalledWith({
+      where: {
+        status: 'PENDING',
+        expiresAt: { lte: expect.any(Date) },
+      },
+    });
   });
 
   it('convertToExpense 409 si ya convertida con otra key', async () => {

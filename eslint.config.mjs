@@ -51,6 +51,8 @@ export default tseslint.config(
       'src/payment-comparison/exchange.client.ts',
       'src/payment-comparison/payment-comparison.service.ts',
       'src/payment-comparison/mappers/comparison-expense.mapper.ts',
+      'src/payment-comparison/mappers/expense-comparison-detail.mapper.ts',
+      'src/payment-comparison/comparison-cleanup.job.ts',
       'src/payment-comparison/exchange.errors.ts',
       'src/payment-comparison/payment-comparison.config.ts',
       'src/payment-comparison/payment-comparison.module.ts',
