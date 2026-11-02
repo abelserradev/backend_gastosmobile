@@ -46,8 +46,16 @@ Each task = one commit (Conventional Commits, Spanish message), tests in the sam
 
 ## Phase 6 — Local end-to-end check
 
-- [ ] T6.1 Both services running locally (Exchange :3010, Gastos API :3088, Angular :4200); flow compare → register → detail verified in the browser
-- [x] T6.2 `sdd-verify` report + archive
+- [x] T6.1a Exchange API smoke — `scripts/t6.1-exchange-smoke.ps1` (local `:3010` OK 2026-11-01; re-run against Coolify/tunnel URL when deployed)
+- [ ] T6.1b Browser flow (Gastos API + Angular + login): compare → register pending expense → detail table; idempotency + 410 per verify doc
+- [x] T6.2 `sdd-verify` report + archive (verify doc; full archive after T6.1b)
+
+## Phase 7 — Web entry points + release 1.6.0 (2026-11-02)
+
+- [x] T7.1 `feat(comparar)`: main-column entry on `/expenses`, landing card, `next` after login + guard (APP-006) — `exchange-links.util.spec.ts` RED→GREEN, suite 24/24, prod build + lint OK
+- [x] T7.2 `feat(comparar)`: link to Exchange calculator from `/comparar` and landing (APP-007); Exchange link back to Spend$ave (APP-008) — exchange-rate `tsc` + eslint OK
+- [ ] T7.3 `chore(release)`: version 1.6.0 (`versionCode` 10600) done; `public/gastos-mobile.apk` **pending**: no JDK 17–21 / Android SDK on the build machine (2026-11-02)
+- [x] T7.4 playwright-cli on local dev server: landing card links to `/login?next=%2Fcomparar`, anonymous `/comparar` → `/login?next=%2Fcomparar`; `t6.1-exchange-smoke.ps1` against production passed. Logged-in `/expenses` entry to re-check after deploy
 
 ## Later (production, out of this list)
 
