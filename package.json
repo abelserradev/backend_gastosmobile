@@ -29,7 +29,7 @@
     "test:e2e": "jest --config ./test/jest-e2e.json"
   },
   "dependencies": {
-    "@google-cloud/vision": "^6.1.1",
+    "@google-cloud/vision": "^6.2.0",
     "@nestjs/axios": "^4.0.1",
     "@nestjs/common": "^11.2.7",
     "@nestjs/config": "^4.0.0",
@@ -57,7 +57,7 @@
     "pg": "^8.23.1",
     "prisma": "^7.10.1",
     "reflect-metadata": "^0.2.2",
-    "resend": "^6.32.0",
+    "resend": "^6.35.0",
     "rxjs": "^7.8.1",
     "tesseract.js": "^7.0.0"
   },
