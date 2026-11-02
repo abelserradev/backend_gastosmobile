@@ -8,10 +8,10 @@ phases:
   propose: done        # proposal.md v3 — ADR-003, APPROVED 2026-10-21
   spec: done           # APPROVED 2026-10-21. specs/{rates,payment-comparison}=exchange; specs/{gastos-comparisons,expenses}=backend; specs/gastos-app=frontend
   design: in_review    # design.md TD-1..TD-9
-  tasks: pending
+  tasks: in_progress   # T6.1a done; T6.1b browser pending Coolify/Gastos stack
   analyze: pending
-  apply: pending
-  verify: done
+  apply: done          # Phases 0-5 applied
+  verify: in_progress  # T6.1a exchange smoke OK 2026-11-01
   archive: pending
 decisions:
   - id: ADR-001
@@ -62,4 +62,4 @@ technical_decisions:
   - TD-7 hashed consumer keys in Exchange env
   - TD-8 Redis fixed-window rate limit in Exchange
   - TD-9 public web keeps computing in the browser with the same engine
-next: user approves design, then sdd-tasks (chained PRs <= 400 lines)
+next: Coolify + Cloudflare tunnel; pair EXCHANGE keys; T6.1b browser checklist; then archive change

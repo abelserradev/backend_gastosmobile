@@ -51,3 +51,41 @@ never to Exchange.
 
 #### Scenario: Amount edit blocked
 - THEN the amount MUST be read-only with the hint "Elimina el gasto y vuelve a comparar"
+
+## ADDED Requirements (2026-11-02, web entry points)
+
+Context: on the web build the only entry to "Comparar pago" was the expenses sidebar, which is closed below 1024 px,
+and `/` shows the marketing landing. Users read it as a mobile-only feature.
+
+### APP-006 Web entry points
+
+#### Scenario: Entry visible without opening the menu
+- WHERE `features.paymentComparison` is true
+- WHEN the user opens `/expenses` at any viewport width
+- THEN a "Comparar pago" entry MUST be visible in the main column (the sidebar entry stays)
+
+#### Scenario: Landing call to action
+- WHEN an anonymous visitor opens `/` on the web
+- THEN the landing MUST show a "Comparar formas de pago" card linking to `/login?next=/comparar`
+
+#### Scenario: Return to the requested page after login
+- WHEN the user logs in from `/login?next=<path>` and onboarding sends them to `/expenses`
+- THEN the app MUST navigate to `<path>` instead
+- IF `<path>` is not an internal absolute path (e.g. `//evil.com`, `https://…`, `/\…`)
+- THEN the app MUST ignore it and keep the onboarding route
+
+#### Scenario: Protected page without session
+- WHEN an anonymous user opens a protected route such as `/comparar`
+- THEN the guard MUST redirect to `/login?next=<that route>`
+
+### APP-007 External calculator link (optional)
+
+- WHERE the user is on `/comparar` or the landing card
+- THE SYSTEM SHALL offer a secondary link to the public Exchange calculator (`<exchangePublicUrl>/calcular`) opened in
+  a new tab; it never replaces `/comparar`, which is the only flow that creates an expense
+
+### APP-008 Exchange links back to Spend$ave (repo `exchange-rate`)
+
+- THE Exchange public web SHALL show a link to `https://mobilegastos.buildforge.work/login?next=/comparar` so users can
+  register the chosen option as an expense
+- Exchange MUST NOT receive or forward any Gastos credentials; the link is plain navigation
