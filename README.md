@@ -21,10 +21,19 @@ El endpoint `POST /api/ocr/parse-invoice` ejecuta **Tesseract.js** y, si Ollama 
 | `OLLAMA_URL` | `http://localhost:11434` | URL del servidor Ollama |
 | `OLLAMA_MODEL` | `glm-ocr` | Modelo en [Ollama](https://ollama.com/library/glm-ocr) |
 | `OLLAMA_OCR_ENABLED` | `true` | `false` → solo Tesseract |
-| `OLLAMA_OCR_TIMEOUT_MS` | `300000` | Timeout inferencia VLM (CPU sin GPU suele necesitar ≥5 min) |
+| `OLLAMA_OCR_TIMEOUT_MS` | `180000` | Con GPU AMD; sin GPU usar ≥300000 |
 | `OLLAMA_OCR_WARMUP` | `true` | Precarga del modelo al arrancar Nest |
 
-**Host local (sin Docker):** `ollama serve` + `ollama pull glm-ocr`, luego `OLLAMA_URL=http://localhost:11434` en `.env`.
+**GPU en este servidor:** AMD Radeon RX 7600 (8 GB), **no NVIDIA**. Ollama usa **Vulkan/RADV** (`OLLAMA_VULKAN=1`).
+
+**Host (recomendado en servidor-local):**
+
+```bash
+sudo bash scripts/setup-host-ollama-amd.sh
+ollama pull glm-ocr
+ollama pull llama3.2
+# Backend Docker/Coolify → OLLAMA_URL=http://host.docker.internal:11434
+```
 
 **Docker local (Postgres + Ollama + API):**
 
@@ -35,17 +44,15 @@ docker compose -f docker-compose.local.yml --env-file .env.docker.local up -d --
 
 Si Ollama ya corre en el host: `docker compose -f docker-compose.local.yml -f docker-compose.host-ollama.yml up -d postgres backend`.
 
-**Coolify:** `docker-compose.yml` incluye `ollama` + job `ollama-pull` en la red `coolify`.
+**Coolify:** `docker-compose.yml` monta `/dev/kfd` + `/dev/dri` (AMD). En este host preferí el override host:
 
-**Si ves `fetch failed` y `glm=0 chars`:**
+```bash
+docker compose -f docker-compose.yml -f docker-compose.override.gpu-host.yml up -d backend
+```
 
-1. En variables de entorno del backend en Coolify, **no** uses `OLLAMA_URL=http://localhost:11434` (desde Docker eso apunta al propio contenedor Nest). Usa `http://ollama:11434` o el hostname interno del servicio Ollama.
-2. Tras redeploy, en logs de arranque debe aparecer `Ollama OK en http://ollama:11434` o un aviso explícito de conexión.
-3. Ollama y backend deben estar en el **mismo** despliegue Compose o en la misma red Docker con DNS interno.
+**Si ves `fetch failed` y `glm=0 chars`:** no uses `localhost` desde el contenedor Nest; usá `http://ollama:11434` o `http://host.docker.internal:11434`.
 
-Si Ollama es **recurso aparte** en Coolify: `OLLAMA_URL=http://<hostname-interno-coolify>:11434` y quita `ollama` / `ollama-pull` del compose del backend.
-
-**Timeout `120000ms` y `glm=0 chars`:** en logs de Ollama aparece `library=cpu` y `total_vram=0 B` — glm-ocr en CPU puede tardar **más de 2 minutos** por factura. Sube `OLLAMA_OCR_TIMEOUT_MS=300000` (o `600000` si sigue cortando) y espera en logs `glm-ocr precargado`. Opcional: `OLLAMA_MODEL=glm-ocr:q8_0` o GPU en el servidor.
+**Timeout y CPU:** si en logs de Ollama ves `library=cpu` / `total_vram=0 B`, falta Vulkan en systemd → `setup-host-ollama-amd.sh`.
 
 ## Asistente de ayuda (chat IA)
 

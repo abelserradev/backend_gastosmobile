@@ -1,14 +1,19 @@
-# Override: Ollama corre en el host del servidor (ya con GPU habilitada).
-# Úsalo cuando NO quieras el servicio ollama en Docker (evitas conflicto con el Ollama del host).
+# Override: Ollama en el host (systemd) con AMD RX 7600 vía Vulkan.
+# Preferible en este servidor: evita duplicar modelos y el contenedor ollama de Coolify.
 #
-# En el servidor:
-#   nvidia-smi                    # verificar GPU visible
-#   ollama serve                  # o está como servicio systemd
-#   ollama pull glm-ocr:q8_0      # modelo cuantizado para Quadro P600 (2GB VRAM)
+# Preparar host (una vez, con sudo):
+#   bash scripts/setup-host-ollama-amd.sh
+#   ollama pull glm-ocr
+#   ollama pull llama3.2
 #
-# En Coolify: variables de entorno del backend:
+# Verificar GPU:
+#   journalctl -u ollama -n 30 --no-pager | grep -i 'Vulkan\|vram\|RX 7600'
+#
+# Coolify / compose: variables del backend
 #   OLLAMA_URL=http://host.docker.internal:11434
-#   OLLAMA_MODEL=glm-ocr:q8_0
+#   OLLAMA_MODEL=glm-ocr
+#   CHAT_OLLAMA_MODEL=llama3.2
+#   OLLAMA_OCR_TIMEOUT_MS=180000
 #
 # Levantar backend sin el servicio ollama del compose:
 #   docker compose -f docker-compose.yml -f docker-compose.override.gpu-host.yml up -d backend
@@ -27,8 +32,10 @@ services:
   backend:
     environment:
       OLLAMA_URL: http://host.docker.internal:11434
-      OLLAMA_MODEL: ${OLLAMA_MODEL:-glm-ocr:q8_0}
+      OLLAMA_MODEL: ${OLLAMA_MODEL:-glm-ocr}
+      CHAT_OLLAMA_MODEL: ${CHAT_OLLAMA_MODEL:-llama3.2}
+      # Con RX 7600 (8 GB) el timeout de CPU (5 min) ya no hace falta
+      OLLAMA_OCR_TIMEOUT_MS: ${OLLAMA_OCR_TIMEOUT_MS:-180000}
     extra_hosts:
       - host.docker.internal:host-gateway
-    # El backend ya no espera al servicio ollama (está en el host)
     depends_on: {}

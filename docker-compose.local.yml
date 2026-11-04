@@ -33,10 +33,19 @@ services:
     restart: unless-stopped
     environment:
       OLLAMA_HOST: 0.0.0.0:11434
+      # AMD RX 7600 (RADV/Vulkan). Si no hay GPU, Ollama cae a CPU solo.
+      OLLAMA_VULKAN: "1"
     ports:
       - "${OLLAMA_PORT:-11434}:11434"
     volumes:
       - ollama_data_local:/root/.ollama
+    devices:
+      - /dev/kfd
+      - /dev/dri
+    group_add:
+      - video
+      - render
+    ipc: host
     healthcheck:
       test: ['CMD', 'ollama', 'list']
       interval: 15s
@@ -58,9 +67,12 @@ services:
       - /bin/sh
       - -c
       - |
-        echo "Descargando modelo ${OLLAMA_MODEL:-glm-ocr}…"
+        set -e
+        echo "Descargando ${OLLAMA_MODEL:-glm-ocr}…"
         ollama pull "${OLLAMA_MODEL:-glm-ocr}"
-        echo "Modelo listo."
+        echo "Descargando ${CHAT_OLLAMA_MODEL:-llama3.2}…"
+        ollama pull "${CHAT_OLLAMA_MODEL:-llama3.2}"
+        echo "Modelos listos."
     restart: 'no'
     networks:
       - gastos_local
@@ -94,7 +106,8 @@ services:
       OLLAMA_URL: http://ollama:11434
       OLLAMA_MODEL: ${OLLAMA_MODEL:-glm-ocr}
       OLLAMA_OCR_ENABLED: ${OLLAMA_OCR_ENABLED:-true}
-      OLLAMA_OCR_TIMEOUT_MS: ${OLLAMA_OCR_TIMEOUT_MS:-120000}
+      OLLAMA_OCR_TIMEOUT_MS: ${OLLAMA_OCR_TIMEOUT_MS:-180000}
+      CHAT_OLLAMA_MODEL: ${CHAT_OLLAMA_MODEL:-llama3.2}
       REDIS_URL: ${REDIS_URL:-redis://redis:6379}
     depends_on:
       postgres:

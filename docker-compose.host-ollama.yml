@@ -1,14 +1,28 @@
-# Override: Ollama en el host (ya tienes `ollama pull glm-ocr`).
-# Levantar solo DB + API: docker compose -f docker-compose.local.yml -f docker-compose.host-ollama.yml up -d postgres backend
+# Override: Ollama en el host (systemd + AMD RX 7600 / Vulkan).
+# Requiere: sudo bash scripts/setup-host-ollama-amd.sh
+# Levantar solo DB + API: docker compose -f docker-compose.local.yml -f docker-compose.host-ollama.yml up -d postgres backend redis
 
 name: gastos-local
 
 services:
+  ollama:
+    profiles:
+      - disabled
+
+  ollama-pull:
+    profiles:
+      - disabled
+
   backend:
     environment:
       OLLAMA_URL: http://host.docker.internal:11434
+      OLLAMA_MODEL: ${OLLAMA_MODEL:-glm-ocr}
+      CHAT_OLLAMA_MODEL: ${CHAT_OLLAMA_MODEL:-llama3.2}
+      OLLAMA_OCR_TIMEOUT_MS: ${OLLAMA_OCR_TIMEOUT_MS:-180000}
     extra_hosts:
       - host.docker.internal:host-gateway
     depends_on:
       postgres:
         condition: service_healthy
+      redis:
+        condition: service_started
