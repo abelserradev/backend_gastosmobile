@@ -17,9 +17,11 @@ services:
     devices:
       - /dev/kfd
       - /dev/dri
+    # GIDs numéricos: Coolify corre compose en el helper sin /etc/group del host
+    # (unable to find group render). video=44, render=992 en este servidor.
     group_add:
-      - video
-      - render
+      - '44'
+      - '992'
     # ipc: host mejora shared memory en VLM grandes (glm-ocr)
     ipc: host
     healthcheck:
